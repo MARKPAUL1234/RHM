@@ -9,11 +9,11 @@ import {
   Animated,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function VisualizationScreen() {
   const [selectedChart, setSelectedChart] = useState('ecg'); // 'ecg', 'slopes', 'thermal'
-  const { vitals, nutrition } = useContext(HealthContext);
+  const { vitals, nutrition, colors } = useContext(HealthContext);
   
   // Animation value to shift the ECG sweep line
   const ecgSweep = useRef(new Animated.Value(0)).current;
@@ -58,69 +58,71 @@ export default function VisualizationScreen() {
   const ecgWidth = Dimensions.get('window').width - 64; // Card padding
   const ecgHeight = 120;
 
+  const s = styles(colors);
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={s.container} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
       
       {/* Chart Switcher Buttons */}
-      <View style={styles.chartSelector}>
+      <View style={s.chartSelector}>
         <TouchableOpacity
-          style={[styles.selectorBtn, selectedChart === 'ecg' && styles.activeSelectorBtn]}
+          style={[s.selectorBtn, selectedChart === 'ecg' && s.activeSelectorBtn]}
           onPress={() => setSelectedChart('ecg')}
         >
-          <Text style={[styles.selectorBtnText, selectedChart === 'ecg' ? styles.activeText : styles.inactiveText]}>
+          <Text style={[s.selectorBtnText, selectedChart === 'ecg' ? s.activeText : s.inactiveText]}>
             AD8232 ECG
           </Text>
         </TouchableOpacity>
         
         <TouchableOpacity
-          style={[styles.selectorBtn, selectedChart === 'slopes' && styles.activeSelectorBtn]}
+          style={[s.selectorBtn, selectedChart === 'slopes' && s.activeSelectorBtn]}
           onPress={() => setSelectedChart('slopes')}
         >
-          <Text style={[styles.selectorBtnText, selectedChart === 'slopes' ? styles.activeText : styles.inactiveText]}>
+          <Text style={[s.selectorBtnText, selectedChart === 'slopes' ? s.activeText : s.inactiveText]}>
             HR Slopes
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.selectorBtn, selectedChart === 'thermal' && styles.activeSelectorBtn]}
+          style={[s.selectorBtn, selectedChart === 'thermal' && s.activeSelectorBtn]}
           onPress={() => setSelectedChart('thermal')}
         >
-          <Text style={[styles.selectorBtnText, selectedChart === 'thermal' ? styles.activeText : styles.inactiveText]}>
+          <Text style={[s.selectorBtnText, selectedChart === 'thermal' ? s.activeText : s.inactiveText]}>
             Thermal Map
           </Text>
         </TouchableOpacity>
       </View>
 
       {/* Main Chart Viewer Card */}
-      <View style={styles.chartCard}>
+      <View style={s.chartCard}>
         
         {/* ECG Waveform Screen */}
         {selectedChart === 'ecg' && (
           <View>
-            <View style={styles.chartHeader}>
+            <View style={s.chartHeader}>
               <View>
-                <Text style={styles.chartTitle}>Cardiac AD8232 Waveform</Text>
-                <Text style={styles.chartSubtitle}>Real-time Single Lead Electrocardiogram (ECG)</Text>
+                <Text style={s.chartTitle}>Cardiac AD8232 Waveform</Text>
+                <Text style={s.chartSubtitle}>Real-time Single Lead Electrocardiogram (ECG)</Text>
               </View>
-              <Text style={styles.liveIndicator}>● LIVE SWEEP</Text>
+              <Text style={s.liveIndicator}>● LIVE SWEEP</Text>
             </View>
 
             {/* Simulated Grid Screen */}
-            <View style={styles.ecgScreen}>
+            <View style={s.ecgScreen}>
               {/* Backgrid Lines */}
-              <View style={styles.gridOverlay}>
+              <View style={s.gridOverlay}>
                 {[...Array(6)].map((_, i) => (
-                  <View key={`h-${i}`} style={[styles.gridLineH, { top: (ecgHeight / 5) * i }]} />
+                  <View key={`h-${i}`} style={[s.gridLineH, { top: (ecgHeight / 5) * i }]} />
                 ))}
                 {[...Array(12)].map((_, i) => (
-                  <View key={`v-${i}`} style={[styles.gridLineV, { left: (ecgWidth / 11) * i }]} />
+                  <View key={`v-${i}`} style={[s.gridLineV, { left: (ecgWidth / 11) * i }]} />
                 ))}
               </View>
 
               {/* Render ECG Wave Line */}
-              <View style={styles.waveContainer}>
+              <View style={s.waveContainer}>
                 {[0, 1, 2].map((waveIndex) => (
-                  <View key={waveIndex} style={styles.waveSegment}>
+                  <View key={waveIndex} style={s.waveSegment}>
                     {mockEcgPoints.map((pt, i) => {
                       // Interpolate points into layout
                       const leftPos = (pt.x / 100) * (ecgWidth / 3.1) + (waveIndex * (ecgWidth / 3));
@@ -130,7 +132,7 @@ export default function VisualizationScreen() {
                         <View
                           key={i}
                           style={[
-                            styles.ecgDot,
+                            s.ecgDot,
                             {
                               left: leftPos,
                               top: topPos,
@@ -145,7 +147,7 @@ export default function VisualizationScreen() {
                 {/* Sweep Scanner Overlay */}
                 <Animated.View
                   style={[
-                    styles.sweepLine,
+                    s.sweepLine,
                     {
                       transform: [
                         {
@@ -161,9 +163,9 @@ export default function VisualizationScreen() {
               </View>
             </View>
 
-            <View style={styles.chartMeta}>
-              <Text style={styles.metaText}>Sensors: AD8232 Heart Rate Monitor Shield</Text>
-              <Text style={styles.metaText}>Freq: 60Hz Filter</Text>
+            <View style={s.chartMeta}>
+              <Text style={s.metaText}>Sensors: AD8232 Heart Rate Monitor Shield</Text>
+              <Text style={s.metaText}>Freq: 60Hz Filter</Text>
             </View>
           </View>
         )}
@@ -171,16 +173,16 @@ export default function VisualizationScreen() {
         {/* HR Slopes (7 Day Bar Chart) */}
         {selectedChart === 'slopes' && (
           <View>
-            <View style={styles.chartHeader}>
+            <View style={s.chartHeader}>
               <View>
-                <Text style={styles.chartTitle}>Heart Rate Slopes</Text>
-                <Text style={styles.chartSubtitle}>Daily resting heart rate mean (Past 7 Days)</Text>
+                <Text style={s.chartTitle}>Heart Rate Slopes</Text>
+                <Text style={s.chartSubtitle}>Daily resting heart rate mean (Past 7 Days)</Text>
               </View>
-              <Text style={styles.periodText}>Weekly</Text>
+              <Text style={s.periodText}>Weekly</Text>
             </View>
 
             {/* Custom Bar Graph */}
-            <View style={styles.barChartContainer}>
+            <View style={s.barChartContainer}>
               {[
                 { day: 'Mon', bpm: 72, state: 'normal' },
                 { day: 'Tue', bpm: 74, state: 'normal' },
@@ -194,16 +196,16 @@ export default function VisualizationScreen() {
                 // Scale height based on max BPM (assume 120 bpm max scale)
                 const barHeight = (bar.bpm / 120) * maxBarHeight;
                 
-                let barColor = COLORS.secondary;
-                if (bar.state === 'elevated') barColor = COLORS.offline;
-                if (bar.state === 'critical') barColor = COLORS.critical;
+                let barColor = colors.secondary;
+                if (bar.state === 'elevated') barColor = colors.offline;
+                if (bar.state === 'critical') barColor = colors.critical;
 
                 return (
-                  <View key={i} style={styles.barCol}>
-                    <View style={styles.barTrack}>
+                  <View key={i} style={s.barCol}>
+                    <View style={s.barTrack}>
                       <View
                         style={[
-                          styles.barFill,
+                          s.barFill,
                           {
                             height: barHeight,
                             backgroundColor: barColor,
@@ -211,16 +213,16 @@ export default function VisualizationScreen() {
                         ]}
                       />
                     </View>
-                    <Text style={styles.barValText}>{bar.bpm}</Text>
-                    <Text style={styles.barDayText}>{bar.day}</Text>
+                    <Text style={s.barValText}>{bar.bpm}</Text>
+                    <Text style={s.barDayText}>{bar.day}</Text>
                   </View>
                 );
               })}
             </View>
 
-            <View style={styles.chartMeta}>
-              <Text style={styles.metaText}>Baseline Mean: 72.8 BPM</Text>
-              <Text style={styles.metaText}>Variability (HRV): 45ms</Text>
+            <View style={s.chartMeta}>
+              <Text style={s.metaText}>Baseline Mean: 72.8 BPM</Text>
+              <Text style={s.metaText}>Variability (HRV): 45ms</Text>
             </View>
           </View>
         )}
@@ -228,38 +230,38 @@ export default function VisualizationScreen() {
         {/* Thermal Mapping Screen */}
         {selectedChart === 'thermal' && (
           <View>
-            <View style={styles.chartHeader}>
+            <View style={s.chartHeader}>
               <View>
-                <Text style={styles.chartTitle}>Thermal Mapping Over Time</Text>
-                <Text style={styles.chartSubtitle}>MLX90614 ambient vs body skin temp (12hr increments)</Text>
+                <Text style={s.chartTitle}>Thermal Mapping Over Time</Text>
+                <Text style={s.chartSubtitle}>MLX90614 ambient vs body skin temp (12hr increments)</Text>
               </View>
-              <Text style={styles.periodText}>12h Grid</Text>
+              <Text style={s.periodText}>12h Grid</Text>
             </View>
 
             {/* Grid Matrix mapping */}
-            <View style={styles.thermalMatrix}>
+            <View style={s.thermalMatrix}>
               {[
-                { time: '08:00', temp: 36.4, color: COLORS.online },
-                { time: '10:00', temp: 36.6, color: COLORS.online },
-                { time: '12:00', temp: 36.7, color: COLORS.online },
-                { time: '14:00', temp: 37.1, color: COLORS.online },
-                { time: '16:00', temp: 36.8, color: COLORS.online },
-                { time: '18:00', temp: 36.6, color: COLORS.online },
-                { time: '20:00', temp: 36.4, color: COLORS.online },
-                { time: '22:00', temp: 36.5, color: COLORS.online },
-                { time: 'Live', temp: vitals.temperature, color: vitals.temperature > 38.0 ? COLORS.critical : COLORS.online },
+                { time: '08:00', temp: 36.4, color: colors.online },
+                { time: '10:00', temp: 36.6, color: colors.online },
+                { time: '12:00', temp: 36.7, color: colors.online },
+                { time: '14:00', temp: 37.1, color: colors.online },
+                { time: '16:00', temp: 36.8, color: colors.online },
+                { time: '18:00', temp: 36.6, color: colors.online },
+                { time: '20:00', temp: 36.4, color: colors.online },
+                { time: '22:00', temp: 36.5, color: colors.online },
+                { time: 'Live', temp: vitals.temperature, color: vitals.temperature > 38.0 ? colors.critical : colors.online },
               ].map((cell, i) => (
-                <View key={i} style={styles.thermalCell}>
-                  <View style={[styles.thermalColorDot, { backgroundColor: cell.color }]} />
-                  <Text style={styles.thermalTime}>{cell.time}</Text>
-                  <Text style={styles.thermalVal}>{cell.temp}°C</Text>
+                <View key={i} style={s.thermalCell}>
+                  <View style={[s.thermalColorDot, { backgroundColor: cell.color }]} />
+                  <Text style={s.thermalTime}>{cell.time}</Text>
+                  <Text style={s.thermalVal}>{cell.temp}°C</Text>
                 </View>
               ))}
             </View>
 
-            <View style={styles.chartMeta}>
-              <Text style={styles.metaText}>Module: Melexis MLX90614 Contactless IR</Text>
-              <Text style={styles.metaText}>Status: Calibrated Homeostasis</Text>
+            <View style={s.chartMeta}>
+              <Text style={s.metaText}>Module: Melexis MLX90614 Contactless IR</Text>
+              <Text style={s.metaText}>Status: Calibrated Homeostasis</Text>
             </View>
           </View>
         )}
@@ -267,15 +269,15 @@ export default function VisualizationScreen() {
       </View>
 
       {/* Quick Insight Summary Card */}
-      <View style={styles.insightCard}>
-        <Text style={styles.insightHeader}>💡 Clinical Quick Insight Summary</Text>
-        <Text style={styles.insightText}>{generateInsight()}</Text>
+      <View style={s.insightCard}>
+        <Text style={s.insightHeader}>💡 Clinical Quick Insight Summary</Text>
+        <Text style={s.insightText}>{generateInsight()}</Text>
       </View>
 
       {/* Educational Note */}
-      <View style={styles.eduCard}>
-        <Text style={styles.eduTitle}>Dissertation Scope: AD8232 vs MAX30100</Text>
-        <Text style={styles.eduText}>
+      <View style={s.eduCard}>
+        <Text style={s.eduTitle}>Dissertation Scope: AD8232 vs MAX30100</Text>
+        <Text style={s.eduText}>
           The AD8232 analog front-end maps electrical depolarizations of the myocardium, whereas the MAX30100 evaluates peripheral capillary oxygen perfusion photoplethysmographically (PPG). Both feeds synchronize down to the Appwrite Database JSON documents.
         </Text>
       </View>
@@ -284,10 +286,10 @@ export default function VisualizationScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -295,11 +297,11 @@ const styles = StyleSheet.create({
   },
   chartSelector: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: 6,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
     gap: 4,
   },
@@ -310,7 +312,7 @@ const styles = StyleSheet.create({
     borderRadius: SPACING.borderRadius - 4,
   },
   activeSelectorBtn: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.1)',
   },
@@ -319,17 +321,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   activeText: {
-    color: COLORS.primaryLight,
+    color: colors.primaryLight,
   },
   inactiveText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   chartCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   chartHeader: {
@@ -339,17 +341,17 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   chartTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: TYPOGRAPHY.sizes.body + 1,
     fontWeight: 'bold',
   },
   chartSubtitle: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 10,
     marginTop: 2,
   },
   liveIndicator: {
-    color: COLORS.critical,
+    color: colors.critical,
     fontSize: 9,
     fontWeight: 'bold',
     backgroundColor: 'rgba(239, 68, 68, 0.08)',
@@ -357,10 +359,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: COLORS.critical,
+    borderColor: colors.critical,
   },
   periodText: {
-    color: COLORS.secondary,
+    color: colors.secondary,
     fontSize: 10,
     fontWeight: 'bold',
     backgroundColor: 'rgba(59, 130, 246, 0.08)',
@@ -368,15 +370,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     borderRadius: 6,
     borderWidth: 0.5,
-    borderColor: COLORS.secondary,
+    borderColor: colors.secondary,
   },
-  // ECG Grid styling
   ecgScreen: {
     height: 130,
     backgroundColor: '#05070A',
     borderRadius: SPACING.borderRadiusSm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     overflow: 'hidden',
     position: 'relative',
     marginVertical: SPACING.sm,
@@ -412,7 +413,7 @@ const styles = StyleSheet.create({
     width: 2.5,
     height: 2.5,
     borderRadius: 1.5,
-    backgroundColor: COLORS.primaryLight,
+    backgroundColor: colors.primaryLight,
   },
   sweepLine: {
     position: 'absolute',
@@ -421,7 +422,7 @@ const styles = StyleSheet.create({
     width: 12,
     backgroundColor: 'rgba(45, 212, 191, 0.18)',
     borderRightWidth: 1,
-    borderRightColor: COLORS.primaryLight,
+    borderRightColor: colors.primaryLight,
   },
   chartMeta: {
     flexDirection: 'row',
@@ -429,13 +430,12 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
   },
   metaText: {
     fontSize: 9,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
-  // HR Slopes bar styles
   barChartContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
   barTrack: {
     height: 130,
     width: 14,
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: 7,
     justifyContent: 'flex-end',
     overflow: 'hidden',
@@ -460,17 +460,16 @@ const styles = StyleSheet.create({
     borderRadius: 7,
   },
   barValText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 9,
     fontWeight: 'bold',
     marginTop: 6,
   },
   barDayText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 10,
     marginTop: 2,
   },
-  // Thermal Map layout
   thermalMatrix: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -480,12 +479,12 @@ const styles = StyleSheet.create({
   },
   thermalCell: {
     width: '30%',
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: SPACING.borderRadiusSm,
     padding: SPACING.md,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   thermalColorDot: {
     width: 8,
@@ -494,51 +493,50 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   thermalTime: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 9,
     textTransform: 'uppercase',
   },
   thermalVal: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 13,
     marginTop: 2,
   },
-  // Insight styles
   insightCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   insightHeader: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 13,
     marginBottom: 6,
   },
   insightText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
   },
   eduCard: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.md + 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   eduTitle: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontWeight: 'bold',
     fontSize: 11,
     marginBottom: 4,
   },
   eduText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 10,
     lineHeight: 15,
   },

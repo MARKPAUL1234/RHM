@@ -1,7 +1,7 @@
 import React, { useState, useContext } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, useWindowDimensions } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 // Import Screens
 import HomeScreen from '../screens/HomeScreen';
@@ -11,9 +11,11 @@ import NutritionHubScreen from '../screens/NutritionHubScreen';
 import FitnessCenterScreen from '../screens/FitnessCenterScreen';
 import EmergencyPanelScreen from '../screens/EmergencyPanelScreen';
 import AccountAdminScreen from '../screens/AccountAdminScreen';
+import VisualizationScreen from '../screens/VisualizationScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 export default function AppNavigator() {
-  const { user, connectionStatus, alerts, dndEnabled } = useContext(HealthContext);
+  const { user, connectionStatus, alerts, dndEnabled, isDarkMode, colors, toggleTheme } = useContext(HealthContext);
   const [activeTab, setActiveTab] = useState('Dashboard');
   const { width } = useWindowDimensions();
   
@@ -28,10 +30,12 @@ export default function AppNavigator() {
   // Tab definitions matching the responsive sitemap layout
   const tabs = [
     { name: 'Dashboard', label: 'Dashboard', icon: '📊', component: DashboardScreen },
-    { name: 'Monitoring', label: 'Patient Monitoring', icon: '🩺', component: PatientMonitoringScreen },
-    { name: 'Nutrition', label: 'Nutrition Hub', icon: '🥗', component: NutritionHubScreen },
-    { name: 'Fitness', label: 'Fitness Center', icon: '🏃', component: FitnessCenterScreen },
-    { name: 'Emergency', label: 'Emergency Panel', icon: '🚨', component: EmergencyPanelScreen },
+    { name: 'Monitoring', label: 'Monitoring', icon: '🩺', component: PatientMonitoringScreen },
+    { name: 'Telemetry', label: 'Telemetry', icon: '📈', component: VisualizationScreen },
+    { name: 'Alerts', label: 'Alerts', icon: '🔔', component: NotificationsScreen },
+    { name: 'Nutrition', label: 'Nutrition', icon: '🥗', component: NutritionHubScreen },
+    { name: 'Fitness', label: 'Fitness', icon: '🏃', component: FitnessCenterScreen },
+    { name: 'Emergency', label: 'Emergency', icon: '🚨', component: EmergencyPanelScreen },
     { name: 'Portal', label: 'Portal', icon: '👤', component: AccountAdminScreen },
   ];
 
@@ -47,21 +51,23 @@ export default function AppNavigator() {
     return alerts.length;
   };
 
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       {/* Responsive Clinical Header / Top Navbar */}
-      <View style={styles.header}>
-        <View style={styles.brandContainer}>
-          <Text style={styles.logoIcon}>🩺</Text>
+      <View style={s.header}>
+        <View style={s.brandContainer}>
+          <Text style={s.logoIcon}>🩺</Text>
           <View>
-            <Text style={styles.brandTitle}>RHMT</Text>
-            <Text style={styles.brandSubtitle}>Remote Health Monitoring Tool</Text>
+            <Text style={s.brandTitle}>RHMT</Text>
+            <Text style={s.brandSubtitle}>Remote Health Monitoring Tool</Text>
           </View>
         </View>
 
         {/* Horizontal Navigation Menu (Only shown on Web / Large Screens) */}
         {isWeb && (
-          <View style={styles.webNavContainer}>
+          <View style={s.webNavContainer}>
             {tabs.map(tab => {
               const isActive = activeTab === tab.name;
               const isAlertsTab = tab.name === 'Dashboard'; // Alerts count displayed on Dashboard
@@ -70,18 +76,18 @@ export default function AppNavigator() {
               return (
                 <TouchableOpacity
                   key={tab.name}
-                  style={[styles.webNavButton, isActive && styles.activeWebNavButton]}
+                  style={[s.webNavButton, isActive && s.activeWebNavButton]}
                   activeOpacity={0.7}
                   onPress={() => setActiveTab(tab.name)}
                 >
-                  <Text style={styles.webNavIcon}>{tab.icon}</Text>
-                  <Text style={[styles.webNavLabel, isActive ? styles.activeWebNavLabel : styles.inactiveWebNavLabel]}>
+                  <Text style={s.webNavIcon}>{tab.icon}</Text>
+                  <Text style={[s.webNavLabel, isActive ? s.activeWebNavLabel : s.inactiveWebNavLabel]}>
                     {tab.label}
                   </Text>
                   
                   {isAlertsTab && alertCount > 0 && (
-                    <View style={styles.webAlertBadge}>
-                      <Text style={styles.webAlertBadgeText}>{alertCount}</Text>
+                    <View style={s.webAlertBadge}>
+                      <Text style={s.webAlertBadgeText}>{alertCount}</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -90,96 +96,114 @@ export default function AppNavigator() {
           </View>
         )}
 
-        {/* Global Connection Badge */}
-        <View
-          style={[
-            styles.connectionBadge,
-            {
-              backgroundColor:
-                connectionStatus === 'online'
-                  ? 'rgba(225, 173, 1, 0.08)'
-                  : 'rgba(102, 102, 102, 0.08)',
-              borderColor:
-                connectionStatus === 'online' ? COLORS.online : COLORS.offline,
-            },
-          ]}
-        >
+        {/* Top Header Actions (Theme Selector & Connection Badge) */}
+        <View style={s.headerRight}>
+          {/* Theme Toggle Button */}
+          <TouchableOpacity
+            style={s.themeToggle}
+            onPress={toggleTheme}
+            activeOpacity={0.7}
+          >
+            <Text style={s.themeToggleText}>{isDarkMode ? '☀️' : '🌙'}</Text>
+          </TouchableOpacity>
+
+          {/* Global Connection Badge */}
           <View
             style={[
-              styles.connectionDot,
+              s.connectionBadge,
               {
                 backgroundColor:
-                  connectionStatus === 'online' ? COLORS.online : COLORS.offline,
+                  connectionStatus === 'online'
+                    ? 'rgba(225, 173, 1, 0.05)'
+                    : 'rgba(102, 102, 102, 0.05)',
+                borderColor:
+                  connectionStatus === 'online' ? colors.online : colors.offline,
               },
             ]}
-          />
-          <Text
-            style={[
-              styles.connectionText,
-              { color: connectionStatus === 'online' ? COLORS.online : COLORS.offline },
-            ]}
           >
-            {connectionStatus === 'online' ? 'Online' : 'Offline'}
-          </Text>
+            <View
+              style={[
+                s.connectionDot,
+                {
+                  backgroundColor:
+                    connectionStatus === 'online' ? colors.online : colors.offline,
+                },
+              ]}
+            />
+            <Text
+              style={[
+                s.connectionText,
+                { color: connectionStatus === 'online' ? colors.online : colors.offline },
+              ]}
+            >
+              {connectionStatus === 'online' ? 'Online' : 'Offline'}
+            </Text>
+          </View>
         </View>
       </View>
 
       {/* Screen Content Container */}
-      <View style={styles.content}>{renderActiveScreen()}</View>
+      <View style={s.content}>{renderActiveScreen()}</View>
 
-      {/* Bottom Tab Bar (Only shown on Mobile Phone / Small Screens) */}
+      {/* Horizontally Scrollable Mobile Bottom Navigation Bar (Shown on Mobile dimension views) */}
       {!isWeb && (
-        <View style={styles.tabBar}>
-          {tabs.map(tab => {
-            const isActive = activeTab === tab.name;
-            const isAlertsTab = tab.name === 'Dashboard';
-            const alertCount = getUnreadAlertCount();
+        <View style={s.tabBarContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.tabBarScrollContent}
+          >
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.name;
+              const isAlertsTab = tab.name === 'Dashboard';
+              const alertCount = getUnreadAlertCount();
 
-            return (
-              <TouchableOpacity
-                key={tab.name}
-                style={styles.tabButton}
-                activeOpacity={0.7}
-                onPress={() => setActiveTab(tab.name)}
-              >
-                <View
-                  style={[
-                    styles.tabIconWrapper,
-                    isActive && styles.activeTabIconWrapper,
-                  ]}
+              return (
+                <TouchableOpacity
+                  key={tab.name}
+                  style={[s.tabButton, isActive && s.activeTabButton]}
+                  activeOpacity={0.7}
+                  onPress={() => setActiveTab(tab.name)}
                 >
-                  <Text style={[styles.tabIcon, isActive && styles.activeTabIcon]}>
-                    {tab.icon}
+                  <View
+                    style={[
+                      s.tabIconWrapper,
+                      isActive && s.activeTabIconWrapper,
+                    ]}
+                  >
+                    <Text style={[s.tabIcon, isActive && s.activeTabIcon]}>
+                      {tab.icon}
+                    </Text>
+                    
+                    {isAlertsTab && alertCount > 0 && (
+                      <View style={s.alertBadge}>
+                        <Text style={s.alertBadgeText}>{alertCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text
+                    style={[
+                      s.tabLabel,
+                      isActive ? s.activeTabLabel : s.inactiveTabLabel,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {tab.label.split(' ')[0]}
                   </Text>
-                  
-                  {isAlertsTab && alertCount > 0 && (
-                    <View style={styles.alertBadge}>
-                      <Text style={styles.alertBadgeText}>{alertCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text
-                  style={[
-                    styles.tabLabel,
-                    isActive ? styles.activeTabLabel : styles.inactiveTabLabel,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {tab.label.split(' ')[0]}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       )}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   header: {
     flexDirection: 'row',
@@ -188,8 +212,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm + 4,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.surface,
     ...SHADOWS.premium,
   },
   brandContainer: {
@@ -201,13 +225,13 @@ const styles = StyleSheet.create({
     marginRight: SPACING.sm,
   },
   brandTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: TYPOGRAPHY.sizes.h3 - 1,
     fontWeight: TYPOGRAPHY.weights.bold,
     letterSpacing: 0.5,
   },
   brandSubtitle: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -239,14 +263,14 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   activeWebNavLabel: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   inactiveWebNavLabel: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   webAlertBadge: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     minWidth: 14,
     height: 14,
@@ -260,6 +284,24 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  themeToggle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surfaceLight,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  themeToggleText: {
+    fontSize: 15,
   },
   connectionBadge: {
     flexDirection: 'row',
@@ -283,22 +325,27 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
   },
-  tabBar: {
-    flexDirection: 'row',
-    height: 68,
-    backgroundColor: COLORS.surface,
+  tabBarContainer: {
+    height: 70,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingBottom: 6,
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    position: 'relative',
+    borderTopColor: colors.border,
     ...SHADOWS.premium,
   },
+  tabBarScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.xs,
+    paddingBottom: 6,
+  },
   tabButton: {
-    flex: 1,
+    width: 72,
     alignItems: 'center',
     justifyContent: 'center',
+    height: '100%',
+  },
+  activeTabButton: {
+    backgroundColor: 'rgba(225, 173, 1, 0.03)',
   },
   tabIconWrapper: {
     width: 40,
@@ -323,17 +370,17 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   activeTabLabel: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   inactiveTabLabel: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   alertBadge: {
     position: 'absolute',
     top: -4,
     right: -2,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -341,7 +388,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 3,
     borderWidth: 1,
-    borderColor: COLORS.surface,
+    borderColor: colors.surface,
   },
   alertBadgeText: {
     color: '#000000',
@@ -350,3 +397,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

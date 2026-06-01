@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 import { HealthSyncManager } from '../services/appwrite';
 
 // Pure React Native Skeleton Shimmer Loader Component
@@ -79,6 +79,7 @@ export default function DashboardScreen() {
     queueCount,
     handleSyncQueue,
     refreshSyncStats,
+    colors,
   } = useContext(HealthContext);
 
   const [syncStatusMsg, setSyncStatusMsg] = useState('');
@@ -138,14 +139,16 @@ export default function DashboardScreen() {
     return <SkeletonLoader />;
   }
 
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={s.container}>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* 1. Offline Mode Pending Sync Banner */}
         <View
           style={[
-            styles.networkBanner,
+            s.networkBanner,
             {
               backgroundColor:
                 connectionStatus === 'online'
@@ -158,14 +161,14 @@ export default function DashboardScreen() {
             },
           ]}
         >
-          <Text style={styles.networkBannerText}>
+          <Text style={s.networkBannerText}>
             {connectionStatus === 'online'
               ? '🟢 Sync Pipeline Enabled (Online Appwrite Sync)'
               : 'Saved Locally (Pending Sync)'}
           </Text>
           {queueCount > 0 && (
             <TouchableOpacity
-              style={styles.syncButton}
+              style={s.syncButton}
               onPress={async () => {
                 const res = await handleSyncQueue();
                 if (res.success) {
@@ -175,7 +178,7 @@ export default function DashboardScreen() {
               }}
               disabled={connectionStatus === 'offline'}
             >
-              <Text style={[styles.syncButtonText, connectionStatus === 'offline' && styles.disabledText]}>
+              <Text style={[s.syncButtonText, connectionStatus === 'offline' && s.disabledText]}>
                 Sync Now ({queueCount})
               </Text>
             </TouchableOpacity>
@@ -183,32 +186,32 @@ export default function DashboardScreen() {
         </View>
 
         {syncStatusMsg ? (
-          <View style={styles.statusMsgBox}>
-            <Text style={styles.statusMsgText}>{syncStatusMsg}</Text>
+          <View style={s.statusMsgBox}>
+            <Text style={s.statusMsgText}>{syncStatusMsg}</Text>
           </View>
         ) : null}
 
         {/* 2. Active Alarms / Critical Warning Banners (Gold/Charcoal palette) */}
         {alerts.filter(a => a.status === 'unread').length > 0 && (
-          <View style={[styles.alertsContainer, SHADOWS.premium]}>
-            <View style={styles.alertsHeader}>
-              <Animated.Text style={[styles.alertHeaderIcon, { transform: [{ scale: pulseAnim }] }]}>
+          <View style={[s.alertsContainer, SHADOWS.premium]}>
+            <View style={s.alertsHeader}>
+              <Animated.Text style={[s.alertHeaderIcon, { transform: [{ scale: pulseAnim }] }]}>
                 ⚠️
               </Animated.Text>
-              <Text style={styles.alertsTitle}>ACTIVE CLINICAL ALERTS ({alerts.filter(a => a.status === 'unread').length})</Text>
+              <Text style={s.alertsTitle}>ACTIVE CLINICAL ALERTS ({alerts.filter(a => a.status === 'unread').length})</Text>
             </View>
             {alerts.filter(a => a.status === 'unread').slice(0, 2).map((alert) => (
-              <View key={alert.alert_id} style={styles.alertItem}>
-                <View style={styles.alertRow}>
+              <View key={alert.alert_id} style={s.alertItem}>
+                <View style={s.alertRow}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.alertItemTitle}>Critical Notification</Text>
-                    <Text style={styles.alertItemMsg}>{alert.alert_message}</Text>
+                    <Text style={s.alertItemTitle}>Critical Notification</Text>
+                    <Text style={s.alertItemMsg}>{alert.alert_message}</Text>
                   </View>
                   <TouchableOpacity 
-                    style={styles.markReadBtn} 
+                    style={s.markReadBtn} 
                     onPress={() => handleMarkAlertRead(alert.alert_id)}
                   >
-                    <Text style={styles.markReadBtnText}>Acknowledge</Text>
+                    <Text style={s.markReadBtnText}>Acknowledge</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -217,59 +220,59 @@ export default function DashboardScreen() {
         )}
 
         {/* 3. Vitals Cards Summary */}
-        <View style={styles.vitalsGrid}>
-          <View style={styles.vitalCard}>
-            <Text style={styles.cardLabel}>BODY TEMPERATURE</Text>
-            <Text style={[styles.vitalValue, vitals.temperature > 38.0 && styles.critText]}>{vitals.temperature}°C</Text>
-            <Text style={styles.cardSub}>Body Homeostasis</Text>
+        <View style={s.vitalsGrid}>
+          <View style={s.vitalCard}>
+            <Text style={s.cardLabel}>BODY TEMPERATURE</Text>
+            <Text style={[s.vitalValue, vitals.temperature > 38.0 && s.critText]}>{vitals.temperature}°C</Text>
+            <Text style={s.cardSub}>Body Homeostasis</Text>
           </View>
           
-          <View style={styles.vitalCard}>
-            <Text style={styles.cardLabel}>HEART RATE</Text>
-            <Text style={[styles.vitalValue, vitals.heartRate > 100 && styles.critText]}>{vitals.heartRate} BPM</Text>
-            <Text style={styles.cardSub}>Capillary Pulse</Text>
+          <View style={s.vitalCard}>
+            <Text style={s.cardLabel}>HEART RATE</Text>
+            <Text style={[s.vitalValue, vitals.heartRate > 100 && s.critText]}>{vitals.heartRate} BPM</Text>
+            <Text style={s.cardSub}>Capillary Pulse</Text>
           </View>
 
-          <View style={styles.vitalCard}>
-            <Text style={styles.cardLabel}>OXYGEN LEVEL</Text>
-            <Text style={[styles.vitalValue, vitals.spo2 < 92 && styles.critText]}>{vitals.spo2}%</Text>
-            <Text style={styles.cardSub}>SpO2 Perfused</Text>
+          <View style={s.vitalCard}>
+            <Text style={s.cardLabel}>OXYGEN LEVEL</Text>
+            <Text style={[s.vitalValue, vitals.spo2 < 92 && s.critText]}>{vitals.spo2}%</Text>
+            <Text style={s.cardSub}>SpO2 Perfused</Text>
           </View>
         </View>
 
         {/* 4. Historical Vitals SVG Chart Display */}
-        <View style={[styles.card, SHADOWS.premium]}>
-          <Text style={styles.cardTitle}>📈 Historical Biometric Summary (Last 4 Logs)</Text>
-          <Text style={styles.cardDesc}>
+        <View style={[s.card, SHADOWS.premium]}>
+          <Text style={s.cardTitle}>📈 Historical Biometric Summary (Last 4 Logs)</Text>
+          <Text style={s.cardDesc}>
             Dynamic vector projection mapping temperature fluctuations and cardiac telemetry coordinates.
           </Text>
 
           {/* Simple Vector Plotted Grid Chart */}
-          <View style={styles.chartWrapper}>
-            <View style={styles.chartYLabels}>
-              <Text style={styles.yLabel}>39°C</Text>
-              <Text style={styles.yLabel}>37°C</Text>
-              <Text style={styles.yLabel}>35°C</Text>
+          <View style={s.chartWrapper}>
+            <View style={s.chartYLabels}>
+              <Text style={s.yLabel}>39°C</Text>
+              <Text style={s.yLabel}>37°C</Text>
+              <Text style={s.yLabel}>35°C</Text>
             </View>
             
-            <View style={styles.chartMainArea}>
+            <View style={s.chartMainArea}>
               {/* Plotting points using CSS layout vectors */}
-              <View style={styles.plottedGrid}>
+              <View style={s.plottedGrid}>
                 {/* Horizontal baseline guides */}
-                <View style={styles.baselineGuide} />
-                <View style={styles.baselineGuide} />
-                <View style={styles.baselineGuide} />
+                <View style={s.baselineGuide} />
+                <View style={s.baselineGuide} />
+                <View style={s.baselineGuide} />
                 
                 {/* Plot line coordinates */}
-                <View style={styles.dotsRow}>
+                <View style={s.dotsRow}>
                   {historicalVitals.map((pt, index) => {
                     // Map temperature coordinates (range 34 to 40)
                     const tempPercent = Math.min(Math.max((pt.temp - 34) / 6, 0), 1) * 100;
                     return (
-                      <View key={index} style={styles.dotContainer}>
-                        <View style={[styles.vitalPlotDot, { bottom: `${tempPercent}%` }]} />
-                        <Text style={styles.dotLabel}>{pt.temp}°C</Text>
-                        <Text style={styles.timeLabel}>{pt.time}</Text>
+                      <View key={index} style={s.dotContainer}>
+                        <View style={[s.vitalPlotDot, { bottom: `${tempPercent}%` }]} />
+                        <Text style={s.dotLabel}>{pt.temp}°C</Text>
+                        <Text style={s.timeLabel}>{pt.time}</Text>
                       </View>
                     );
                   })}
@@ -280,32 +283,32 @@ export default function DashboardScreen() {
         </View>
 
         {/* 5. Real-Time Lifestyle Recommendation Feeds */}
-        <View style={[styles.card, SHADOWS.premium]}>
-          <Text style={styles.cardTitle}>💡 Appwrite Cloud Recommendations</Text>
-          <Text style={styles.cardDesc}>
+        <View style={[s.card, SHADOWS.premium]}>
+          <Text style={s.cardTitle}>💡 Appwrite Cloud Recommendations</Text>
+          <Text style={s.cardDesc}>
             Clinical diet guidelines and lifestyle instructions generated automatically by Serverless Triage.
           </Text>
 
           {recommendations.length === 0 ? (
-            <View style={styles.emptyNotice}>
-              <Text style={styles.emptyNoticeText}>No recommendation rules triggered. Vitals indicate stable physiological conditions.</Text>
+            <View style={s.emptyNotice}>
+              <Text style={s.emptyNoticeText}>No recommendation rules triggered. Vitals indicate stable physiological conditions.</Text>
             </View>
           ) : (
             recommendations.slice(0, 3).map((rec, index) => (
-              <View key={rec.rec_id || index} style={styles.recItem}>
-                <View style={styles.recHeader}>
-                  <Text style={styles.recTag}>RECOMMENDATION</Text>
-                  <Text style={styles.recTime}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
+              <View key={rec.rec_id || index} style={s.recItem}>
+                <View style={s.recHeader}>
+                  <Text style={s.recTag}>RECOMMENDATION</Text>
+                  <Text style={s.recTime}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
                 </View>
-                <Text style={styles.recGuideline}>{rec.lifestyle_guideline}</Text>
-                <View style={styles.recMetaGrid}>
-                  <View style={styles.recMetaItem}>
-                    <Text style={styles.recMetaLabel}>Diet Plan:</Text>
-                    <Text style={styles.recMetaVal}>{rec.meal_plan}</Text>
+                <Text style={s.recGuideline}>{rec.lifestyle_guideline}</Text>
+                <View style={s.recMetaGrid}>
+                  <View style={s.recMetaItem}>
+                    <Text style={s.recMetaLabel}>Diet Plan:</Text>
+                    <Text style={s.recMetaVal}>{rec.meal_plan}</Text>
                   </View>
-                  <View style={styles.recMetaItem}>
-                    <Text style={styles.recMetaLabel}>Fluid Intake Target:</Text>
-                    <Text style={styles.recMetaVal}>{rec.fluid_target}</Text>
+                  <View style={s.recMetaItem}>
+                    <Text style={s.recMetaLabel}>Fluid Intake Target:</Text>
+                    <Text style={s.recMetaVal}>{rec.fluid_target}</Text>
                   </View>
                 </View>
               </View>
@@ -317,10 +320,10 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
@@ -337,43 +340,43 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   networkBannerText: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   syncButton: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   syncButtonText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 10,
     fontWeight: 'bold',
   },
   disabledText: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   statusMsgBox: {
     backgroundColor: 'rgba(225, 173, 1, 0.05)',
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderRadius: 8,
     padding: SPACING.sm,
     marginBottom: SPACING.md,
     alignItems: 'center',
   },
   statusMsgText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 11,
   },
   alertsContainer: {
     backgroundColor: '#1E293B',
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderWidth: 2,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.md,
@@ -389,7 +392,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   alertsTitle: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
     fontSize: 13,
     letterSpacing: 0.5,
@@ -397,7 +400,7 @@ const styles = StyleSheet.create({
   alertItem: {
     marginBottom: 8,
     borderLeftWidth: 2,
-    borderLeftColor: COLORS.primary,
+    borderLeftColor: colors.primary,
     paddingLeft: 8,
   },
   alertRow: {
@@ -417,15 +420,15 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   markReadBtn: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
   },
   markReadBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -437,58 +440,57 @@ const styles = StyleSheet.create({
   },
   vitalCard: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadiusSm,
     padding: SPACING.sm + 4,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   cardLabel: {
     fontSize: 9,
     fontWeight: 'bold',
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     letterSpacing: 0.5,
     marginBottom: 4,
   },
   vitalValue: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   cardSub: {
     fontSize: 9,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   cardTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: TYPOGRAPHY.sizes.body + 1,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   cardDesc: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 10,
     lineHeight: 15,
     marginBottom: SPACING.md,
   },
-  // Responsive Plotted Y-Baseline Grid
   chartWrapper: {
     flexDirection: 'row',
     height: 180,
     marginTop: SPACING.md,
     borderLeftWidth: 1,
     borderBottomWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     paddingBottom: 20,
   },
   chartYLabels: {
@@ -499,7 +501,7 @@ const styles = StyleSheet.create({
     paddingRight: 6,
   },
   yLabel: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 9,
   },
   chartMainArea: {
@@ -537,7 +539,7 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     zIndex: 2,
   },
   dotLabel: {
@@ -551,26 +553,26 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -18,
     fontSize: 9,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   critText: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   emptyNotice: {
     padding: SPACING.md,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: 8,
     alignItems: 'center',
   },
   emptyNoticeText: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontStyle: 'italic',
   },
   recItem: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     marginBottom: SPACING.sm,
@@ -581,26 +583,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
     paddingBottom: 4,
   },
   recTag: {
     fontSize: 9,
     fontWeight: 'bold',
     backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: COLORS.primary,
+    color: colors.primary,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
   },
   recTime: {
     fontSize: 9,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   recGuideline: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 16,
     marginBottom: 6,
   },
@@ -613,10 +615,10 @@ const styles = StyleSheet.create({
   },
   recMetaLabel: {
     fontWeight: 'bold',
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginRight: 4,
   },
   recMetaVal: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
 });

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 import { HealthSyncManager } from '../services/appwrite';
 
 export default function AccountAdminScreen() {
@@ -26,6 +26,7 @@ export default function AccountAdminScreen() {
     setUsersMetadata,
     handleClearLogs,
     refreshSyncStats,
+    colors,
   } = useContext(HealthContext);
 
   // --- Profile Baseline States ---
@@ -147,83 +148,85 @@ export default function AccountAdminScreen() {
     }
   };
 
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       {/* Sub-Header Navigation Switch */}
-      <View style={styles.subHeader}>
+      <View style={s.subHeader}>
         <TouchableOpacity
-          style={[styles.subTab, activeSubView === 'account' && styles.activeSubTab]}
+          style={[s.subTab, activeSubView === 'account' && s.activeSubTab]}
           onPress={() => setActiveSubView('account')}
         >
-          <Text style={[styles.subTabText, activeSubView === 'account' ? styles.activeText : styles.inactiveText]}>
+          <Text style={[s.subTabText, activeSubView === 'account' ? s.activeText : s.inactiveText]}>
             Account & Baseline
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.subTab, activeSubView === 'admin' && styles.activeSubTab]}
+          style={[s.subTab, activeSubView === 'admin' && s.activeSubTab]}
           onPress={() => setActiveSubView('admin')}
         >
-          <Text style={[styles.subTabText, activeSubView === 'admin' ? styles.activeText : styles.inactiveText]}>
+          <Text style={[s.subTabText, activeSubView === 'admin' ? s.activeText : s.inactiveText]}>
             Admin Cloud Console
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* ==================== 1. ACCOUNT BASELINE VIEW ==================== */}
         {activeSubView === 'account' && (
           <View>
             {/* Medical Profiling Baseline Card */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>👤 Patient Profile Baseline (users_metadata)</Text>
-              <Text style={styles.cardDesc}>Configure baseline parameters synced with Appwrite Cloud for contextual guideline generation.</Text>
+            <View style={[s.card, SHADOWS.premium]}>
+              <Text style={s.cardTitle}>👤 Patient Profile Baseline (users_metadata)</Text>
+              <Text style={s.cardDesc}>Configure baseline parameters synced with Appwrite Cloud for contextual guideline generation.</Text>
               
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Patient Identifier (Read-only)</Text>
-                <TextInput style={[styles.input, styles.disabledInput]} editable={false} value="RHM-PAT-2026-981" />
+              <View style={s.formGroup}>
+                <Text style={s.label}>Patient Identifier (Read-only)</Text>
+                <TextInput style={[s.input, s.disabledInput]} editable={false} value="RHM-PAT-2026-981" />
               </View>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput style={styles.input} value={profileName} onChangeText={setProfileName} />
+              <View style={s.formGroup}>
+                <Text style={s.label}>Full Name</Text>
+                <TextInput style={s.input} value={profileName} onChangeText={setProfileName} />
               </View>
 
-              <View style={styles.formRow}>
-                <View style={styles.formCol}>
-                  <Text style={styles.label}>Age (years)</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={ageInput} onChangeText={setAgeInput} />
+              <View style={s.formRow}>
+                <View style={s.formCol}>
+                  <Text style={s.label}>Age (years)</Text>
+                  <TextInput style={s.input} keyboardType="numeric" value={ageInput} onChangeText={setAgeInput} />
                 </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.label}>Blood Group</Text>
-                  <TextInput style={styles.input} value={bloodGroupInput} onChangeText={setBloodGroupInput} />
+                <View style={s.formCol}>
+                  <Text style={s.label}>Blood Group</Text>
+                  <TextInput style={s.input} value={bloodGroupInput} onChangeText={setBloodGroupInput} />
                 </View>
               </View>
 
-              <View style={styles.formRow}>
-                <View style={styles.formCol}>
-                  <Text style={styles.label}>Baseline Weight (kg)</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={weightInput} onChangeText={setWeightInput} />
+              <View style={s.formRow}>
+                <View style={s.formCol}>
+                  <Text style={s.label}>Baseline Weight (kg)</Text>
+                  <TextInput style={s.input} keyboardType="numeric" value={weightInput} onChangeText={setWeightInput} />
                 </View>
-                <View style={styles.formCol}>
-                  <Text style={styles.label}>Baseline Height (cm)</Text>
-                  <TextInput style={styles.input} keyboardType="numeric" value={heightInput} onChangeText={setHeightInput} />
+                <View style={s.formCol}>
+                  <Text style={s.label}>Baseline Height (cm)</Text>
+                  <TextInput style={s.input} keyboardType="numeric" value={heightInput} onChangeText={setHeightInput} />
                 </View>
               </View>
 
               {/* Diagnosed Conditions Checkboxes */}
-              <Text style={styles.formSectionTitle}>Diagnosed Illness Baseline</Text>
-              <View style={styles.conditionsRow}>
+              <Text style={s.formSectionTitle}>Diagnosed Illness Baseline</Text>
+              <View style={s.conditionsRow}>
                 {conditionsList.map(condition => {
                   const checked = selectedConditions.includes(condition);
                   return (
                     <TouchableOpacity
                       key={condition}
-                      style={[styles.conditionChip, checked && styles.conditionChipChecked]}
+                      style={[s.conditionChip, checked && s.conditionChipChecked]}
                       onPress={() => toggleCondition(condition)}
                     >
-                      <Text style={[styles.conditionChipText, checked && styles.conditionChipTextChecked]}>
+                      <Text style={[s.conditionChipText, checked && s.conditionChipTextChecked]}>
                         {condition}
                       </Text>
                     </TouchableOpacity>
@@ -231,76 +234,76 @@ export default function AccountAdminScreen() {
                 })}
               </View>
 
-              <TouchableOpacity style={styles.saveBtn} onPress={handleUpdateProfile} activeOpacity={0.8}>
-                <Text style={styles.saveBtnText}>Save & Sync Profile Baseline</Text>
+              <TouchableOpacity style={s.saveBtn} onPress={handleUpdateProfile} activeOpacity={0.8}>
+                <Text style={s.saveBtnText}>Save & Sync Profile Baseline</Text>
               </TouchableOpacity>
             </View>
 
             {/* Sync & Network Preferences Card */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>⚙️ Sync & Network Preferences</Text>
-              <Text style={styles.cardDesc}>Adjust synchronization parameters for offline-first resilience.</Text>
+            <View style={[s.card, SHADOWS.premium]}>
+              <Text style={s.cardTitle}>⚙️ Sync & Network Preferences</Text>
+              <Text style={s.cardDesc}>Adjust synchronization parameters for offline-first resilience.</Text>
               
-              <View style={styles.prefRow}>
-                <View style={styles.prefLeft}>
-                  <Text style={styles.prefTitle}>Real-time Stream Sync</Text>
-                  <Text style={styles.prefDesc}>Establishes Appwrite WebSocket listener channels for realtime state feeds.</Text>
+              <View style={s.prefRow}>
+                <View style={s.prefLeft}>
+                  <Text style={s.prefTitle}>Real-time Stream Sync</Text>
+                  <Text style={s.prefDesc}>Establishes Appwrite WebSocket listener channels for realtime state feeds.</Text>
                 </View>
                 <Switch
                   value={realtimeSync}
                   onValueChange={setRealtimeSync}
-                  trackColor={{ false: COLORS.surfaceLight, true: COLORS.primary }}
-                  thumbColor={realtimeSync ? COLORS.primary : COLORS.border}
+                  trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+                  thumbColor={realtimeSync ? colors.primary : colors.border}
                 />
               </View>
 
-              <View style={styles.prefRow}>
-                <View style={styles.prefLeft}>
-                  <Text style={styles.prefTitle}>Wi-Fi Only Syncing</Text>
-                  <Text style={styles.prefDesc}>Restricts heavy clinical uploads to Wi-Fi bands to protect data bounds.</Text>
+              <View style={s.prefRow}>
+                <View style={s.prefLeft}>
+                  <Text style={s.prefTitle}>Wi-Fi Only Syncing</Text>
+                  <Text style={s.prefDesc}>Restricts heavy clinical uploads to Wi-Fi bands to protect data bounds.</Text>
                 </View>
                 <Switch
                   value={wifiOnly}
                   onValueChange={setWifiOnly}
-                  trackColor={{ false: COLORS.surfaceLight, true: COLORS.primary }}
-                  thumbColor={wifiOnly ? COLORS.primary : COLORS.border}
+                  trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+                  thumbColor={wifiOnly ? colors.primary : colors.border}
                 />
               </View>
 
-              <View style={styles.prefRow}>
-                <View style={styles.prefLeft}>
-                  <Text style={styles.prefTitle}>Automated Cloud Backups</Text>
-                  <Text style={styles.prefDesc}>Generates hourly trend backups in Appwrite Storage collections.</Text>
+              <View style={s.prefRow}>
+                <View style={s.prefLeft}>
+                  <Text style={s.prefTitle}>Automated Cloud Backups</Text>
+                  <Text style={s.prefDesc}>Generates hourly trend backups in Appwrite Storage collections.</Text>
                 </View>
                 <Switch
                   value={cloudBackups}
                   onValueChange={setCloudBackups}
-                  trackColor={{ false: COLORS.surfaceLight, true: COLORS.primary }}
-                  thumbColor={cloudBackups ? COLORS.primary : COLORS.border}
+                  trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+                  thumbColor={cloudBackups ? colors.primary : colors.border}
                 />
               </View>
             </View>
 
             {/* Session Actions Card */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>🔐 Session Actions</Text>
-              <Text style={styles.cardDesc}>Disconnect account from active monitoring node.</Text>
-              <TouchableOpacity style={styles.signOutBtn} onPress={handleSignOut} activeOpacity={0.8}>
-                <Text style={styles.signOutBtnText}>Disconnect Account Session</Text>
+            <View style={[s.card, SHADOWS.premium]}>
+              <Text style={s.cardTitle}>🔐 Session Actions</Text>
+              <Text style={s.cardDesc}>Disconnect account from active monitoring node.</Text>
+              <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut} activeOpacity={0.8}>
+                <Text style={s.signOutBtnText}>Disconnect Account Session</Text>
               </TouchableOpacity>
             </View>
 
             {/* Privacy Zone Card */}
-            <View style={[styles.card, styles.dangerCard, SHADOWS.premium]}>
-              <Text style={[styles.cardTitle, { color: COLORS.primary }]}>⚠️ Privacy & Security Zone</Text>
-              <Text style={styles.cardDesc}>Purges enqueued logs, profile baselines, and clears local offline caches.</Text>
+            <View style={[s.card, s.dangerCard, SHADOWS.premium]}>
+              <Text style={[s.cardTitle, { color: colors.primary }]}>⚠️ Privacy & Security Zone</Text>
+              <Text style={s.cardDesc}>Purges enqueued logs, profile baselines, and clears local offline caches.</Text>
               
-              <Text style={styles.dangerWarning}>
+              <Text style={s.dangerWarning}>
                 Warning: Purging data will delete all unsynced measurements in the offline queue and erase local profiling metadata documents.
               </Text>
 
-              <TouchableOpacity style={styles.dangerBtn} onPress={handlePurgeData} activeOpacity={0.8}>
-                <Text style={styles.dangerBtnText}>Purge Account Baseline & Cache</Text>
+              <TouchableOpacity style={s.dangerBtn} onPress={handlePurgeData} activeOpacity={0.8}>
+                <Text style={s.dangerBtnText}>Purge Account Baseline & Cache</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -310,34 +313,34 @@ export default function AccountAdminScreen() {
         {activeSubView === 'admin' && (
           <View>
             {/* Simulated Appwrite Cloud NoSQL Databases Display */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>🌐 Appwrite Cloud Collections Registry</Text>
-              <Text style={styles.cardDesc}>
+            <View style={[s.card, SHADOWS.premium]}>
+              <Text style={s.cardTitle}>🌐 Appwrite Cloud Collections Registry</Text>
+              <Text style={s.cardDesc}>
                 Real-time view of records kept permanently in the external Appwrite Cloud Database. Sync enqueued logs to see them appear here instantly.
               </Text>
 
               {/* Collection Registry: health_records */}
-              <Text style={styles.collectionHeading}>📁 health_records Collection</Text>
-              <View style={styles.dbBox}>
+              <Text style={s.collectionHeading}>📁 health_records Collection</Text>
+              <View style={s.dbBox}>
                 {cloudRecords.length === 0 ? (
-                  <Text style={styles.dbEmptyText}>No synced journal entries found in cloud database.</Text>
+                  <Text style={s.dbEmptyText}>No synced journal entries found in cloud database.</Text>
                 ) : (
-                  <ScrollView style={styles.dbScroll} nestedScrollEnabled contentContainerStyle={styles.dbContent}>
+                  <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
                     {cloudRecords.map((rec) => (
-                      <View key={rec.record_id} style={styles.dbRow}>
-                        <View style={styles.dbRowHeader}>
-                          <Text style={styles.dbDocId}>ID: {rec.record_id}</Text>
-                          <Text style={styles.dbBadge}>HEALTH_RECORD</Text>
+                      <View key={rec.record_id} style={s.dbRow}>
+                        <View style={s.dbRowHeader}>
+                          <Text style={s.dbDocId}>ID: {rec.record_id}</Text>
+                          <Text style={s.dbBadge}>HEALTH_RECORD</Text>
                         </View>
-                        <Text style={styles.dbDataText}>
+                        <Text style={s.dbDataText}>
                           🌡️ Temp: {rec.temperature}°C | ❤️ HR: {rec.heart_rate} BPM | 🫁 SpO2: {rec.spo2}%
                         </Text>
-                        <Text style={styles.dbDataText}>
+                        <Text style={s.dbDataText}>
                           Symptoms: {rec.symptoms_array.join(', ') || 'None'} | Meds Taken: {rec.meds_taken ? 'Yes' : 'No'} | Wellbeing: {rec.wellbeing_score}/5
                         </Text>
-                        <View style={styles.dbRowFooter}>
-                          <Text style={styles.dbMetaText}>User: {rec.user_id}</Text>
-                          <Text style={styles.dbMetaText}>{new Date(rec.timestamp).toLocaleTimeString()}</Text>
+                        <View style={s.dbRowFooter}>
+                          <Text style={s.dbMetaText}>User: {rec.user_id}</Text>
+                          <Text style={s.dbMetaText}>{new Date(rec.timestamp).toLocaleTimeString()}</Text>
                         </View>
                       </View>
                     ))}
@@ -346,23 +349,23 @@ export default function AccountAdminScreen() {
               </View>
 
               {/* Collection Registry: recommendations */}
-              <Text style={styles.collectionHeading}>📁 recommendations Collection</Text>
-              <View style={styles.dbBox}>
+              <Text style={s.collectionHeading}>📁 recommendations Collection</Text>
+              <View style={s.dbBox}>
                 {cloudRecommendations.length === 0 ? (
-                  <Text style={styles.dbEmptyText}>No generated cloud recommendations found in BaaS collections.</Text>
+                  <Text style={s.dbEmptyText}>No generated cloud recommendations found in BaaS collections.</Text>
                 ) : (
-                  <ScrollView style={styles.dbScroll} nestedScrollEnabled contentContainerStyle={styles.dbContent}>
+                  <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
                     {cloudRecommendations.map((rec) => (
-                      <View key={rec.rec_id} style={styles.dbRow}>
-                        <View style={styles.dbRowHeader}>
-                          <Text style={styles.dbDocId}>ID: {rec.rec_id}</Text>
-                          <Text style={styles.dbBadgeGold}>RECOMMENDATION</Text>
+                      <View key={rec.rec_id} style={s.dbRow}>
+                        <View style={s.dbRowHeader}>
+                          <Text style={s.dbDocId}>ID: {rec.rec_id}</Text>
+                          <Text style={s.dbBadgeGold}>RECOMMENDATION</Text>
                         </View>
-                        <Text style={styles.dbDataTextBold}>{rec.lifestyle_guideline}</Text>
-                        <Text style={styles.dbDataText}>Diet: {rec.meal_plan} | Fluids: {rec.fluid_target}</Text>
-                        <View style={styles.dbRowFooter}>
-                          <Text style={styles.dbMetaText}>User: {rec.user_id}</Text>
-                          <Text style={styles.dbMetaText}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
+                        <Text style={s.dbDataTextBold}>{rec.lifestyle_guideline}</Text>
+                        <Text style={s.dbDataText}>Diet: {rec.meal_plan} | Fluids: {rec.fluid_target}</Text>
+                        <View style={s.dbRowFooter}>
+                          <Text style={s.dbMetaText}>User: {rec.user_id}</Text>
+                          <Text style={s.dbMetaText}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
                         </View>
                       </View>
                     ))}
@@ -371,24 +374,24 @@ export default function AccountAdminScreen() {
               </View>
 
               {/* Collection Registry: alerts */}
-              <Text style={styles.collectionHeading}>📁 alerts Collection</Text>
-              <View style={styles.dbBox}>
+              <Text style={s.collectionHeading}>📁 alerts Collection</Text>
+              <View style={s.dbBox}>
                 {cloudAlerts.length === 0 ? (
-                  <Text style={styles.dbEmptyText}>No unread alarms or critical warnings enqueued in cloud databases.</Text>
+                  <Text style={s.dbEmptyText}>No unread alarms or critical warnings enqueued in cloud databases.</Text>
                 ) : (
-                  <ScrollView style={styles.dbScroll} nestedScrollEnabled contentContainerStyle={styles.dbContent}>
+                  <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
                     {cloudAlerts.map((alert) => (
-                      <View key={alert.alert_id} style={styles.dbRow}>
-                        <View style={styles.dbRowHeader}>
-                          <Text style={styles.dbDocId}>ID: {alert.alert_id}</Text>
-                          <Text style={styles.dbBadgeRed}>
+                      <View key={alert.alert_id} style={s.dbRow}>
+                        <View style={s.dbRowHeader}>
+                          <Text style={s.dbDocId}>ID: {alert.alert_id}</Text>
+                          <Text style={s.dbBadgeRed}>
                             ALERT ({alert.severity.toUpperCase()})
                           </Text>
                         </View>
-                        <Text style={styles.dbDataTextBold}>{alert.alert_message}</Text>
-                        <View style={styles.dbRowFooter}>
-                          <Text style={styles.dbMetaText}>User: {alert.user_id}</Text>
-                          <Text style={styles.dbMetaText}>Status: {alert.status}</Text>
+                        <Text style={s.dbDataTextBold}>{alert.alert_message}</Text>
+                        <View style={s.dbRowFooter}>
+                          <Text style={s.dbMetaText}>User: {alert.user_id}</Text>
+                          <Text style={s.dbMetaText}>Status: {alert.status}</Text>
                         </View>
                       </View>
                     ))}
@@ -398,59 +401,59 @@ export default function AccountAdminScreen() {
             </View>
 
             {/* IoT Diagnostics card */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>📟 ESP32 Microcontroller Node Identifier</Text>
-              <Text style={styles.cardDesc}>Configure local network configuration settings.</Text>
+            <View style={[s.card, SHADOWS.premium]}>
+              <Text style={s.cardTitle}>📟 ESP32 Microcontroller Node Identifier</Text>
+              <Text style={s.cardDesc}>Configure local network configuration settings.</Text>
 
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Node Config Identifier</Text>
-                <TextInput style={styles.input} value={deviceId} onChangeText={setDeviceId} />
+              <View style={s.formGroup}>
+                <Text style={s.label}>Node Config Identifier</Text>
+                <TextInput style={s.input} value={deviceId} onChangeText={setDeviceId} />
               </View>
             </View>
 
             {/* Backups card */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>💾 Physical LittleFS / SPIFFS Cache Recovery</Text>
-              <Text style={styles.cardDesc}>Backup locally enqueued entries to flash partition blocks.</Text>
+            <View style={[s.card, SHADOWS.premium]}>
+              <Text style={s.cardTitle}>💾 Physical LittleFS / SPIFFS Cache Recovery</Text>
+              <Text style={s.cardDesc}>Backup locally enqueued entries to flash partition blocks.</Text>
 
-              <View style={styles.simButtonRow}>
-                <TouchableOpacity style={styles.simBtnCol} onPress={triggerHardwareBackup}>
-                  <Text style={styles.simBtnColText}>Backup to LittleFS</Text>
+              <View style={s.simButtonRow}>
+                <TouchableOpacity style={s.simBtnCol} onPress={triggerHardwareBackup}>
+                  <Text style={s.simBtnColText}>Backup to LittleFS</Text>
                 </TouchableOpacity>
                 
-                <TouchableOpacity style={[styles.simBtnCol, { backgroundColor: COLORS.surfaceLight }]} onPress={triggerHardwareRestore}>
-                  <Text style={[styles.simBtnColText, { color: COLORS.textPrimary }]}>Restore LittleFS</Text>
+                <TouchableOpacity style={[s.simBtnCol, { backgroundColor: colors.surfaceLight }]} onPress={triggerHardwareRestore}>
+                  <Text style={[s.simBtnColText, { color: colors.textPrimary }]}>Restore LittleFS</Text>
                 </TouchableOpacity>
               </View>
             </View>
 
             {/* System Logs console */}
-            <View style={[styles.card, SHADOWS.premium]}>
-              <View style={styles.terminalHeader}>
-                <Text style={styles.terminalTitle}>📜 System Log Trails</Text>
+            <View style={[s.card, SHADOWS.premium]}>
+              <View style={s.terminalHeader}>
+                <Text style={s.terminalTitle}>📜 System Log Trails</Text>
                 <TouchableOpacity onPress={handleClearLogs}>
-                  <Text style={styles.terminalClearText}>Clear Logs</Text>
+                  <Text style={s.terminalClearText}>Clear Logs</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.terminal}>
-                <ScrollView nestedScrollEnabled style={styles.terminalScroll} contentContainerStyle={styles.terminalContent}>
+              <View style={s.terminal}>
+                <ScrollView nestedScrollEnabled style={s.terminalScroll} contentContainerStyle={s.terminalContent}>
                   {logs.length === 0 ? (
-                    <Text style={styles.terminalLineMuted}>No logging entries recorded in system registers.</Text>
+                    <Text style={s.terminalLineMuted}>No logging entries recorded in system registers.</Text>
                   ) : (
                     logs.map(log => {
-                      let levelColor = COLORS.textSecondary;
-                      if (log.level === 'ERROR' || log.level === 'SYNC_FAILED') levelColor = COLORS.primary;
-                      if (log.level === 'SYNC_SUCCESS' || log.level === 'RULE_TRIGGER') levelColor = COLORS.primary;
-                      if (log.level === 'QUEUE') levelColor = COLORS.primaryLight;
+                      let levelColor = colors.textSecondary;
+                      if (log.level === 'ERROR' || log.level === 'SYNC_FAILED') levelColor = colors.primary;
+                      if (log.level === 'SYNC_SUCCESS' || log.level === 'RULE_TRIGGER') levelColor = colors.primary;
+                      if (log.level === 'QUEUE') levelColor = colors.primaryLight;
 
                       const formattedTime = new Date(log.timestamp).toLocaleTimeString();
 
                       return (
-                        <Text key={log.id} style={styles.terminalLine}>
-                          <Text style={styles.terminalTime}>[{formattedTime}] </Text>
+                        <Text key={log.id} style={s.terminalLine}>
+                          <Text style={s.terminalTime}>[{formattedTime}] </Text>
                           <Text style={{ color: levelColor, fontWeight: 'bold' }}>{log.level}</Text>
-                          <Text style={styles.terminalMsg}>: {log.message}</Text>
+                          <Text style={s.terminalMsg}>: {log.message}</Text>
                         </Text>
                       );
                     })
@@ -466,16 +469,16 @@ export default function AccountAdminScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   subHeader: {
     flexDirection: 'row',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   subTab: {
     flex: 1,
@@ -485,41 +488,41 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeSubTab: {
-    borderBottomColor: COLORS.primary,
+    borderBottomColor: colors.primary,
   },
   subTabText: {
     fontSize: 12,
     fontWeight: 'bold',
   },
   activeText: {
-    color: COLORS.primary,
+    color: colors.primary,
   },
   inactiveText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   dangerCard: {
     borderColor: 'rgba(225, 173, 1, 0.2)',
   },
   cardTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: TYPOGRAPHY.sizes.body + 1,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   cardDesc: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 10,
     lineHeight: 15,
     marginBottom: SPACING.md,
@@ -536,29 +539,29 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   label: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: 'bold',
     marginBottom: 6,
   },
   input: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: SPACING.borderRadiusSm,
     paddingHorizontal: SPACING.md,
     paddingVertical: 10,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: 13,
   },
   disabledInput: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     opacity: 0.8,
   },
   formSectionTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.sm,
     marginBottom: SPACING.sm,
   },
@@ -573,23 +576,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.background,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
   },
   conditionChipChecked: {
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     backgroundColor: 'rgba(225, 173, 1, 0.05)',
   },
   conditionChipText: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   conditionChipTextChecked: {
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   saveBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: SPACING.md,
     borderRadius: SPACING.borderRadiusSm,
     alignItems: 'center',
@@ -605,36 +608,36 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
   },
   prefLeft: {
     flex: 0.8,
   },
   prefTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 12,
     marginBottom: 2,
   },
   prefDesc: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 10,
     lineHeight: 14,
   },
   signOutBtn: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     paddingVertical: SPACING.md,
     borderRadius: SPACING.borderRadiusSm,
     alignItems: 'center',
   },
   signOutBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
   },
   dangerWarning: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 16,
     backgroundColor: 'rgba(225, 173, 1, 0.04)',
@@ -645,14 +648,14 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   dangerBtn: {
-    borderColor: COLORS.primary,
+    borderColor: colors.primary,
     borderWidth: 1,
     paddingVertical: SPACING.md,
     borderRadius: SPACING.borderRadiusSm,
     alignItems: 'center',
   },
   dangerBtnText: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontWeight: 'bold',
   },
   simButtonRow: {
@@ -661,12 +664,12 @@ const styles = StyleSheet.create({
   },
   simBtnCol: {
     flex: 1,
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: SPACING.md,
     borderRadius: SPACING.borderRadiusSm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   simBtnColText: {
     color: '#000000',
@@ -680,12 +683,12 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   terminalTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 12,
   },
   terminalClearText: {
-    color: COLORS.primaryLight,
+    color: colors.primaryLight,
     fontSize: 11,
     fontWeight: 'bold',
   },
@@ -694,7 +697,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A0A0A',
     borderRadius: SPACING.borderRadiusSm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     padding: SPACING.md,
   },
   terminalScroll: {
@@ -711,35 +714,35 @@ const styles = StyleSheet.create({
   },
   terminalLineMuted: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     marginTop: 40,
   },
   terminalTime: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   terminalMsg: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   collectionHeading: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginTop: SPACING.md,
     marginBottom: 6,
   },
   dbBox: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     padding: 10,
     marginBottom: SPACING.md,
   },
   dbEmptyText: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontStyle: 'italic',
     textAlign: 'center',
     paddingVertical: 12,
@@ -751,9 +754,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dbRow: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 6,
     padding: 8,
   },
@@ -763,19 +766,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
     borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: colors.border,
     paddingBottom: 2,
   },
   dbDocId: {
     fontSize: 10,
     fontWeight: 'bold',
-    color: COLORS.primaryLight,
+    color: colors.primaryLight,
   },
   dbBadge: {
     fontSize: 8,
     fontWeight: 'bold',
     backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: COLORS.primary,
+    color: colors.primary,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
@@ -784,7 +787,7 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: COLORS.primary,
+    color: colors.primary,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
@@ -793,32 +796,9 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: COLORS.primary,
+    color: colors.primary,
     paddingHorizontal: 4,
     paddingVertical: 1,
     borderRadius: 4,
-  },
-  dbDataText: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    lineHeight: 14,
-  },
-  dbDataTextBold: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    lineHeight: 14,
-  },
-  dbRowFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
-    paddingTop: 2,
-  },
-  dbMetaText: {
-    fontSize: 8,
-    color: COLORS.textMuted,
   },
 });

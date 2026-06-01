@@ -3,10 +3,10 @@ import { SafeAreaView, StyleSheet, StatusBar, View, ActivityIndicator, Text, Ani
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import { HealthSyncManager, appwriteAccount } from './src/services/appwrite';
-import { COLORS, SHADOWS } from './src/styles/theme';
+import { DARK_COLORS, LIGHT_COLORS, SHADOWS } from './src/styles/theme';
 import { HealthContext } from './src/context/HealthContext';
 
-// Splash Screen Component with pulse animation
+// Splash Screen Component with pulse animation (always dark for premium wow effect)
 function SplashScreen() {
   const pulse = useRef(new Animated.Value(1)).current;
 
@@ -36,7 +36,7 @@ function SplashScreen() {
         <Text style={splashStyles.title}>RHMT</Text>
         <Text style={splashStyles.subtitle}>Remote Health Monitoring Tool</Text>
       </Animated.View>
-      <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 40 }} />
+      <ActivityIndicator size="small" color="#E1AD01" style={{ marginTop: 40 }} />
       <Text style={splashStyles.statusText}>Checking Secure Auth Session...</Text>
     </View>
   );
@@ -81,6 +81,7 @@ export default function App() {
   const [isFetchingData, setIsFetchingData] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' or 'offline'
   const [isAutomaticMode, setIsAutomaticMode] = useState(false); // Default to false for manual self-reporting focus
+  const [isDarkMode, setIsDarkMode] = useState(true); // Premium theme default
   
   // Real-time journal reporting vitals state
   const [vitals, setVitals] = useState({
@@ -122,6 +123,34 @@ export default function App() {
   
   // IoT node configuration identifier (retained)
   const [deviceId, setDeviceId] = useState('ESP32-RHM-NODE-001');
+
+  // Load saved theme preference on mount
+  useEffect(() => {
+    const loadThemePreference = async () => {
+      try {
+        const savedTheme = await AsyncStorage.getItem('@rhmt_theme_mode');
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        }
+      } catch (e) {
+        console.log('Failed to load theme preference:', e);
+      }
+    };
+    loadThemePreference();
+  }, []);
+
+  const toggleTheme = async () => {
+    try {
+      const nextMode = !isDarkMode;
+      setIsDarkMode(nextMode);
+      await AsyncStorage.setItem('@rhmt_theme_mode', nextMode ? 'dark' : 'light');
+      await HealthSyncManager.logSystemAction('THEME', `Swapped clinical interface to ${nextMode ? 'Dark' : 'Light'} Mode.`);
+    } catch (e) {
+      console.log('Failed to save theme preference:', e);
+    }
+  };
+
+  const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
 
   // Check user auth session on load (Splash Screen Epoch)
   useEffect(() => {
@@ -303,9 +332,11 @@ export default function App() {
     return <SplashScreen />;
   }
 
+  const s = styles(colors);
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={s.container}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       <HealthContext.Provider
         value={{
           user,
@@ -338,6 +369,9 @@ export default function App() {
           handleSyncQueue,
           handleClearLogs,
           refreshSyncStats,
+          isDarkMode,
+          colors,
+          toggleTheme,
         }}
       >
         <AppNavigator />
@@ -346,9 +380,10 @@ export default function App() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
 });
+
