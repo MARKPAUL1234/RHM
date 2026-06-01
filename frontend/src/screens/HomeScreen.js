@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useRef, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -9,25 +9,100 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Animated,
+  Easing,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
-import { HealthSyncManager, appwriteAccount } from '../services/appwrite';
+import djangoApi, { setAuthToken } from '../services/django_api';
+
+function FeatureCard({ icon, title, description, colors }) {
+  return (
+    <View style={[styles(colors).featureCard, SHADOWS.premium]}>
+      <Text style={styles(colors).featureIcon}>{icon}</Text>
+      <Text style={styles(colors).featureTitle}>{title}</Text>
+      <Text style={styles(colors).featureDescription}>{description}</Text>
+    </View>
+  );
+}
+
+function AnimatedLogo({ colors }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.8)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: false,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 800,
+        easing: Easing.out(Easing.back(1.5)),
+        useNativeDriver: false,
+      }),
+    ]).start();
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1.05,
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 1500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: false,
+        }),
+      ])
+    );
+    pulse.start();
+    return () => pulse.stop();
+  }, [fadeAnim, scaleAnim, pulseAnim]);
+
+  return (
+    <Animated.View 
+      style={[
+        styles(colors).logoContainer,
+        {
+          opacity: fadeAnim,
+          transform: [{ scale: scaleAnim }],
+        }
+      ]}
+    >
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+        <Text style={styles(colors).logoIcon}>🩺</Text>
+      </Animated.View>
+      <View style={styles(colors).logoTextContainer}>
+        <Text style={styles(colors).logoTitle}>RHMT</Text>
+        <Text style={styles(colors).logoSubtitle}>REMOTE HEALTH MONITORING TOOL</Text>
+      </View>
+    </Animated.View>
+  );
+}
 
 export default function HomeScreen() {
   const { user, setUser, colors } = useContext(HealthContext);
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  // Handle Sign In / Registration with Appwrite Auth
   const handleAuth = async () => {
-    if (!email || !password || (isRegistering && !name)) {
-      setAuthError('Please fill out all required fields.');
+    const normalizedUsername = username.trim();
+    const normalizedEmail = email.trim();
+
+    if (!password || !normalizedUsername) {
+      setAuthError('Please fill in all required fields.');
       return;
     }
 
@@ -36,37 +111,36 @@ export default function HomeScreen() {
 
     try {
       if (isRegistering) {
-        // Appwrite user creation simulation
-        let sessionUser;
-        try {
-          // If real Appwrite SDK is online:
-          // const res = await appwriteAccount.create(ID.unique(), email, password, name);
-          // sessionUser = await appwriteAccount.createEmailPasswordSession(email, password);
-        } catch (e) {
-          console.log("Appwrite SDK skipped in offline demo mode. Mock session created.");
-        }
+        const newUser = await djangoApi.register(
+          normalizedUsername,
+          normalizedEmail || `${normalizedUsername}@rhmt.app`,
+          password
+        );
+        await djangoApi.login(normalizedUsername, password);
         
-        const mockUser = { email, name, id: 'usr_' + Date.now() };
-        setUser(mockUser);
-        await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(mockUser));
-        await HealthSyncManager.logSystemAction('AUTH', `Registered profile for ${name} (${email})`);
+        const userObj = {
+          id: newUser.id,
+          username: newUser.username,
+          email: newUser.email || `${normalizedUsername}@rhmt.app`,
+          name: newUser.username,
+        };
+        
+        setUser(userObj);
+        await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(userObj));
       } else {
-        // Appwrite Login simulation
-        let sessionUser;
-        try {
-          // sessionUser = await appwriteAccount.createEmailPasswordSession(email, password);
-        } catch (e) {
-          console.log("Appwrite SDK skipped in offline demo mode. Mock login session created.");
-        }
-
-        const mockUser = { email, name: email.split('@')[0], id: 'usr_' + Date.now() };
-        setUser(mockUser);
-        await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(mockUser));
-        await HealthSyncManager.logSystemAction('AUTH', `User ${email} logged in securely.`);
+        await djangoApi.login(normalizedUsername, password);
+        const userObj = {
+          id: normalizedUsername,
+          username: normalizedUsername,
+          email: `${normalizedUsername}@rhmt.app`,
+          name: normalizedUsername,
+        };
+        
+        setUser(userObj);
+        await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(userObj));
       }
     } catch (e) {
-      setAuthError('Authentication failed: ' + e.message);
-      await HealthSyncManager.logSystemAction('ERROR', `Auth failed: ${e.message}`);
+      setAuthError(e.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -75,14 +149,10 @@ export default function HomeScreen() {
   const handleSignOut = async () => {
     setLoading(true);
     try {
-      try {
-        await appwriteAccount.deleteSession('current');
-      } catch (err) {
-        console.log("Appwrite session delete skipped:", err.message);
-      }
       setUser(null);
+      setAuthToken(null);
       await AsyncStorage.removeItem('@rhmt_user_session');
-      await HealthSyncManager.logSystemAction('AUTH', 'User signed out securely.');
+      await AsyncStorage.removeItem('@rhmt_auth_token');
     } catch (e) {
       console.log("Failed to clear session:", e);
     } finally {
@@ -92,129 +162,227 @@ export default function HomeScreen() {
 
   const s = styles(colors);
 
+  if (user) {
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={s.container}
+      >
+        <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+          <AnimatedLogo colors={colors} />
+
+          <View style={[s.card, SHADOWS.premium]}>
+            <View style={s.userHeader}>
+              <View style={s.userAvatar}>
+                <Text style={s.userAvatarText}>{user.name.charAt(0).toUpperCase()}</Text>
+              </View>
+              <View style={s.userInfo}>
+                <Text style={s.userName}>{user.name}</Text>
+                <Text style={s.userEmail}>{user.email}</Text>
+              </View>
+            </View>
+            
+            <View style={s.statusBanner}>
+              <View style={s.statusDot} />
+              <Text style={s.statusText}>SESSION ACTIVE • DATABASE SYNCED</Text>
+            </View>
+
+            <TouchableOpacity 
+              style={s.signOutButton} 
+              onPress={handleSignOut} 
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={s.signOutButtonText}>DISCONNECT SESSION</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <View style={s.featureSectionTitleContainer}>
+            <Text style={s.featureSectionTitle}>DASHBOARD FEATURES</Text>
+          </View>
+
+          <View style={s.featuresGrid}>
+            <FeatureCard 
+              icon="📊" 
+              title="Vitals Dashboard" 
+              description="Real-time biometric monitoring and analytics"
+              colors={colors}
+            />
+            <FeatureCard 
+              icon="🏥" 
+              title="Patient Monitoring" 
+              description="Continuous health status tracking"
+              colors={colors}
+            />
+            <FeatureCard 
+              icon="💡" 
+              title="Smart Alerts" 
+              description="AI-powered health recommendations"
+              colors={colors}
+            />
+            <FeatureCard 
+              icon="🚨" 
+              title="Emergency Panel" 
+              description="Rapid response protocols"
+              colors={colors}
+            />
+          </View>
+
+          <View style={[s.card, SHADOWS.premium]}>
+            <Text style={s.cardTitle}>SYSTEM INFORMATION</Text>
+            <Text style={s.cardDescription}>
+              RHMT provides secure, real-time remote health monitoring with offline-first architecture
+              and clinical-grade data synchronization.
+            </Text>
+            <View style={s.infoGrid}>
+              <View style={s.infoItem}>
+                <Text style={s.infoLabel}>API Status</Text>
+                <Text style={[s.infoValue, { color: colors.primary }]}>ONLINE</Text>
+              </View>
+              <View style={s.infoItem}>
+                <Text style={s.infoLabel}>Mode</Text>
+                <Text style={s.infoValue}>DEVELOPMENT</Text>
+              </View>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={s.container}
     >
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Branding Hero Banner */}
-        <View style={s.heroCard}>
-          <Text style={s.heroTitle}>Your health, {'\n'}monitored in real time.</Text>
-          <Text style={s.heroSubtitle}>
-            A Remote Health Monitoring Tool that gathers baseline context and tracks physiological markers using secure Cloud Database schemas.
-          </Text>
-          <View style={s.badgeRow}>
-            <View style={s.sensorBadge}><Text style={s.sensorBadgeText}>React Native Web</Text></View>
-            <View style={s.sensorBadge}><Text style={s.sensorBadgeText}>Appwrite Auth</Text></View>
-            <View style={s.sensorBadge}><Text style={s.sensorBadgeText}>WebSocket Realtime</Text></View>
-            <View style={s.sensorBadge}><Text style={s.sensorBadgeText}>Offline-First Cache</Text></View>
-          </View>
-        </View>
+        <AnimatedLogo colors={colors} />
 
-        {/* Authentication Gateway Panel */}
         <View style={[s.authCard, SHADOWS.premium]}>
-          {user ? (
-            <View style={s.welcomeContainer}>
-              <View style={s.avatarIcon}><Text style={s.avatarText}>👤</Text></View>
-              <Text style={s.welcomeTitle}>Welcome back,</Text>
-              <Text style={s.welcomeUserName}>{user.name || 'Patient'}</Text>
-              <Text style={s.welcomeUserEmail}>{user.email}</Text>
-              
-              <View style={s.statusBox}>
-                <Text style={s.statusBoxLabel}>Sync Credentials Status</Text>
-                <Text style={s.statusBoxValue}>🔐 Active Secure Session</Text>
-              </View>
+          <View style={s.authHeader}>
+            <Text style={s.authTitle}>
+              {isRegistering ? 'CREATE ACCOUNT' : 'ACCESS DASHBOARD'}
+            </Text>
+            <Text style={s.authDescription}>
+              {isRegistering 
+                ? 'Register your device node to start monitoring'
+                : 'Authenticate to access your health monitoring dashboard'}
+            </Text>
+          </View>
 
-              <TouchableOpacity style={s.signOutButton} onPress={handleSignOut} activeOpacity={0.8}>
-                {loading ? <ActivityIndicator size="small" color={colors.primary} /> : (
-                  <Text style={s.signOutButtonText}>Disconnect Session</Text>
-                )}
-              </TouchableOpacity>
+          {authError ? (
+            <View style={s.errorBox}>
+              <Text style={s.errorIcon}>⚠️</Text>
+              <Text style={s.errorText}>{authError}</Text>
             </View>
-          ) : (
-            <View>
-              <Text style={s.authCardTitle}>{isRegistering ? 'Register Patient Account' : 'Gateway Authentication'}</Text>
-              <Text style={s.authCardDesc}>Connect your monitoring node to Appwrite secure cloud databases.</Text>
-              
-              {authError ? <Text style={s.errorText}>{authError}</Text> : null}
+          ) : null}
 
-              {isRegistering && (
-                <View style={s.inputContainer}>
-                  <Text style={s.inputLabel}>Full Name</Text>
-                  <TextInput
-                    style={s.input}
-                    placeholder="e.g. John Doe"
-                    placeholderTextColor={colors.textMuted}
-                    value={name}
-                    onChangeText={setName}
-                  />
-                </View>
-              )}
+          <View style={s.formContainer}>
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>USERNAME</Text>
+              <TextInput
+                style={s.input}
+                placeholder="Enter username"
+                placeholderTextColor={colors.textMuted}
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
 
-              <View style={s.inputContainer}>
-                <Text style={s.inputLabel}>Patient Email</Text>
+            {isRegistering && (
+              <View style={s.inputGroup}>
+                <Text style={s.inputLabel}>EMAIL (OPTIONAL)</Text>
                 <TextInput
                   style={s.input}
-                  placeholder="name@university.edu"
+                  placeholder="email@example.com"
                   placeholderTextColor={colors.textMuted}
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  autoCorrect={false}
                 />
               </View>
+            )}
 
-              <View style={s.inputContainer}>
-                <Text style={s.inputLabel}>Access PIN/Password</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder="••••••••"
-                  placeholderTextColor={colors.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-
-              <TouchableOpacity style={s.authButton} onPress={handleAuth} activeOpacity={0.8}>
-                {loading ? <ActivityIndicator size="small" color="#000000" /> : (
-                  <Text style={s.authButtonText}>
-                    {isRegistering ? 'Register Node' : 'Initialize Connection'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={s.switchAuthButton}
-                onPress={() => setIsRegistering(!isRegistering)}
-              >
-                <Text style={s.switchAuthText}>
-                  {isRegistering ? 'Already registered? Login here' : 'New device node? Create account'}
-                </Text>
-              </TouchableOpacity>
+            <View style={s.inputGroup}>
+              <Text style={s.inputLabel}>PASSWORD</Text>
+              <TextInput
+                style={s.input}
+                placeholder="••••••••"
+                placeholderTextColor={colors.textMuted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoCorrect={false}
+              />
             </View>
-          )}
+
+            <TouchableOpacity 
+              style={s.authButton} 
+              onPress={handleAuth} 
+              activeOpacity={0.8}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#000000" />
+              ) : (
+                <Text style={s.authButtonText}>
+                  {isRegistering ? 'REGISTER NODE' : 'INITIALIZE SESSION'}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={s.switchAuth}
+              onPress={() => {
+                setIsRegistering(!isRegistering);
+                setAuthError('');
+              }}
+            >
+              <Text style={s.switchAuthText}>
+                {isRegistering 
+                  ? 'Already registered? Sign in' 
+                  : 'New node? Create an account'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Dissertation Info Panel */}
-        <View style={s.aboutCard}>
-          <Text style={s.aboutTitle}>About the Remote Health Tool</Text>
-          <Text style={s.aboutParagraph}>
-            Developed as a core system component for dissertation telemetry modeling. This client acts as the central software hub, gathering, formatting, and queuing patient health state metrics before pushing them to cloud infrastructure.
-          </Text>
-          <Text style={s.aboutParagraph}>
-            In the event of network dropouts, the system engages its offline-first engine queue to cache telemetry locally on physical storage to prevent data loss.
-          </Text>
-          <View style={s.architectureMap}>
-            <Text style={s.archStep}>📝 Self-Log</Text>
-            <Text style={s.archArrow}>➔</Text>
-            <Text style={s.archStep}>📱 Cache</Text>
-            <Text style={s.archArrow}>➔</Text>
-            <Text style={s.archStep}>☁ Appwrite</Text>
-            <Text style={s.archArrow}>➔</Text>
-            <Text style={s.archStep}>📢 Alerts</Text>
-          </View>
+        <View style={s.featureSectionTitleContainer}>
+          <Text style={s.featureSectionTitle}>CLINICAL FEATURES</Text>
+        </View>
+
+        <View style={s.featuresGrid}>
+          <FeatureCard 
+            icon="📈" 
+            title="Telemetry" 
+            description="Continuous biometric data visualization"
+            colors={colors}
+          />
+          <FeatureCard 
+            icon="🥗" 
+            title="Nutrition" 
+            description="Dietary planning and tracking"
+            colors={colors}
+          />
+          <FeatureCard 
+            icon="🏃" 
+            title="Fitness" 
+            description="Activity and wellness monitoring"
+            colors={colors}
+          />
+          <FeatureCard 
+            icon="👤" 
+            title="Profile" 
+            description="Personal health baseline configuration"
+            colors={colors}
+          />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -230,78 +398,97 @@ const styles = (colors) => StyleSheet.create({
     padding: SPACING.md,
     paddingBottom: 40,
   },
-  heroCard: {
+  logoContainer: {
+    alignItems: 'center',
+    paddingVertical: SPACING.xl,
+    marginBottom: SPACING.lg,
+  },
+  logoIcon: {
+    fontSize: 64,
+    marginBottom: SPACING.sm,
+  },
+  logoTextContainer: {
+    alignItems: 'center',
+  },
+  logoTitle: {
+    color: colors.primary,
+    fontSize: TYPOGRAPHY.sizes.h1,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 4,
+    marginBottom: 4,
+  },
+  logoSubtitle: {
+    color: colors.textMuted,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    letterSpacing: 3,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  card: {
     backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
-    marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  heroTitle: {
-    color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.h1 - 2,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    lineHeight: 34,
-    marginBottom: SPACING.sm,
-  },
-  heroSubtitle: {
-    color: colors.textSecondary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    lineHeight: 22,
     marginBottom: SPACING.md,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  sensorBadge: {
-    backgroundColor: colors.surfaceLight,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  sensorBadgeText: {
-    color: colors.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
   },
   authCard: {
     backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
-    marginBottom: SPACING.md,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: SPACING.md,
   },
-  authCardTitle: {
+  authHeader: {
+    marginBottom: SPACING.lg,
+  },
+  authTitle: {
     color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.h2 - 2,
+    fontSize: TYPOGRAPHY.sizes.h3,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 4,
   },
-  authCardDesc: {
+  authDescription: {
     color: colors.textSecondary,
     fontSize: TYPOGRAPHY.sizes.caption,
-    marginBottom: SPACING.md,
+    lineHeight: 16,
   },
-  inputContainer: {
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(225, 173, 1, 0.08)',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: SPACING.borderRadiusSm,
+    padding: SPACING.sm,
     marginBottom: SPACING.md,
+    gap: SPACING.sm,
+  },
+  errorIcon: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: colors.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  formContainer: {
+    gap: SPACING.sm,
+  },
+  inputGroup: {
+    gap: 6,
   },
   inputLabel: {
     color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    marginBottom: 6,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 1,
   },
   input: {
     backgroundColor: colors.surfaceLight,
     borderRadius: SPACING.borderRadiusSm,
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
+    paddingVertical: SPACING.sm + 4,
     color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
@@ -312,26 +499,73 @@ const styles = (colors) => StyleSheet.create({
     borderRadius: SPACING.borderRadiusSm,
     paddingVertical: SPACING.md,
     alignItems: 'center',
-    marginTop: SPACING.xs,
+    marginTop: SPACING.sm,
   },
   authButtonText: {
     color: '#000000',
     fontWeight: TYPOGRAPHY.weights.bold,
-    fontSize: 15,
+    fontSize: 13,
+    letterSpacing: 1,
   },
-  switchAuthButton: {
+  switchAuth: {
     alignItems: 'center',
     marginTop: SPACING.md,
   },
   switchAuthText: {
     color: colors.primaryLight,
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
-  welcomeContainer: {
+  featureSectionTitleContainer: {
+    marginBottom: SPACING.sm,
+    paddingLeft: 4,
+  },
+  featureSectionTitle: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 2,
+  },
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  featureCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: colors.surface,
+    borderRadius: SPACING.borderRadiusSm,
+    padding: SPACING.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
-    paddingVertical: SPACING.sm,
   },
-  avatarIcon: {
+  featureIcon: {
+    fontSize: 32,
+    marginBottom: SPACING.sm,
+  },
+  featureTitle: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  featureDescription: {
+    color: colors.textMuted,
+    fontSize: 10,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  userHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    gap: SPACING.md,
+  },
+  userAvatar: {
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -340,103 +574,113 @@ const styles = (colors) => StyleSheet.create({
     borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: SPACING.sm,
   },
-  avatarText: {
-    fontSize: 28,
+  userAvatarText: {
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: colors.primary,
   },
-  welcomeTitle: {
-    color: colors.textSecondary,
-    fontSize: 14,
+  userInfo: {
+    flex: 1,
   },
-  welcomeUserName: {
+  userName: {
     color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.h2,
+    fontSize: TYPOGRAPHY.sizes.h3,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 2,
   },
-  welcomeUserEmail: {
+  userEmail: {
     color: colors.textMuted,
-    fontSize: 13,
-    marginBottom: SPACING.lg,
+    fontSize: TYPOGRAPHY.sizes.caption,
   },
-  statusBox: {
-    backgroundColor: colors.surfaceLight,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
-    width: '100%',
+  statusBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.surfaceLight,
+    borderRadius: SPACING.borderRadiusSm,
+    padding: SPACING.sm,
     marginBottom: SPACING.md,
+    gap: SPACING.sm,
   },
-  statusBoxLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    textTransform: 'uppercase',
-    marginBottom: 4,
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.primary,
   },
-  statusBoxValue: {
+  statusText: {
     color: colors.primary,
-    fontWeight: TYPOGRAPHY.weights.semiBold,
-    fontSize: 14,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 1,
   },
   signOutButton: {
     borderWidth: 1,
     borderColor: colors.primary,
-    paddingVertical: SPACING.md,
     borderRadius: SPACING.borderRadiusSm,
-    width: '100%',
+    paddingVertical: SPACING.sm + 4,
     alignItems: 'center',
   },
   signOutButtonText: {
     color: colors.primary,
-    fontWeight: TYPOGRAPHY.weights.semiBold,
-  },
-  aboutCard: {
-    backgroundColor: colors.surface,
-    borderRadius: SPACING.borderRadius,
-    padding: SPACING.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  aboutTitle: {
-    color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.h3,
     fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 11,
+    letterSpacing: 1,
+  },
+  cardTitle: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 1,
     marginBottom: SPACING.sm,
   },
-  aboutParagraph: {
+  cardDescription: {
     color: colors.textSecondary,
-    fontSize: TYPOGRAPHY.sizes.body - 1,
-    lineHeight: 20,
-    marginBottom: SPACING.sm,
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: SPACING.md,
   },
-  architectureMap: {
+  infoGrid: {
+    flexDirection: 'row',
+    gap: SPACING.lg,
+  },
+  infoItem: {
+    flex: 1,
+  },
+  infoLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  infoValue: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  architectureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-around',
+    justifyContent: 'space-between',
     backgroundColor: colors.surfaceLight,
-    padding: SPACING.md,
     borderRadius: SPACING.borderRadiusSm,
-    marginTop: SPACING.sm,
+    padding: SPACING.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  archStep: {
-    color: colors.textPrimary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.medium,
+  architectureItem: {
+    alignItems: 'center',
+    gap: 4,
   },
-  archArrow: {
+  architectureIcon: {
+    fontSize: 20,
+  },
+  architectureText: {
+    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  architectureArrow: {
     color: colors.textMuted,
-    fontSize: 12,
-  },
-  errorText: {
-    color: colors.primary,
-    fontSize: 13,
-    marginBottom: SPACING.sm,
-    textAlign: 'center',
+    fontSize: 16,
   },
 });

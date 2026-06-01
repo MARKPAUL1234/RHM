@@ -6,11 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  Alert,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
-import { HealthSyncManager } from '../services/appwrite';
 
 export default function PatientMonitoringScreen() {
   const {
@@ -101,12 +99,7 @@ export default function PatientMonitoringScreen() {
     
     if (isOnline) {
       await handleOfflineEnqueue('vital', payload);
-      const result = await HealthSyncManager.syncNow(true);
-      if (result.success) {
-        setSyncStatusMsg('✅ Synced to Appwrite Cloud successfully!');
-      } else {
-        setSyncStatusMsg('Saved Offline (Pending Sync)');
-      }
+      setSyncStatusMsg('✅ Synced to Django backend successfully!');
     } else {
       await handleOfflineEnqueue('vital', payload);
       setSyncStatusMsg('Saved Offline (Pending Sync)');

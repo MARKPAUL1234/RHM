@@ -9,16 +9,12 @@ import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function FitnessCenterScreen() {
-  const { alerts, colors } = useContext(HealthContext);
+  const { alerts, fitnessSummary, colors } = useContext(HealthContext);
 
   // Check if there is an active unread critical alert in the state
-  const hasCriticalAlert = alerts.some(a => a.severity === 'critical' && a.status === 'unread');
+  const hasCriticalAlert = fitnessSummary.locked || alerts.some(a => a.severity === 'critical' && a.status === 'unread');
 
-  const workouts = [
-    { id: '1', type: 'Clinical Walk', duration: '20 mins', intensity: 'Low' },
-    { id: '2', type: 'Static Stretching', duration: '15 mins', intensity: 'Low' },
-    { id: '3', type: 'Light Cardiovascular Cycle', duration: '30 mins', intensity: 'Medium' },
-  ];
+  const workouts = fitnessSummary.routines || [];
 
   const s = styles(colors);
 
@@ -47,11 +43,11 @@ export default function FitnessCenterScreen() {
 
             <View style={s.stepGrid}>
               <View style={s.stepBox}>
-                <Text style={s.stepVal}>6,240</Text>
+                <Text style={s.stepVal}>{fitnessSummary.daily_steps || 0}</Text>
                 <Text style={s.stepSub}>Daily Steps</Text>
               </View>
               <View style={s.stepBox}>
-                <Text style={s.stepVal}>10,000</Text>
+                <Text style={s.stepVal}>{fitnessSummary.goal_steps || 10000}</Text>
                 <Text style={s.stepSub}>Goal Target</Text>
               </View>
             </View>

@@ -13,7 +13,7 @@ import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function VisualizationScreen() {
   const [selectedChart, setSelectedChart] = useState('ecg'); // 'ecg', 'slopes', 'thermal'
-  const { vitals, nutrition, colors } = useContext(HealthContext);
+  const { vitals, nutrition, healthRecords, colors } = useContext(HealthContext);
   
   // Animation value to shift the ECG sweep line
   const ecgSweep = useRef(new Animated.Value(0)).current;
@@ -43,16 +43,38 @@ export default function VisualizationScreen() {
     return `✅ GENERAL HEALTH PROFILE: Cardiac ECG exhibits normal sinus rhythm. Weekly Heart Rate slope indicates stable cardiovascular capacity (Mean: 73 BPM). Thermal Mapping over time shows standard circadian rhythm fluctuation. Calorie intake of ${nutrition.calorieGoals} kcal aligns with current activity profiles.`;
   };
 
-  // Mock ECG path coordinates for rendering a visual wave
-  const mockEcgPoints = [
+  const recordSeries = healthRecords.slice(0, 9).reverse();
+  const latestHr = vitals.heartRate || 72;
+  const latestSpo2 = vitals.spo2 || 98;
+  const pWave = latestHr > 100 ? 16 : 20;
+  const qrsPeak = latestSpo2 < 92 ? 8 : 0;
+
+  // ECG shape is derived from the latest backend vital record for display.
+  const ecgPoints = [
     { x: 0, y: 30 }, { x: 10, y: 30 }, { x: 20, y: 30 }, 
-    { x: 25, y: 20 }, { x: 28, y: 30 }, // P Wave
+    { x: 25, y: pWave }, { x: 28, y: 30 },
     { x: 35, y: 30 }, 
-    { x: 38, y: 45 }, { x: 42, y: 0 }, { x: 46, y: 60 }, { x: 49, y: 30 }, // QRS Complex
+    { x: 38, y: 45 }, { x: 42, y: qrsPeak }, { x: 46, y: 60 }, { x: 49, y: 30 },
     { x: 55, y: 30 }, 
-    { x: 65, y: 15 }, { x: 75, y: 30 }, // T Wave
+    { x: 65, y: latestHr > 100 ? 10 : 15 }, { x: 75, y: 30 },
     { x: 85, y: 30 }, { x: 95, y: 30 }, { x: 100, y: 30 }
   ];
+
+  const hrBars = recordSeries.length > 0
+    ? recordSeries.slice(-7).map(record => ({
+        day: new Date(record.timestamp).toLocaleDateString([], { weekday: 'short' }),
+        bpm: record.heart_rate,
+        state: record.heart_rate > 100 ? 'critical' : record.heart_rate > 90 ? 'elevated' : 'normal',
+      }))
+    : [{ day: 'No logs', bpm: latestHr, state: latestHr > 100 ? 'critical' : 'normal' }];
+
+  const thermalCells = recordSeries.length > 0
+    ? recordSeries.map(record => ({
+        time: new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        temp: record.temperature,
+        color: record.temperature > 38.0 ? colors.critical : colors.online,
+      }))
+    : [{ time: 'No logs', temp: vitals.temperature, color: vitals.temperature > 38.0 ? colors.critical : colors.online }];
 
   // Map points to scale
   const ecgWidth = Dimensions.get('window').width - 64; // Card padding
@@ -123,7 +145,7 @@ export default function VisualizationScreen() {
               <View style={s.waveContainer}>
                 {[0, 1, 2].map((waveIndex) => (
                   <View key={waveIndex} style={s.waveSegment}>
-                    {mockEcgPoints.map((pt, i) => {
+                    {ecgPoints.map((pt, i) => {
                       // Interpolate points into layout
                       const leftPos = (pt.x / 100) * (ecgWidth / 3.1) + (waveIndex * (ecgWidth / 3));
                       const topPos = (pt.y / 60) * ecgHeight;
@@ -183,15 +205,7 @@ export default function VisualizationScreen() {
 
             {/* Custom Bar Graph */}
             <View style={s.barChartContainer}>
-              {[
-                { day: 'Mon', bpm: 72, state: 'normal' },
-                { day: 'Tue', bpm: 74, state: 'normal' },
-                { day: 'Wed', bpm: 89, state: 'elevated' }, // minor spike
-                { day: 'Thu', bpm: 75, state: 'normal' },
-                { day: 'Fri', bpm: 71, state: 'normal' },
-                { day: 'Sat', bpm: 68, state: 'normal' },
-                { day: 'Sun', bpm: vitals.heartRate, state: vitals.heartRate > 100 ? 'critical' : 'normal' },
-              ].map((bar, i) => {
+              {hrBars.map((bar, i) => {
                 const maxBarHeight = 130;
                 // Scale height based on max BPM (assume 120 bpm max scale)
                 const barHeight = (bar.bpm / 120) * maxBarHeight;
@@ -240,17 +254,7 @@ export default function VisualizationScreen() {
 
             {/* Grid Matrix mapping */}
             <View style={s.thermalMatrix}>
-              {[
-                { time: '08:00', temp: 36.4, color: colors.online },
-                { time: '10:00', temp: 36.6, color: colors.online },
-                { time: '12:00', temp: 36.7, color: colors.online },
-                { time: '14:00', temp: 37.1, color: colors.online },
-                { time: '16:00', temp: 36.8, color: colors.online },
-                { time: '18:00', temp: 36.6, color: colors.online },
-                { time: '20:00', temp: 36.4, color: colors.online },
-                { time: '22:00', temp: 36.5, color: colors.online },
-                { time: 'Live', temp: vitals.temperature, color: vitals.temperature > 38.0 ? colors.critical : colors.online },
-              ].map((cell, i) => (
+              {thermalCells.map((cell, i) => (
                 <View key={i} style={s.thermalCell}>
                   <View style={[s.thermalColorDot, { backgroundColor: cell.color }]} />
                   <Text style={s.thermalTime}>{cell.time}</Text>
@@ -278,7 +282,7 @@ export default function VisualizationScreen() {
       <View style={s.eduCard}>
         <Text style={s.eduTitle}>Dissertation Scope: AD8232 vs MAX30100</Text>
         <Text style={s.eduText}>
-          The AD8232 analog front-end maps electrical depolarizations of the myocardium, whereas the MAX30100 evaluates peripheral capillary oxygen perfusion photoplethysmographically (PPG). Both feeds synchronize down to the Appwrite Database JSON documents.
+          The AD8232 analog front-end maps electrical depolarizations of the myocardium, whereas the MAX30100 evaluates peripheral capillary oxygen perfusion photoplethysmographically (PPG). These views render from Django health record documents for the signed-in patient.
         </Text>
       </View>
 

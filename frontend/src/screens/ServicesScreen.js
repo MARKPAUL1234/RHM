@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   StyleSheet,
   View,
@@ -15,30 +15,51 @@ export default function ServicesScreen() {
   const [activeModule, setActiveModule] = useState('nutrition'); // 'nutrition', 'monitoring', 'fitness', 'emergency'
   const {
     connectionStatus,
+    profile,
     usersMetadata,
     setUsersMetadata,
+    nutrition,
+    nutritionLogs,
     patientDetails,
-    setPatientDetails,
     alerts,
     vitals,
-    handleOfflineEnqueue,
+    fitnessSummary,
+    logNutritionEntry,
+    updateProfileBaseline,
+    createEmergencyEvent,
   } = useContext(HealthContext);
 
-  // --- Nutrition Module States ---
-  const [weightLogs, setWeightLogs] = useState([
-    { date: 'May 10', weight: '71.5 kg' },
-    { date: 'May 17', weight: '70.8 kg' },
-    { date: 'May 24', weight: usersMetadata.weight ? `${usersMetadata.weight} kg` : '70.0 kg' },
-  ]);
   const [newWeight, setNewWeight] = useState('');
-  const [waterIntake, setWaterIntake] = useState(1250); // ml
+  const weightLogs = nutritionLogs
+    .filter(log => log.entry_type === 'weight')
+    .slice(0, 5)
+    .map(log => ({
+      date: new Date(log.timestamp).toLocaleDateString(),
+      weight: `${log.value} ${log.unit}`,
+    }));
+  const displayedWeightLogs = weightLogs.length > 0
+    ? weightLogs
+    : [{ date: 'Profile baseline', weight: `${usersMetadata.weight || 70} kg` }];
+  const waterGoal = nutrition.waterGoal || 3000;
+  const todayKey = new Date().toDateString();
+  const waterIntake = nutritionLogs
+    .filter(log => log.entry_type === 'water' && new Date(log.timestamp).toDateString() === todayKey)
+    .reduce((total, log) => total + Number(log.value || 0), 0);
+  const glassCount = Math.max(1, Math.ceil(waterGoal / 250));
 
   // --- Emergency Module States ---
-  const [primaryContact, setPrimaryContact] = useState('+254 712 345 678');
-  const [secondaryContact, setSecondaryContact] = useState('+254 789 012 345');
-  const [medicalNotes, setMedicalNotes] = useState('Active Malaria treatment baseline. Penicillin allergy.');
+  const [primaryContact, setPrimaryContact] = useState(profile?.emergency_primary_contact || '');
+  const [secondaryContact, setSecondaryContact] = useState(profile?.emergency_secondary_contact || '');
+  const [medicalNotes, setMedicalNotes] = useState(profile?.medical_notes || '');
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [dispatchStatus, setDispatchStatus] = useState('');
+
+  useEffect(() => {
+    if (!profile) return;
+    setPrimaryContact(profile.emergency_primary_contact || '');
+    setSecondaryContact(profile.emergency_secondary_contact || '');
+    setMedicalNotes(profile.medical_notes || '');
+  }, [profile]);
 
   // Automatically computes BMI from patient profile metadata
   const calculateBMI = () => {
@@ -69,32 +90,39 @@ export default function ServicesScreen() {
   const bmi = calculateBMI();
 
   // Log weight alteration and sync profile weight
-  const handleLogWeight = () => {
+  const handleLogWeight = async () => {
     if (!newWeight || isNaN(newWeight)) {
       Alert.alert('Invalid Weight', 'Please input a valid weight metric.');
       return;
     }
+    const parsedWeight = parseFloat(newWeight);
     const updatedMeta = {
       ...usersMetadata,
-      weight: newWeight,
+      weight: parsedWeight,
     };
     setUsersMetadata(updatedMeta);
-    setWeightLogs([...weightLogs, { date: 'Today', weight: `${newWeight} kg` }]);
+    await logNutritionEntry({
+      entry_type: 'weight',
+      value: parsedWeight,
+      unit: 'kg',
+      note: 'Profile baseline weight update',
+    });
     setNewWeight('');
-    Alert.alert('Weight Logged', 'Patient baseline profile weight updated successfully.');
+    Alert.alert('Weight Logged', 'Patient baseline profile weight synced to the backend.');
   };
 
   // Water click-to-add tracker
-  const handleAddWater = () => {
-    setWaterIntake(current => {
-      const next = current + 250;
-      handleOfflineEnqueue('vital', { event: 'water_logged', amount: '250ml', total: `${next}ml` });
-      return next;
+  const handleAddWater = async () => {
+    await logNutritionEntry({
+      entry_type: 'water',
+      value: 250,
+      unit: 'ml',
+      note: 'Hydration tracker entry',
     });
   };
 
   // Fitness Locks Check
-  const hasCriticalAlert = alerts.some(a => a.severity === 'critical');
+  const hasCriticalAlert = fitnessSummary.locked || alerts.some(a => a.severity === 'critical');
 
   // Emergency dispatch
   const handleEmergencyTrigger = async () => {
@@ -104,37 +132,31 @@ export default function ServicesScreen() {
     }
 
     const activeConditions = usersMetadata.diagnosed_conditions ? usersMetadata.diagnosed_conditions.join(', ') : 'None';
-    const userId = usersMetadata.user_id || 'usr_default';
+    const userId = usersMetadata.user_id || profile?.username || 'unknown';
     const smsContent = `EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Medical profile context: Diagnosed with ${activeConditions}. Last recorded vitals: Temp ${vitals.temperature}°C, SpO2 ${vitals.spo2}%.`;
 
-    const payload = {
-      primaryContact,
-      secondaryContact,
-      medicalNotes,
-      smsContent,
-      timestamp: new Date().toISOString(),
-    };
-
-    if (connectionStatus === 'online') {
-      setDispatchStatus(`DISPATCHED VIA SMS:\n"${smsContent}"`);
-      setTimeout(() => {
-        Alert.alert('Emergency Broadcasted', `SMS sent successfully:\n\n${smsContent}`);
-      }, 800);
-    } else {
-      setDispatchStatus(`QUEUED (Offline SMS fallback):\n"${smsContent}"`);
-      await handleOfflineEnqueue('emergency', payload);
-      Alert.alert(
-        'Offline Queue Activated',
-        `SMS enqueued in physical storage fallback:\n\n${smsContent}`
-      );
+    try {
+      await updateProfileBaseline({
+        emergency_primary_contact: primaryContact,
+        emergency_secondary_contact: secondaryContact,
+        medical_notes: medicalNotes,
+      });
+      await createEmergencyEvent({
+        primary_contact: primaryContact,
+        secondary_contact: secondaryContact,
+        medical_notes: medicalNotes,
+        sms_content: smsContent,
+        status: connectionStatus === 'online' ? 'dispatched' : 'queued',
+      });
+      setDispatchStatus(`RECORDED IN DJANGO BACKEND:\n"${smsContent}"`);
+      Alert.alert('Emergency Event Saved', `Backend event and critical alert created:\n\n${smsContent}`);
+    } catch (e) {
+      setDispatchStatus(`FAILED TO SAVE EMERGENCY EVENT:\n${e.message}`);
+      Alert.alert('Emergency Save Failed', e.message);
     }
   };
 
-  const workouts = [
-    { id: '1', type: 'Clinical Walk', duration: '20 mins', intensity: 'Low' },
-    { id: '2', type: 'Static Stretching', duration: '15 mins', intensity: 'Low' },
-    { id: '3', type: 'Light Cardiovascular Cycle', duration: '30 mins', intensity: 'Medium' },
-  ];
+  const workouts = fitnessSummary.routines || [];
 
   return (
     <View style={styles.container}>
@@ -198,18 +220,18 @@ export default function ServicesScreen() {
 
             {/* Click-to-add fluid tracker */}
             <View style={[styles.card, SHADOWS.premium]}>
-              <Text style={styles.cardTitle}>💧 Hydration Tracker (Daily Goal: 3.0L)</Text>
+              <Text style={styles.cardTitle}>💧 Hydration Tracker (Daily Goal: {(waterGoal / 1000).toFixed(1)}L)</Text>
               <Text style={styles.cardDesc}>
                 Incrementally log your daily water intake. Goal calibrated dynamically against treatment baseline.
               </Text>
 
               <View style={styles.waterBox}>
                 <Text style={styles.waterVal}>{waterIntake} mL</Text>
-                <Text style={styles.waterSub}>Logged of 3000 mL goal</Text>
+                <Text style={styles.waterSub}>Logged of {waterGoal} mL goal</Text>
 
                 {/* Visual Glass cells */}
                 <View style={styles.glassesGrid}>
-                  {[...Array(12)].map((_, i) => {
+                  {[...Array(glassCount)].map((_, i) => {
                     const filled = waterIntake >= (i + 1) * 250;
                     return (
                       <View
@@ -249,7 +271,7 @@ export default function ServicesScreen() {
               </View>
 
               <View style={styles.weightTable}>
-                {weightLogs.map((log, index) => (
+                {displayedWeightLogs.map((log, index) => (
                   <View key={index} style={styles.weightTableRow}>
                     <Text style={styles.weightTableCol1}>{log.date}</Text>
                     <Text style={styles.weightTableCol2}>{log.weight}</Text>
@@ -297,7 +319,7 @@ export default function ServicesScreen() {
             <View style={styles.hardwareKey}>
               <Text style={styles.keyTitle}>Collection Details</Text>
               <Text style={styles.keyText}>
-                Blood pressure, Glucose, and Respiratory rates represent enqueued medical charts entered during sessions, synced under Appwrite portal collection wrappers.
+                Blood pressure, Glucose, and Respiratory rates are loaded from the authenticated Django profile baseline.
               </Text>
             </View>
           </View>
@@ -327,11 +349,11 @@ export default function ServicesScreen() {
 
                 <View style={styles.stepGrid}>
                   <View style={styles.stepBox}>
-                    <Text style={styles.stepVal}>6,240</Text>
+                    <Text style={styles.stepVal}>{fitnessSummary.daily_steps || 0}</Text>
                     <Text style={styles.stepSub}>Daily Steps</Text>
                   </View>
                   <View style={styles.stepBox}>
-                    <Text style={styles.stepVal}>10,000</Text>
+                    <Text style={styles.stepVal}>{fitnessSummary.goal_steps || 10000}</Text>
                     <Text style={styles.stepSub}>Goal Target</Text>
                   </View>
                 </View>

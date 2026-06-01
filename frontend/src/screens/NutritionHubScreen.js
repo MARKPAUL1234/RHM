@@ -13,21 +13,33 @@ import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function NutritionHubScreen() {
   const {
-    connectionStatus,
     usersMetadata,
     setUsersMetadata,
+    nutrition,
+    nutritionLogs,
     vitals,
-    handleOfflineEnqueue,
+    logNutritionEntry,
     colors,
   } = useContext(HealthContext);
 
-  const [weightLogs, setWeightLogs] = useState([
-    { date: 'May 10', weight: '71.5 kg' },
-    { date: 'May 17', weight: '70.8 kg' },
-    { date: 'May 24', weight: usersMetadata.weight ? `${usersMetadata.weight} kg` : '70.0 kg' },
-  ]);
   const [newWeight, setNewWeight] = useState('');
-  const [waterIntake, setWaterIntake] = useState(1250); // mL
+
+  const weightLogs = nutritionLogs
+    .filter(log => log.entry_type === 'weight')
+    .slice(0, 5)
+    .map(log => ({
+      date: new Date(log.timestamp).toLocaleDateString(),
+      weight: `${log.value} ${log.unit}`,
+    }));
+  const displayedWeightLogs = weightLogs.length > 0
+    ? weightLogs
+    : [{ date: 'Profile baseline', weight: `${usersMetadata.weight || 70} kg` }];
+  const waterGoal = nutrition.waterGoal || 3000;
+  const todayKey = new Date().toDateString();
+  const waterIntake = nutritionLogs
+    .filter(log => log.entry_type === 'water' && new Date(log.timestamp).toDateString() === todayKey)
+    .reduce((total, log) => total + Number(log.value || 0), 0);
+  const glassCount = Math.max(1, Math.ceil(waterGoal / 250));
 
   // Automatically computes BMI from patient profile metadata
   const calculateBMI = () => {
@@ -58,27 +70,34 @@ export default function NutritionHubScreen() {
   const bmi = calculateBMI();
 
   // Log weight alteration and sync profile weight
-  const handleLogWeight = () => {
+  const handleLogWeight = async () => {
     if (!newWeight || isNaN(newWeight)) {
       Alert.alert('Invalid Weight', 'Please input a valid weight metric.');
       return;
     }
+    const parsedWeight = parseFloat(newWeight);
     const updatedMeta = {
       ...usersMetadata,
-      weight: newWeight,
+      weight: parsedWeight,
     };
     setUsersMetadata(updatedMeta);
-    setWeightLogs([...weightLogs, { date: 'Today', weight: `${newWeight} kg` }]);
+    await logNutritionEntry({
+      entry_type: 'weight',
+      value: parsedWeight,
+      unit: 'kg',
+      note: 'Profile baseline weight update',
+    });
     setNewWeight('');
-    Alert.alert('Weight Logged', 'Patient baseline profile weight updated successfully.');
+    Alert.alert('Weight Logged', 'Patient baseline profile weight synced to the backend.');
   };
 
   // Water click-to-add tracker
-  const handleAddWater = () => {
-    setWaterIntake(current => {
-      const next = current + 250;
-      handleOfflineEnqueue('vital', { event: 'water_logged', amount: '250ml', total: `${next}ml` });
-      return next;
+  const handleAddWater = async () => {
+    await logNutritionEntry({
+      entry_type: 'water',
+      value: 250,
+      unit: 'ml',
+      note: 'Hydration tracker entry',
     });
   };
 
@@ -126,18 +145,18 @@ export default function NutritionHubScreen() {
 
         {/* Click-to-add fluid tracker */}
         <View style={[s.card, SHADOWS.premium]}>
-          <Text style={s.cardTitle}>💧 Hydration Tracker (Daily Goal: 3.0L)</Text>
+          <Text style={s.cardTitle}>💧 Hydration Tracker (Daily Goal: {(waterGoal / 1000).toFixed(1)}L)</Text>
           <Text style={s.cardDesc}>
             Incrementally log your daily water intake. Goal calibrated dynamically against treatment baseline.
           </Text>
 
           <View style={s.waterBox}>
             <Text style={s.waterVal}>{waterIntake} mL</Text>
-            <Text style={s.waterSub}>Logged of 3000 mL goal</Text>
+            <Text style={s.waterSub}>Logged of {waterGoal} mL goal</Text>
 
             {/* Visual Glass cells */}
             <View style={s.glassesGrid}>
-              {[...Array(12)].map((_, i) => {
+              {[...Array(glassCount)].map((_, i) => {
                 const filled = waterIntake >= (i + 1) * 250;
                 return (
                   <View
@@ -177,7 +196,7 @@ export default function NutritionHubScreen() {
           </View>
 
           <View style={s.weightTable}>
-            {weightLogs.map((log, index) => (
+            {displayedWeightLogs.map((log, index) => (
               <View key={index} style={s.weightTableRow}>
                 <Text style={s.weightTableCol1}>{log.date}</Text>
                 <Text style={s.weightTableCol2}>{log.weight}</Text>

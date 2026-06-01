@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import {
   StyleSheet,
   View,
@@ -14,17 +14,26 @@ import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 export default function EmergencyPanelScreen() {
   const {
     connectionStatus,
+    profile,
     usersMetadata,
     vitals,
-    handleOfflineEnqueue,
+    updateProfileBaseline,
+    createEmergencyEvent,
     colors,
   } = useContext(HealthContext);
 
-  const [primaryContact, setPrimaryContact] = useState('+254 712 345 678');
-  const [secondaryContact, setSecondaryContact] = useState('+254 789 012 345');
-  const [medicalNotes, setMedicalNotes] = useState('Active Malaria treatment baseline. Penicillin allergy.');
+  const [primaryContact, setPrimaryContact] = useState(profile?.emergency_primary_contact || '');
+  const [secondaryContact, setSecondaryContact] = useState(profile?.emergency_secondary_contact || '');
+  const [medicalNotes, setMedicalNotes] = useState(profile?.medical_notes || '');
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [dispatchStatus, setDispatchStatus] = useState('');
+
+  useEffect(() => {
+    if (!profile) return;
+    setPrimaryContact(profile.emergency_primary_contact || '');
+    setSecondaryContact(profile.emergency_secondary_contact || '');
+    setMedicalNotes(profile.medical_notes || '');
+  }, [profile]);
 
   // Emergency trigger
   const handleEmergencyTrigger = async () => {
@@ -34,31 +43,30 @@ export default function EmergencyPanelScreen() {
     }
 
     const activeConditions = usersMetadata.diagnosed_conditions ? usersMetadata.diagnosed_conditions.join(', ') : 'None';
-    const userId = usersMetadata.user_id || 'usr_default';
+    const userId = usersMetadata.user_id || profile?.username || 'unknown';
     const smsContent = `EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Medical profile context: Diagnosed with ${activeConditions}. Last recorded vitals: Temp ${vitals.temperature}°C, SpO2 ${vitals.spo2}%.`;
 
-    const payload = {
-      primaryContact,
-      secondaryContact,
-      medicalNotes,
-      smsContent,
-      timestamp: new Date().toISOString(),
-    };
+    try {
+      await updateProfileBaseline({
+        emergency_primary_contact: primaryContact,
+        emergency_secondary_contact: secondaryContact,
+        medical_notes: medicalNotes,
+      });
 
-    if (connectionStatus === 'online') {
-      setDispatchStatus(`DISPATCHED VIA SMS:\n"${smsContent}"`);
-      // Simulate external console SMS dispatch trigger to twilio API gateway
-      console.log(`[SMS GATEWAY DISPATCH] Target: ${primaryContact} | Content: ${smsContent}`);
-      setTimeout(() => {
-        Alert.alert('Emergency Broadcasted', `SMS sent successfully:\n\n${smsContent}`);
-      }, 800);
-    } else {
-      setDispatchStatus(`QUEUED (Offline SMS fallback):\n"${smsContent}"`);
-      await handleOfflineEnqueue('emergency', payload);
-      Alert.alert(
-        'Offline Queue Activated',
-        `SMS enqueued in local physical storage fallback:\n\n${smsContent}`
-      );
+      await createEmergencyEvent({
+        primary_contact: primaryContact,
+        secondary_contact: secondaryContact,
+        medical_notes: medicalNotes,
+        sms_content: smsContent,
+        status: connectionStatus === 'online' ? 'dispatched' : 'queued',
+      });
+
+      const statusLabel = connectionStatus === 'online' ? 'RECORDED AS DISPATCHED' : 'RECORDED AS QUEUED';
+      setDispatchStatus(`${statusLabel} IN DJANGO BACKEND:\n"${smsContent}"`);
+      Alert.alert('Emergency Event Saved', `Backend event and critical alert created:\n\n${smsContent}`);
+    } catch (e) {
+      setDispatchStatus(`FAILED TO SAVE EMERGENCY EVENT:\n${e.message}`);
+      Alert.alert('Emergency Save Failed', e.message);
     }
   };
 
