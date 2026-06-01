@@ -8,10 +8,10 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function NotificationsScreen() {
-  const { alerts, dndEnabled, setDndEnabled } = useContext(HealthContext);
+  const { alerts, dndEnabled, setDndEnabled, colors } = useContext(HealthContext);
   const [filter, setFilter] = useState('all'); // 'all', 'critical', 'nutrition', 'fitness'
 
   // Pre-populated notifications representing prior logs
@@ -62,9 +62,9 @@ export default function NotificationsScreen() {
   const liveNotifications = alerts.map((al, index) => ({
     id: `live_${index}`,
     category: al.severity === 'high' ? 'critical' : 'fitness',
-    title: al.title,
-    message: al.message,
-    timestamp: `Live, ${al.timestamp}`,
+    title: al.title || 'Live Clinical Alert',
+    message: al.alert_message || al.message,
+    timestamp: `Live, ${new Date(al.timestamp).toLocaleTimeString()}`,
     read: false,
     isLive: true,
   }));
@@ -78,14 +78,16 @@ export default function NotificationsScreen() {
     return item.category === filter;
   });
 
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       
       {/* 1. Global Do Not Disturb Controller Card */}
-      <View style={styles.dndControlCard}>
-        <View style={styles.dndLeft}>
-          <Text style={styles.dndTitle}>🤫 System Do Not Disturb (DND)</Text>
-          <Text style={styles.dndDesc}>
+      <View style={s.dndControlCard}>
+        <View style={s.dndLeft}>
+          <Text style={s.dndTitle}>🤫 System Do Not Disturb (DND)</Text>
+          <Text style={s.dndDesc}>
             {dndEnabled
               ? 'Muted. Critical warning banners are suppressed in active UI panels.'
               : 'Alerts active. Audio-visual warnings will fire immediately.'}
@@ -94,13 +96,13 @@ export default function NotificationsScreen() {
         <Switch
           value={dndEnabled}
           onValueChange={setDndEnabled}
-          trackColor={{ false: COLORS.surfaceLight, true: COLORS.primary }}
-          thumbColor={dndEnabled ? COLORS.primaryLight : COLORS.textSecondary}
+          trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+          thumbColor={dndEnabled ? colors.primaryLight : colors.textSecondary}
         />
       </View>
 
       {/* 2. Category Tab Switches */}
-      <View style={styles.filterRow}>
+      <View style={s.filterRow}>
         {[
           { key: 'all', label: 'All Feeds' },
           { key: 'critical', label: 'Anomalies' },
@@ -109,13 +111,13 @@ export default function NotificationsScreen() {
         ].map(item => (
           <TouchableOpacity
             key={item.key}
-            style={[styles.filterTab, filter === item.key && styles.activeFilterTab]}
+            style={[s.filterTab, filter === item.key && s.activeFilterTab]}
             onPress={() => setFilter(item.key)}
           >
             <Text
               style={[
-                styles.filterTabText,
-                filter === item.key ? styles.activeFilterText : styles.inactiveFilterText,
+                s.filterTabText,
+                filter === item.key ? s.activeFilterText : s.inactiveFilterText,
               ]}
             >
               {item.label}
@@ -125,25 +127,25 @@ export default function NotificationsScreen() {
       </View>
 
       {/* 3. Alerts Feed List */}
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         {filteredNotifications.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>No alerts found in this category.</Text>
+          <View style={s.emptyContainer}>
+            <Text style={s.emptyIcon}>📭</Text>
+            <Text style={s.emptyText}>No alerts found in this category.</Text>
           </View>
         ) : (
           filteredNotifications.map(item => {
             // Pick category colors
-            let sideColor = COLORS.border;
+            let sideColor = colors.border;
             let iconText = '🔔';
             if (item.category === 'critical') {
-              sideColor = COLORS.critical;
+              sideColor = colors.critical;
               iconText = '⚠️';
             } else if (item.category === 'nutrition') {
-              sideColor = COLORS.online;
+              sideColor = colors.online;
               iconText = '🍎';
             } else if (item.category === 'fitness') {
-              sideColor = COLORS.accent;
+              sideColor = colors.accent;
               iconText = '🏃';
             }
 
@@ -151,26 +153,26 @@ export default function NotificationsScreen() {
               <View
                 key={item.id}
                 style={[
-                  styles.alertCard,
+                  s.alertCard,
                   { borderLeftColor: sideColor },
-                  item.isLive && styles.liveBorder,
+                  item.isLive && s.liveBorder,
                 ]}
               >
-                <View style={styles.alertHeader}>
-                  <View style={styles.alertHeaderLeft}>
-                    <Text style={styles.categoryIcon}>{iconText}</Text>
-                    <Text style={styles.alertCardTitle} numberOfLines={1}>
+                <View style={s.alertHeader}>
+                  <View style={s.alertHeaderLeft}>
+                    <Text style={s.categoryIcon}>{iconText}</Text>
+                    <Text style={s.alertCardTitle} numberOfLines={1}>
                       {item.title}
                     </Text>
                   </View>
-                  {item.isLive && <Text style={styles.liveTag}>LIVE ALERT</Text>}
+                  {item.isLive && <Text style={s.liveTag}>LIVE ALERT</Text>}
                 </View>
 
-                <Text style={styles.alertCardMsg}>{item.message}</Text>
+                <Text style={s.alertCardMsg}>{item.message}</Text>
                 
-                <View style={styles.alertFooter}>
-                  <Text style={styles.alertTime}>{item.timestamp}</Text>
-                  <Text style={styles.categoryTag}>{item.category.toUpperCase()}</Text>
+                <View style={s.alertFooter}>
+                  <Text style={s.alertTime}>{item.timestamp}</Text>
+                  <Text style={s.categoryTag}>{item.category.toUpperCase()}</Text>
                 </View>
               </View>
             );
@@ -181,33 +183,33 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   dndControlCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     padding: SPACING.md + 4,
     margin: SPACING.md,
     borderRadius: SPACING.borderRadius,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   dndLeft: {
     flex: 0.85,
   },
   dndTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: TYPOGRAPHY.sizes.body,
     marginBottom: 4,
   },
   dndDesc: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 16,
   },
@@ -221,41 +223,41 @@ const styles = StyleSheet.create({
   filterTab: {
     flex: 1,
     paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     alignItems: 'center',
   },
   activeFilterTab: {
-    backgroundColor: COLORS.surfaceLight,
-    borderColor: COLORS.primaryLight,
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.primaryLight,
   },
   filterTabText: {
     fontSize: 11,
     fontWeight: 'bold',
   },
   activeFilterText: {
-    color: COLORS.primaryLight,
+    color: colors.primaryLight,
   },
   inactiveFilterText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: 40,
   },
   alertCard: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderLeftWidth: 4,
     borderRadius: SPACING.borderRadiusSm,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   liveBorder: {
-    borderColor: COLORS.critical,
+    borderColor: colors.critical,
     backgroundColor: 'rgba(239, 68, 68, 0.02)',
   },
   alertHeader: {
@@ -274,23 +276,23 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   alertCardTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 13,
   },
   liveTag: {
-    color: COLORS.critical,
+    color: colors.critical,
     fontSize: 8,
     fontWeight: 'bold',
     borderWidth: 1,
-    borderColor: COLORS.critical,
+    borderColor: colors.critical,
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 4,
     backgroundColor: 'rgba(239, 68, 68, 0.05)',
   },
   alertCardMsg: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     marginBottom: 8,
@@ -300,16 +302,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 0.5,
-    borderTopColor: COLORS.border,
+    borderTopColor: colors.border,
     paddingTop: 8,
     marginTop: 4,
   },
   alertTime: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 10,
   },
   categoryTag: {
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     fontSize: 9,
     fontWeight: 'bold',
     letterSpacing: 0.5,
@@ -323,7 +325,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   emptyText: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: TYPOGRAPHY.sizes.body,
   },
 });

@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function NutritionHubScreen() {
   const {
@@ -18,6 +18,7 @@ export default function NutritionHubScreen() {
     setUsersMetadata,
     vitals,
     handleOfflineEnqueue,
+    colors,
   } = useContext(HealthContext);
 
   const [weightLogs, setWeightLogs] = useState([
@@ -35,16 +36,16 @@ export default function NutritionHubScreen() {
     const bmi = wt / (ht * ht);
     
     let range = 'Optimal Health';
-    let statusColor = COLORS.primary;
+    let statusColor = colors.primary;
     if (bmi < 18.5) {
       range = 'Underweight';
-      statusColor = COLORS.primaryLight;
+      statusColor = colors.primaryLight;
     } else if (bmi >= 25 && bmi < 30) {
       range = 'Overweight';
-      statusColor = COLORS.primaryLight;
+      statusColor = colors.primaryLight;
     } else if (bmi >= 30) {
       range = 'Obese (Critical Alert)';
-      statusColor = COLORS.primary;
+      statusColor = colors.primary;
     }
     
     return {
@@ -84,100 +85,102 @@ export default function NutritionHubScreen() {
   const isFeverLogged = vitals.temperature > 38.0;
   const isTyphoidActive = usersMetadata.diagnosed_conditions?.includes('Typhoid');
 
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={s.container}>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Dynamic Nutrition & Lifestyle Guidelines Alteration */}
         {(isFeverLogged || isTyphoidActive) && (
-          <View style={[styles.card, { borderColor: COLORS.primary, borderWidth: 2, backgroundColor: 'rgba(225, 173, 1, 0.03)' }]}>
-            <Text style={[styles.cardTitle, { color: COLORS.primary }]}>⚠️ Clinical Diet Guideline Active</Text>
-            <Text style={styles.cardDesc}>
+          <View style={[s.card, { borderColor: colors.primary, borderWidth: 2, backgroundColor: 'rgba(225, 173, 1, 0.03)' }]}>
+            <Text style={[s.cardTitle, { color: colors.primary }]}>⚠️ Clinical Diet Guideline Active</Text>
+            <Text style={s.cardDesc}>
               Fever or gastrointestinal symptoms logged. Dietary safety protocol active.
             </Text>
-            <View style={styles.instructionBox}>
-              <Text style={styles.instructionText}>
-                📢 <Text style={{ fontWeight: 'bold' }}>Important Instructions:</Text> Please shift <Text style={{ fontWeight: 'bold', color: COLORS.primary }}>strictly to boiled water</Text> and highly digestible, soft food items (such as vegetable broth, barley water, oatmeal, or pureed apples) to prevent digestive complications.
+            <View style={s.instructionBox}>
+              <Text style={s.instructionText}>
+                📢 <Text style={{ fontWeight: 'bold' }}>Important Instructions:</Text> Please shift <Text style={{ fontWeight: 'bold', color: colors.primary }}>strictly to boiled water</Text> and highly digestible, soft food items (such as vegetable broth, barley water, oatmeal, or pureed apples) to prevent digestive complications.
               </Text>
             </View>
           </View>
         )}
 
         {/* BMI Calculator Display Card */}
-        <View style={[styles.card, SHADOWS.premium]}>
-          <Text style={styles.cardTitle}>📊 Medical BMI Baseline Calculator</Text>
-          <Text style={styles.cardDesc}>
+        <View style={[s.card, SHADOWS.premium]}>
+          <Text style={s.cardTitle}>📊 Medical BMI Baseline Calculator</Text>
+          <Text style={s.cardDesc}>
             Automatically calculated in real-time from your patient baseline height ({usersMetadata.height}cm) and weight ({usersMetadata.weight}kg).
           </Text>
           
-          <View style={styles.bmiDisplayBox}>
-            <View style={styles.bmiLeft}>
-              <Text style={styles.bmiValText}>{bmi.score}</Text>
-              <Text style={styles.bmiLabel}>Body Mass Index (BMI)</Text>
+          <View style={s.bmiDisplayBox}>
+            <View style={s.bmiLeft}>
+              <Text style={s.bmiValText}>{bmi.score}</Text>
+              <Text style={s.bmiLabel}>Body Mass Index (BMI)</Text>
             </View>
-            <View style={[styles.bmiBadge, { backgroundColor: 'rgba(225, 173, 1, 0.08)', borderColor: bmi.statusColor }]}>
-              <Text style={[styles.bmiBadgeText, { color: bmi.statusColor }]}>{bmi.range}</Text>
+            <View style={[s.bmiBadge, { backgroundColor: 'rgba(225, 173, 1, 0.08)', borderColor: bmi.statusColor }]}>
+              <Text style={[s.bmiBadgeText, { color: bmi.statusColor }]}>{bmi.range}</Text>
             </View>
           </View>
         </View>
 
         {/* Click-to-add fluid tracker */}
-        <View style={[styles.card, SHADOWS.premium]}>
-          <Text style={styles.cardTitle}>💧 Hydration Tracker (Daily Goal: 3.0L)</Text>
-          <Text style={styles.cardDesc}>
+        <View style={[s.card, SHADOWS.premium]}>
+          <Text style={s.cardTitle}>💧 Hydration Tracker (Daily Goal: 3.0L)</Text>
+          <Text style={s.cardDesc}>
             Incrementally log your daily water intake. Goal calibrated dynamically against treatment baseline.
           </Text>
 
-          <View style={styles.waterBox}>
-            <Text style={styles.waterVal}>{waterIntake} mL</Text>
-            <Text style={styles.waterSub}>Logged of 3000 mL goal</Text>
+          <View style={s.waterBox}>
+            <Text style={s.waterVal}>{waterIntake} mL</Text>
+            <Text style={s.waterSub}>Logged of 3000 mL goal</Text>
 
             {/* Visual Glass cells */}
-            <View style={styles.glassesGrid}>
+            <View style={s.glassesGrid}>
               {[...Array(12)].map((_, i) => {
                 const filled = waterIntake >= (i + 1) * 250;
                 return (
                   <View
                     key={i}
                     style={[
-                      styles.glassCell,
-                      filled && { backgroundColor: COLORS.primary, borderColor: COLORS.primary }
+                      s.glassCell,
+                      filled && { backgroundColor: colors.primary, borderColor: colors.primary }
                     ]}
                   />
                 );
               })}
             </View>
 
-            <TouchableOpacity style={styles.waterAddBtn} onPress={handleAddWater} activeOpacity={0.8}>
-              <Text style={styles.waterBtnText}>+ Click to log 250mL</Text>
+            <TouchableOpacity style={s.waterAddBtn} onPress={handleAddWater} activeOpacity={0.8}>
+              <Text style={s.waterBtnText}>+ Click to log 250mL</Text>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Weight alterations card */}
-        <View style={[styles.card, SHADOWS.premium]}>
-          <Text style={styles.cardTitle}>⚖️ Weight Alteration Logs</Text>
-          <Text style={styles.cardDesc}>Input changes in weight to recalibrate clinical baselines.</Text>
+        <View style={[s.card, SHADOWS.premium]}>
+          <Text style={s.cardTitle}>⚖️ Weight Alteration Logs</Text>
+          <Text style={s.cardDesc}>Input changes in weight to recalibrate clinical baselines.</Text>
 
-          <View style={styles.weightInputRow}>
+          <View style={s.weightInputRow}>
             <TextInput
-              style={styles.weightInput}
+              style={s.weightInput}
               placeholder="e.g. 70.5"
-              placeholderTextColor={COLORS.textMuted}
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={newWeight}
               onChangeText={setNewWeight}
             />
-            <TouchableOpacity style={styles.weightLogBtn} onPress={handleLogWeight}>
-              <Text style={styles.weightLogBtnText}>Log Weight</Text>
+            <TouchableOpacity style={s.weightLogBtn} onPress={handleLogWeight}>
+              <Text style={s.weightLogBtnText}>Log Weight</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.weightTable}>
+          <View style={s.weightTable}>
             {weightLogs.map((log, index) => (
-              <View key={index} style={styles.weightTableRow}>
-                <Text style={styles.weightTableCol1}>{log.date}</Text>
-                <Text style={styles.weightTableCol2}>{log.weight}</Text>
+              <View key={index} style={s.weightTableRow}>
+                <Text style={s.weightTableCol1}>{log.date}</Text>
+                <Text style={s.weightTableCol2}>{log.weight}</Text>
               </View>
             ))}
           </View>
@@ -188,57 +191,57 @@ export default function NutritionHubScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   cardTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: TYPOGRAPHY.sizes.body + 1,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   cardDesc: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 10,
     lineHeight: 15,
     marginBottom: SPACING.md,
   },
   instructionBox: {
-    backgroundColor: COLORS.surfaceLight,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginTop: 4,
   },
   instructionText: {
     fontSize: 11,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     lineHeight: 16,
   },
   bmiDisplayBox: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderRadius: 10,
     padding: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   bmiLeft: {
     flex: 1,
@@ -246,11 +249,11 @@ const styles = StyleSheet.create({
   bmiValText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   bmiLabel: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginTop: 2,
   },
   bmiBadge: {
@@ -265,20 +268,20 @@ const styles = StyleSheet.create({
   },
   waterBox: {
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 10,
     padding: SPACING.md,
   },
   waterVal: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   waterSub: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     marginBottom: SPACING.md,
   },
   glassesGrid: {
@@ -292,12 +295,12 @@ const styles = StyleSheet.create({
     width: 20,
     height: 30,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 4,
     backgroundColor: 'transparent',
   },
   waterAddBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 8,
@@ -316,17 +319,17 @@ const styles = StyleSheet.create({
   },
   weightInput: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     paddingHorizontal: SPACING.md,
     paddingVertical: 10,
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: 14,
   },
   weightLogBtn: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: colors.primary,
     paddingHorizontal: 16,
     borderRadius: 8,
     justifyContent: 'center',
@@ -338,7 +341,7 @@ const styles = StyleSheet.create({
   },
   weightTable: {
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     overflow: 'hidden',
   },
@@ -348,16 +351,16 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderBottomWidth: 0.5,
-    borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.background,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   weightTableCol1: {
     fontSize: 11,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
   weightTableCol2: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
 });

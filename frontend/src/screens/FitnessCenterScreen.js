@@ -6,10 +6,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { COLORS, TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function FitnessCenterScreen() {
-  const { alerts } = useContext(HealthContext);
+  const { alerts, colors } = useContext(HealthContext);
 
   // Check if there is an active unread critical alert in the state
   const hasCriticalAlert = alerts.some(a => a.severity === 'critical' && a.status === 'unread');
@@ -20,48 +20,50 @@ export default function FitnessCenterScreen() {
     { id: '3', type: 'Light Cardiovascular Cycle', duration: '30 mins', intensity: 'Medium' },
   ];
 
+  const s = styles(colors);
+
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <View style={s.container}>
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
         
         {hasCriticalAlert ? (
           /* Strenuous exercises lock */
-          <View style={[styles.lockedCard, SHADOWS.premium]}>
-            <Text style={styles.lockedIcon}>⚠️</Text>
-            <View style={styles.lockedTextCol}>
-              <Text style={styles.lockedTitle}>Strenuous Activities Locked</Text>
-              <Text style={styles.lockedDesc}>
+          <View style={[s.lockedCard, SHADOWS.premium]}>
+            <Text style={s.lockedIcon}>⚠️</Text>
+            <View style={s.lockedTextCol}>
+              <Text style={s.lockedTitle}>Strenuous Activities Locked</Text>
+              <Text style={s.lockedDesc}>
                 Strenuous activities disabled due to elevated vitals. Prioritize recovery.
               </Text>
             </View>
           </View>
         ) : (
           /* Exercise widgets active */
-          <View style={[styles.card, SHADOWS.premium]}>
-            <Text style={styles.cardTitle}>🏃 Cardiovascular Activity & Workouts</Text>
-            <Text style={styles.cardDesc}>
+          <View style={[s.card, SHADOWS.premium]}>
+            <Text style={s.cardTitle}>🏃 Cardiovascular Activity & Workouts</Text>
+            <Text style={s.cardDesc}>
               Daily light exercise regimes suggested based on optimal baseline clinical profiles.
             </Text>
 
-            <View style={styles.stepGrid}>
-              <View style={styles.stepBox}>
-                <Text style={styles.stepVal}>6,240</Text>
-                <Text style={styles.stepSub}>Daily Steps</Text>
+            <View style={s.stepGrid}>
+              <View style={s.stepBox}>
+                <Text style={s.stepVal}>6,240</Text>
+                <Text style={s.stepSub}>Daily Steps</Text>
               </View>
-              <View style={styles.stepBox}>
-                <Text style={styles.stepVal}>10,000</Text>
-                <Text style={styles.stepSub}>Goal Target</Text>
+              <View style={s.stepBox}>
+                <Text style={s.stepVal}>10,000</Text>
+                <Text style={s.stepSub}>Goal Target</Text>
               </View>
             </View>
 
-            <Text style={styles.workoutHeading}>Suggested Recovery Routines</Text>
+            <Text style={s.workoutHeading}>Suggested Recovery Routines</Text>
             {workouts.map(item => (
-              <View key={item.id} style={styles.workoutItem}>
-                <View style={styles.workoutHeader}>
-                  <Text style={styles.workoutType}>{item.type}</Text>
-                  <Text style={styles.workoutDur}>{item.duration}</Text>
+              <View key={item.id} style={s.workoutItem}>
+                <View style={s.workoutHeader}>
+                  <Text style={s.workoutType}>{item.type}</Text>
+                  <Text style={s.workoutDur}>{item.duration}</Text>
                 </View>
-                <Text style={styles.workoutIntensity}>Intensity: {item.intensity}</Text>
+                <Text style={s.workoutIntensity}>Intensity: {item.intensity}</Text>
               </View>
             ))}
           </View>
@@ -72,39 +74,39 @@ export default function FitnessCenterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = (colors) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     padding: SPACING.md,
     paddingBottom: 40,
   },
   card: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: colors.surface,
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   cardTitle: {
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     fontSize: TYPOGRAPHY.sizes.body + 1,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   cardDesc: {
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
     fontSize: 10,
     lineHeight: 15,
     marginBottom: SPACING.md,
   },
   lockedCard: {
-    backgroundColor: '#1E293B', // Charcoal black background
+    backgroundColor: colors.surfaceLight,
     borderWidth: 2,
-    borderColor: COLORS.primary, // Gold border
+    borderColor: colors.primary, // Gold border
     borderRadius: SPACING.borderRadius,
     padding: SPACING.lg,
     flexDirection: 'row',
@@ -120,13 +122,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lockedTitle: {
-    color: COLORS.primary,
+    color: colors.primary,
     fontSize: TYPOGRAPHY.sizes.body + 1,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   lockedDesc: {
-    color: '#FFFFFF',
+    color: colors.textPrimary,
     fontSize: 11,
     lineHeight: 16,
     fontWeight: 'bold',
@@ -138,9 +140,9 @@ const styles = StyleSheet.create({
   },
   stepBox: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: SPACING.md,
     alignItems: 'center',
@@ -148,23 +150,23 @@ const styles = StyleSheet.create({
   stepVal: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: COLORS.primary,
+    color: colors.primary,
   },
   stepSub: {
     fontSize: 9,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
     marginTop: 2,
   },
   workoutHeading: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
     marginBottom: SPACING.sm,
   },
   workoutItem: {
-    backgroundColor: COLORS.background,
+    backgroundColor: colors.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: SPACING.md,
     marginBottom: SPACING.sm,
@@ -177,14 +179,14 @@ const styles = StyleSheet.create({
   workoutType: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
+    color: colors.textPrimary,
   },
   workoutDur: {
     fontSize: 10,
-    color: COLORS.textMuted,
+    color: colors.textMuted,
   },
   workoutIntensity: {
     fontSize: 10,
-    color: COLORS.textSecondary,
+    color: colors.textSecondary,
   },
 });
