@@ -1,3 +1,5 @@
+import { Platform } from 'react-native';
+
 // Custom Design System Tokens for the Remote Health Monitoring Tool (RHMT)
 
 export const DARK_COLORS = {
@@ -93,27 +95,42 @@ export const SPACING = {
 };
 
 export const SHADOWS = {
-  premium: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  neonGreen: {
-    shadowColor: '#E1AD01',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  neonRed: {
-    shadowColor: '#E1AD01',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 3,
-  }
+  premium: Platform.select({
+    web: {
+      boxShadow: '0 6px 18px rgba(0, 0, 0, 0.2)',
+    },
+    default: {
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+  }),
+  neonGreen: Platform.select({
+    web: {
+      boxShadow: '0 0 14px rgba(225, 173, 1, 0.3)',
+    },
+    default: {
+      shadowColor: '#E1AD01',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 2,
+    },
+  }),
+  neonRed: Platform.select({
+    web: {
+      boxShadow: '0 0 16px rgba(225, 173, 1, 0.4)',
+    },
+    default: {
+      shadowColor: '#E1AD01',
+      shadowOffset: { width: 0, height: 0 },
+      shadowOpacity: 0.4,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+  }),
 };
 
 export default {

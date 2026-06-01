@@ -12,20 +12,25 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
-import { HealthSyncManager } from '../services/appwrite';
+import { setAuthToken } from '../services/django_api';
 
 export default function AccountAdminScreen() {
   const [activeSubView, setActiveSubView] = useState('account'); // 'account', 'admin'
   const {
     user,
     setUser,
+    profile,
     deviceId,
     setDeviceId,
     logs,
+    alerts,
+    recommendations,
+    healthRecords,
     usersMetadata,
     setUsersMetadata,
     handleClearLogs,
     refreshSyncStats,
+    updateProfileBaseline,
     colors,
   } = useContext(HealthContext);
 
@@ -42,27 +47,21 @@ export default function AccountAdminScreen() {
   const [wifiOnly, setWifiOnly] = useState(false);
   const [cloudBackups, setCloudBackups] = useState(true);
 
-  // --- Simulated Database Collections feeds ---
-  const [cloudRecords, setCloudRecords] = useState([]);
-  const [cloudAlerts, setCloudAlerts] = useState([]);
-  const [cloudRecommendations, setCloudRecommendations] = useState([]);
-
   const conditionsList = ['Malaria', 'Typhoid', 'HIV', 'None'];
-
-  const fetchCloudCollections = async () => {
-    const records = await HealthSyncManager.getCloudDatabaseRecords();
-    setCloudRecords(records);
-    const alertsList = await HealthSyncManager.getAlerts();
-    setCloudAlerts(alertsList);
-    const recsList = await HealthSyncManager.getRecommendations();
-    setCloudRecommendations(recsList);
-  };
+  const cloudRecords = healthRecords;
+  const cloudAlerts = alerts;
+  const cloudRecommendations = recommendations;
 
   useEffect(() => {
-    fetchCloudCollections();
-    const interval = setInterval(fetchCloudCollections, 2000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!profile) return;
+    setProfileName(profile.display_name || user?.name || profile.username || 'Patient');
+    setAgeInput(profile.age ? String(profile.age) : '24');
+    setWeightInput(profile.weight ? String(profile.weight) : '70');
+    setHeightInput(profile.height ? String(profile.height) : '175');
+    setBloodGroupInput(profile.blood_group || 'O+');
+    setSelectedConditions(profile.diagnosed_conditions?.length ? profile.diagnosed_conditions : ['None']);
+    setDeviceId(profile.device_id || 'ESP32-RHM-NODE-001');
+  }, [profile, setDeviceId, user]);
 
   const toggleCondition = (condition) => {
     if (condition === 'None') {
@@ -91,7 +90,15 @@ export default function AccountAdminScreen() {
     };
 
     setUsersMetadata(updatedMetadata);
-    await HealthSyncManager.saveUsersMetadata(updatedMetadata);
+    await updateProfileBaseline({
+      display_name: profileName,
+      age: updatedMetadata.age,
+      weight: updatedMetadata.weight,
+      height: updatedMetadata.height,
+      blood_group: updatedMetadata.blood_group,
+      diagnosed_conditions: updatedMetadata.diagnosed_conditions,
+      device_id: deviceId,
+    });
     
     if (user) {
       const updatedUser = { ...user, name: profileName };
@@ -104,37 +111,39 @@ export default function AccountAdminScreen() {
 
   const handlePurgeData = () => {
     Alert.alert(
-      '🚨 Purge Local & Cloud Data?',
-      'This operation is irreversible. It will wipe all local caches, delete enqueued records from physical storage, and zero your Appwrite cloud database.',
+      '🚨 Clear Local Session?',
+      'This clears the local auth session and in-memory console state. Backend clinical records are retained.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Purge Everything',
+          text: 'Clear Session',
           style: 'destructive',
           onPress: async () => {
             setUser(null);
             await AsyncStorage.removeItem('@rhmt_user_session');
+            await AsyncStorage.removeItem('@rhmt_auth_token');
+            setAuthToken(null);
             handleClearLogs();
-            await HealthSyncManager.clearCloudDatabase();
-            await fetchCloudCollections();
-            Alert.alert('Data Purged', 'Local registers and external cloud database collections zeroed.');
+            Alert.alert('Session Cleared', 'Local auth session and in-memory console logs cleared. Backend clinical records are retained.');
           },
         },
       ]
     );
   };
 
-  const triggerHardwareBackup = () => {
+  const triggerHardwareBackup = async () => {
+    await refreshSyncStats();
     Alert.alert(
-      'SPIFFS Backup Initialized',
-      'Local offline queue mirrored into secondary physical LittleFS/SPIFFS flash partition.'
+      'Backend Refresh Complete',
+      'Latest Django records, alerts, recommendations, nutrition logs, and system logs loaded.'
     );
   };
 
-  const triggerHardwareRestore = () => {
+  const triggerHardwareRestore = async () => {
+    const refreshedProfile = await updateProfileBaseline({ device_id: deviceId });
     Alert.alert(
-      'Data Restored',
-      'Retrieved enqueued registers from LittleFS SPIFFS cache.'
+      'Profile Synced',
+      `Device identifier saved to backend profile: ${refreshedProfile.device_id}`
     );
   };
 
@@ -142,7 +151,8 @@ export default function AccountAdminScreen() {
     try {
       setUser(null);
       await AsyncStorage.removeItem('@rhmt_user_session');
-      await HealthSyncManager.logSystemAction('AUTH', 'User signed out securely.');
+      await AsyncStorage.removeItem('@rhmt_auth_token');
+      setAuthToken(null);
     } catch (e) {
       console.log(e);
     }
@@ -168,7 +178,7 @@ export default function AccountAdminScreen() {
           onPress={() => setActiveSubView('admin')}
         >
           <Text style={[s.subTabText, activeSubView === 'admin' ? s.activeText : s.inactiveText]}>
-            Admin Cloud Console
+            Backend Console
           </Text>
         </TouchableOpacity>
       </View>
@@ -181,7 +191,7 @@ export default function AccountAdminScreen() {
             {/* Medical Profiling Baseline Card */}
             <View style={[s.card, SHADOWS.premium]}>
               <Text style={s.cardTitle}>👤 Patient Profile Baseline (users_metadata)</Text>
-              <Text style={s.cardDesc}>Configure baseline parameters synced with Appwrite Cloud for contextual guideline generation.</Text>
+              <Text style={s.cardDesc}>Configure baseline parameters synced with the Django backend for contextual guideline generation.</Text>
               
               <View style={s.formGroup}>
                 <Text style={s.label}>Patient Identifier (Read-only)</Text>
@@ -247,7 +257,7 @@ export default function AccountAdminScreen() {
               <View style={s.prefRow}>
                 <View style={s.prefLeft}>
                   <Text style={s.prefTitle}>Real-time Stream Sync</Text>
-                  <Text style={s.prefDesc}>Establishes Appwrite WebSocket listener channels for realtime state feeds.</Text>
+                  <Text style={s.prefDesc}>Polls authenticated Django endpoints for realtime state feeds.</Text>
                 </View>
                 <Switch
                   value={realtimeSync}
@@ -272,8 +282,8 @@ export default function AccountAdminScreen() {
 
               <View style={s.prefRow}>
                 <View style={s.prefLeft}>
-                  <Text style={s.prefTitle}>Automated Cloud Backups</Text>
-                  <Text style={s.prefDesc}>Generates hourly trend backups in Appwrite Storage collections.</Text>
+                  <Text style={s.prefTitle}>Automated Backend Refresh</Text>
+                  <Text style={s.prefDesc}>Keeps clinical records, alerts, and recommendations refreshed from Django.</Text>
                 </View>
                 <Switch
                   value={cloudBackups}
@@ -312,11 +322,10 @@ export default function AccountAdminScreen() {
         {/* ==================== 2. ADMIN CLOUD CONSOLE ==================== */}
         {activeSubView === 'admin' && (
           <View>
-            {/* Simulated Appwrite Cloud NoSQL Databases Display */}
             <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>🌐 Appwrite Cloud Collections Registry</Text>
+              <Text style={s.cardTitle}>🌐 Django Backend Collections Registry</Text>
               <Text style={s.cardDesc}>
-                Real-time view of records kept permanently in the external Appwrite Cloud Database. Sync enqueued logs to see them appear here instantly.
+                Real-time view of records kept in the authenticated Django REST API.
               </Text>
 
               {/* Collection Registry: health_records */}
@@ -327,9 +336,9 @@ export default function AccountAdminScreen() {
                 ) : (
                   <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
                     {cloudRecords.map((rec) => (
-                      <View key={rec.record_id} style={s.dbRow}>
+                      <View key={rec.id} style={s.dbRow}>
                         <View style={s.dbRowHeader}>
-                          <Text style={s.dbDocId}>ID: {rec.record_id}</Text>
+                          <Text style={s.dbDocId}>ID: {rec.id}</Text>
                           <Text style={s.dbBadge}>HEALTH_RECORD</Text>
                         </View>
                         <Text style={s.dbDataText}>
@@ -339,7 +348,7 @@ export default function AccountAdminScreen() {
                           Symptoms: {rec.symptoms_array.join(', ') || 'None'} | Meds Taken: {rec.meds_taken ? 'Yes' : 'No'} | Wellbeing: {rec.wellbeing_score}/5
                         </Text>
                         <View style={s.dbRowFooter}>
-                          <Text style={s.dbMetaText}>User: {rec.user_id}</Text>
+                          <Text style={s.dbMetaText}>User: {rec.user}</Text>
                           <Text style={s.dbMetaText}>{new Date(rec.timestamp).toLocaleTimeString()}</Text>
                         </View>
                       </View>
@@ -356,15 +365,15 @@ export default function AccountAdminScreen() {
                 ) : (
                   <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
                     {cloudRecommendations.map((rec) => (
-                      <View key={rec.rec_id} style={s.dbRow}>
+                      <View key={rec.id} style={s.dbRow}>
                         <View style={s.dbRowHeader}>
-                          <Text style={s.dbDocId}>ID: {rec.rec_id}</Text>
+                          <Text style={s.dbDocId}>ID: {rec.id}</Text>
                           <Text style={s.dbBadgeGold}>RECOMMENDATION</Text>
                         </View>
                         <Text style={s.dbDataTextBold}>{rec.lifestyle_guideline}</Text>
                         <Text style={s.dbDataText}>Diet: {rec.meal_plan} | Fluids: {rec.fluid_target}</Text>
                         <View style={s.dbRowFooter}>
-                          <Text style={s.dbMetaText}>User: {rec.user_id}</Text>
+                          <Text style={s.dbMetaText}>User: {rec.user}</Text>
                           <Text style={s.dbMetaText}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
                         </View>
                       </View>
@@ -381,16 +390,16 @@ export default function AccountAdminScreen() {
                 ) : (
                   <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
                     {cloudAlerts.map((alert) => (
-                      <View key={alert.alert_id} style={s.dbRow}>
+                      <View key={alert.id} style={s.dbRow}>
                         <View style={s.dbRowHeader}>
-                          <Text style={s.dbDocId}>ID: {alert.alert_id}</Text>
+                          <Text style={s.dbDocId}>ID: {alert.id}</Text>
                           <Text style={s.dbBadgeRed}>
                             ALERT ({alert.severity.toUpperCase()})
                           </Text>
                         </View>
                         <Text style={s.dbDataTextBold}>{alert.alert_message}</Text>
                         <View style={s.dbRowFooter}>
-                          <Text style={s.dbMetaText}>User: {alert.user_id}</Text>
+                          <Text style={s.dbMetaText}>User: {alert.user}</Text>
                           <Text style={s.dbMetaText}>Status: {alert.status}</Text>
                         </View>
                       </View>
@@ -413,16 +422,16 @@ export default function AccountAdminScreen() {
 
             {/* Backups card */}
             <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>💾 Physical LittleFS / SPIFFS Cache Recovery</Text>
-              <Text style={s.cardDesc}>Backup locally enqueued entries to flash partition blocks.</Text>
+              <Text style={s.cardTitle}>💾 Backend Sync Controls</Text>
+              <Text style={s.cardDesc}>Refresh backend collections or save the monitoring node identifier.</Text>
 
               <View style={s.simButtonRow}>
                 <TouchableOpacity style={s.simBtnCol} onPress={triggerHardwareBackup}>
-                  <Text style={s.simBtnColText}>Backup to LittleFS</Text>
+                  <Text style={s.simBtnColText}>Refresh Backend</Text>
                 </TouchableOpacity>
                 
                 <TouchableOpacity style={[s.simBtnCol, { backgroundColor: colors.surfaceLight }]} onPress={triggerHardwareRestore}>
-                  <Text style={[s.simBtnColText, { color: colors.textPrimary }]}>Restore LittleFS</Text>
+                  <Text style={[s.simBtnColText, { color: colors.textPrimary }]}>Save Device ID</Text>
                 </TouchableOpacity>
               </View>
             </View>

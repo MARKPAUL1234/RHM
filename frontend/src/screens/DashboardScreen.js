@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
-import { HealthSyncManager } from '../services/appwrite';
+import djangoApi from '../services/django_api';
 
 // Pure React Native Skeleton Shimmer Loader Component
 function SkeletonLoader() {
@@ -23,12 +23,12 @@ function SkeletonLoader() {
         Animated.timing(shimmerOpacity, {
           toValue: 0.7,
           duration: 800,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(shimmerOpacity, {
           toValue: 0.3,
           duration: 800,
-          useNativeDriver: true,
+          useNativeDriver: false,
         })
       ])
     );
@@ -76,6 +76,7 @@ export default function DashboardScreen() {
     alerts,
     setAlerts,
     recommendations,
+    healthRecords,
     queueCount,
     handleSyncQueue,
     refreshSyncStats,
@@ -109,31 +110,24 @@ export default function DashboardScreen() {
   // Handle Mark as Read for local session alerts
   const handleMarkAlertRead = async (alertId) => {
     try {
+      await djangoApi.updateAlert(alertId, { status: 'read' });
       const updatedAlerts = alerts.map(a => 
-        a.alert_id === alertId ? { ...a, status: 'read' } : a
+        a.id === alertId ? { ...a, status: 'read' } : a
       );
       setAlerts(updatedAlerts);
-      
-      // Update in Appwrite simulated DB
-      const currentAlerts = await HealthSyncManager.getAlerts();
-      const updatedCloud = currentAlerts.map(a => 
-        a.alert_id === alertId ? { ...a, status: 'read' } : a
-      );
-      await AsyncStorage.setItem('@rhmt_cloud_alerts', JSON.stringify(updatedCloud));
-      await HealthSyncManager.logSystemAction('INFO', `Alert marked as read: ${alertId}`);
       await refreshSyncStats();
     } catch (e) {
       console.log("Failed to update alert state:", e);
     }
   };
 
-  // Mock historical vitals dataset for SVG drawing
-  const historicalVitals = [
-    { time: '08:00', temp: 36.5, hr: 72 },
-    { time: '10:00', temp: 36.8, hr: 76 },
-    { time: '12:00', temp: 37.2, hr: 82 },
-    { time: '14:00', temp: vitals.temperature, hr: vitals.heartRate }, // Live data coordinate point
-  ];
+  const historicalVitals = healthRecords.length > 0
+    ? healthRecords.slice(0, 4).reverse().map(record => ({
+        time: new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        temp: record.temperature,
+        hr: record.heart_rate,
+      }))
+    : [{ time: 'No logs', temp: vitals.temperature, hr: vitals.heartRate }];
 
   if (isFetchingData) {
     return <SkeletonLoader />;
@@ -163,7 +157,7 @@ export default function DashboardScreen() {
         >
           <Text style={s.networkBannerText}>
             {connectionStatus === 'online'
-              ? '🟢 Sync Pipeline Enabled (Online Appwrite Sync)'
+              ? '🟢 Sync Pipeline Enabled (Django Backend Connected)'
               : 'Saved Locally (Pending Sync)'}
           </Text>
           {queueCount > 0 && (
@@ -201,7 +195,7 @@ export default function DashboardScreen() {
               <Text style={s.alertsTitle}>ACTIVE CLINICAL ALERTS ({alerts.filter(a => a.status === 'unread').length})</Text>
             </View>
             {alerts.filter(a => a.status === 'unread').slice(0, 2).map((alert) => (
-              <View key={alert.alert_id} style={s.alertItem}>
+              <View key={alert.id} style={s.alertItem}>
                 <View style={s.alertRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={s.alertItemTitle}>Critical Notification</Text>
@@ -209,7 +203,7 @@ export default function DashboardScreen() {
                   </View>
                   <TouchableOpacity 
                     style={s.markReadBtn} 
-                    onPress={() => handleMarkAlertRead(alert.alert_id)}
+                    onPress={() => handleMarkAlertRead(alert.id)}
                   >
                     <Text style={s.markReadBtnText}>Acknowledge</Text>
                   </TouchableOpacity>
@@ -242,7 +236,7 @@ export default function DashboardScreen() {
 
         {/* 4. Historical Vitals SVG Chart Display */}
         <View style={[s.card, SHADOWS.premium]}>
-          <Text style={s.cardTitle}>📈 Historical Biometric Summary (Last 4 Logs)</Text>
+          <Text style={s.cardTitle}>📈 Historical Biometric Summary (Last 4 Backend Logs)</Text>
           <Text style={s.cardDesc}>
             Dynamic vector projection mapping temperature fluctuations and cardiac telemetry coordinates.
           </Text>
@@ -284,7 +278,7 @@ export default function DashboardScreen() {
 
         {/* 5. Real-Time Lifestyle Recommendation Feeds */}
         <View style={[s.card, SHADOWS.premium]}>
-          <Text style={s.cardTitle}>💡 Appwrite Cloud Recommendations</Text>
+          <Text style={s.cardTitle}>💡 Backend Clinical Recommendations</Text>
           <Text style={s.cardDesc}>
             Clinical diet guidelines and lifestyle instructions generated automatically by Serverless Triage.
           </Text>
@@ -295,7 +289,7 @@ export default function DashboardScreen() {
             </View>
           ) : (
             recommendations.slice(0, 3).map((rec, index) => (
-              <View key={rec.rec_id || index} style={s.recItem}>
+              <View key={rec.id || index} style={s.recItem}>
                 <View style={s.recHeader}>
                   <Text style={s.recTag}>RECOMMENDATION</Text>
                   <Text style={s.recTime}>{new Date(rec.created_at).toLocaleTimeString()}</Text>

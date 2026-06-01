@@ -11,66 +11,44 @@ import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
 
 export default function NotificationsScreen() {
-  const { alerts, dndEnabled, setDndEnabled, colors } = useContext(HealthContext);
+  const { alerts, recommendations, logs, dndEnabled, setDndEnabled, colors } = useContext(HealthContext);
   const [filter, setFilter] = useState('all'); // 'all', 'critical', 'nutrition', 'fitness'
 
-  // Pre-populated notifications representing prior logs
-  const staticNotifications = [
-    {
-      id: 'fit_1',
-      category: 'fitness',
-      title: 'Fitness Reminder: Activity Window Open',
-      message: 'You have been seated for 2 hours. A quick 10-minute cardiovascular stretching walk is recommended.',
-      timestamp: 'Today, 10:15 AM',
-      read: false,
-    },
-    {
-      id: 'nut_1',
-      category: 'nutrition',
-      title: 'Hydration Target Checked',
-      message: 'Calorie calibration logs show low fluid intake. Consume 500mL of water to maintain metabolic levels.',
-      timestamp: 'Today, 08:30 AM',
-      read: true,
-    },
-    {
-      id: 'fit_2',
-      category: 'fitness',
-      title: 'Step Milestone Reached!',
-      message: 'Congratulations! You passed 60% of your daily steps targets (6,240 / 10,000 steps). Keep moving.',
-      timestamp: 'Yesterday, 06:12 PM',
-      read: true,
-    },
-    {
-      id: 'crit_1',
-      category: 'critical',
-      title: 'Device Node Offline Log',
-      message: 'Node ESP32-RHM-NODE-001 temporarily disconnected. Buffering telemetry queue locally.',
-      timestamp: 'Yesterday, 02:40 PM',
-      read: true,
-    },
-    {
-      id: 'nut_2',
-      category: 'nutrition',
-      title: 'Nutrition Goal Met',
-      message: 'Blood group O+ parameters calibration completed. Meal plans loaded.',
-      timestamp: 'Yesterday, 09:15 AM',
-      read: true,
-    },
-  ];
-
-  // Map dynamic live alarms from context to display as Critical notifications
-  const liveNotifications = alerts.map((al, index) => ({
-    id: `live_${index}`,
-    category: al.severity === 'high' ? 'critical' : 'fitness',
+  const alertNotifications = alerts.map((al) => ({
+    id: `alert_${al.id}`,
+    category: al.severity === 'critical' ? 'critical' : 'fitness',
     title: al.title || 'Live Clinical Alert',
     message: al.alert_message || al.message,
-    timestamp: `Live, ${new Date(al.timestamp).toLocaleTimeString()}`,
-    read: false,
+    timestamp: new Date(al.timestamp).toLocaleString(),
+    read: al.status === 'read',
     isLive: true,
   }));
 
-  // Combine live telemetry alerts with static notifications history
-  const allNotifications = [...liveNotifications, ...staticNotifications];
+  const recommendationNotifications = recommendations.map((rec) => ({
+    id: `rec_${rec.id}`,
+    category: 'nutrition',
+    title: 'Clinical Recommendation',
+    message: rec.lifestyle_guideline,
+    timestamp: new Date(rec.created_at).toLocaleString(),
+    read: true,
+    isLive: false,
+  }));
+
+  const logNotifications = logs.slice(0, 10).map((log) => ({
+    id: `log_${log.id}`,
+    category: log.level === 'ERROR' || log.level === 'WARN' ? 'critical' : 'fitness',
+    title: `${log.level} Backend Log`,
+    message: log.message,
+    timestamp: new Date(log.timestamp).toLocaleString(),
+    read: true,
+    isLive: false,
+  }));
+
+  const allNotifications = [
+    ...alertNotifications,
+    ...recommendationNotifications,
+    ...logNotifications,
+  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
   // Apply filters
   const filteredNotifications = allNotifications.filter(item => {
