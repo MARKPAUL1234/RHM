@@ -81,7 +81,7 @@ export default function AccountAdminScreen() {
 
   const handleUpdateProfile = async () => {
     const updatedMetadata = {
-      user_id: user ? user.id : 'usr_default',
+      user_id: user ? user.id : null,
       age: parseInt(ageInput) || 24,
       weight: parseFloat(weightInput) || 70.0,
       height: parseFloat(heightInput) || 175.0,

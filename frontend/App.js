@@ -89,12 +89,12 @@ export default function App() {
   });
 
   const [usersMetadata, setUsersMetadata] = useState({
-    user_id: 'usr_default',
-    age: 24,
-    weight: 70,
-    height: 175,
-    blood_group: 'O+',
-    diagnosed_conditions: ['Malaria'],
+    user_id: null,
+    age: null,
+    weight: null,
+    height: null,
+    blood_group: '',
+    diagnosed_conditions: [],
   });
 
   const [patientDetails, setPatientDetails] = useState({
@@ -123,7 +123,7 @@ export default function App() {
   const [dndEnabled, setDndEnabled] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
   const [logs, setLogs] = useState([]);
-  const [deviceId, setDeviceId] = useState('ESP32-RHM-NODE-001');
+  const [deviceId, setDeviceId] = useState('');
 
   useEffect(() => {
     const loadThemePreference = async () => {
