@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,304 +6,412 @@ import {
   ScrollView,
   Switch,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS, getResponsiveMetrics } from '../styles/theme';
+
+const filters = [
+  { key: 'all', label: 'All' },
+  { key: 'critical', label: 'Critical' },
+  { key: 'nutrition', label: 'Nutrition' },
+  { key: 'emergency', label: 'Emergency' },
+  { key: 'system', label: 'System' },
+];
+
+const formatDateTime = (value) => {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not recorded';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export default function NotificationsScreen() {
-  const { alerts, recommendations, logs, dndEnabled, setDndEnabled, colors } = useContext(HealthContext);
-  const [filter, setFilter] = useState('all'); // 'all', 'critical', 'nutrition', 'fitness'
+  const {
+    alerts,
+    recommendations,
+    logs,
+    emergencyEvents,
+    dndEnabled,
+    setDndEnabled,
+    markAlertRead,
+    colors,
+  } = useContext(HealthContext);
+  const { width } = useWindowDimensions();
+  const metrics = getResponsiveMetrics(width);
+  const [filter, setFilter] = useState('all');
 
-  const alertNotifications = alerts.map((al) => ({
-    id: `alert_${al.id}`,
-    category: al.severity === 'critical' ? 'critical' : 'fitness',
-    title: al.title || 'Live Clinical Alert',
-    message: al.alert_message || al.message,
-    timestamp: new Date(al.timestamp).toLocaleString(),
-    read: al.status === 'read',
-    isLive: true,
-  }));
+  const allNotifications = useMemo(() => {
+    const alertNotifications = alerts.map((alert) => ({
+      id: `alert_${alert.id}`,
+      rawId: alert.id,
+      category: alert.severity === 'critical' ? 'critical' : 'system',
+      title: alert.severity === 'critical' ? 'Critical clinical alert' : 'Clinical alert',
+      message: alert.alert_message,
+      timestamp: alert.timestamp,
+      read: alert.status === 'read',
+      canAcknowledge: alert.status !== 'read',
+      tone: alert.severity === 'critical' ? 'critical' : 'warning',
+    }));
 
-  const recommendationNotifications = recommendations.map((rec) => ({
-    id: `rec_${rec.id}`,
-    category: 'nutrition',
-    title: 'Clinical Recommendation',
-    message: rec.lifestyle_guideline,
-    timestamp: new Date(rec.created_at).toLocaleString(),
-    read: true,
-    isLive: false,
-  }));
+    const recommendationNotifications = recommendations.map((rec) => ({
+      id: `rec_${rec.id}`,
+      category: 'nutrition',
+      title: 'Care recommendation',
+      message: rec.lifestyle_guideline,
+      timestamp: rec.created_at,
+      read: true,
+      tone: 'nutrition',
+    }));
 
-  const logNotifications = logs.slice(0, 10).map((log) => ({
-    id: `log_${log.id}`,
-    category: log.level === 'ERROR' || log.level === 'WARN' ? 'critical' : 'fitness',
-    title: `${log.level} Backend Log`,
-    message: log.message,
-    timestamp: new Date(log.timestamp).toLocaleString(),
-    read: true,
-    isLive: false,
-  }));
+    const emergencyNotifications = emergencyEvents.map((event) => ({
+      id: `emergency_${event.id}`,
+      category: 'emergency',
+      title: `Emergency event ${event.status}`,
+      message: event.sms_content,
+      timestamp: event.timestamp,
+      read: true,
+      tone: 'critical',
+    }));
 
-  const allNotifications = [
-    ...alertNotifications,
-    ...recommendationNotifications,
-    ...logNotifications,
-  ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    const logNotifications = logs.slice(0, 20).map((log) => ({
+      id: `log_${log.id}`,
+      category: log.level === 'ERROR' || log.level === 'WARN' ? 'critical' : 'system',
+      title: `${log.level} backend log`,
+      message: log.message,
+      timestamp: log.timestamp,
+      read: true,
+      tone: log.level === 'ERROR' || log.level === 'WARN' ? 'critical' : 'system',
+    }));
 
-  // Apply filters
-  const filteredNotifications = allNotifications.filter(item => {
+    return [
+      ...alertNotifications,
+      ...recommendationNotifications,
+      ...emergencyNotifications,
+      ...logNotifications,
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  }, [alerts, emergencyEvents, logs, recommendations]);
+
+  const filteredNotifications = allNotifications.filter((item) => {
     if (filter === 'all') return true;
     return item.category === filter;
   });
 
-  const s = styles(colors);
+  const unreadCount = alerts.filter((alert) => alert.status !== 'read').length;
+  const s = styles(colors, metrics);
+
+  const toneColor = (tone) => {
+    if (tone === 'critical') return colors.critical;
+    if (tone === 'warning') return colors.warning;
+    if (tone === 'nutrition') return colors.secondary;
+    return colors.primary;
+  };
 
   return (
     <View style={s.container}>
-      
-      {/* 1. Global Do Not Disturb Controller Card */}
-      <View style={s.dndControlCard}>
-        <View style={s.dndLeft}>
-          <Text style={s.dndTitle}>🤫 System Do Not Disturb (DND)</Text>
-          <Text style={s.dndDesc}>
-            {dndEnabled
-              ? 'Muted. Critical warning banners are suppressed in active UI panels.'
-              : 'Alerts active. Audio-visual warnings will fire immediately.'}
-          </Text>
-        </View>
-        <Switch
-          value={dndEnabled}
-          onValueChange={setDndEnabled}
-          trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-          thumbColor={dndEnabled ? colors.primaryLight : colors.textSecondary}
-        />
-      </View>
-
-      {/* 2. Category Tab Switches */}
-      <View style={s.filterRow}>
-        {[
-          { key: 'all', label: 'All Feeds' },
-          { key: 'critical', label: 'Anomalies' },
-          { key: 'nutrition', label: 'Nutrition' },
-          { key: 'fitness', label: 'Fitness' },
-        ].map(item => (
-          <TouchableOpacity
-            key={item.key}
-            style={[s.filterTab, filter === item.key && s.activeFilterTab]}
-            onPress={() => setFilter(item.key)}
-          >
-            <Text
-              style={[
-                s.filterTabText,
-                filter === item.key ? s.activeFilterText : s.inactiveFilterText,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* 3. Alerts Feed List */}
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        {filteredNotifications.length === 0 ? (
-          <View style={s.emptyContainer}>
-            <Text style={s.emptyIcon}>📭</Text>
-            <Text style={s.emptyText}>No alerts found in this category.</Text>
+      <View style={s.pageFrame}>
+        <View style={s.pageHeader}>
+          <View>
+            <Text style={s.eyebrow}>Notifications</Text>
+            <Text style={s.pageTitle}>Event feed</Text>
           </View>
-        ) : (
-          filteredNotifications.map(item => {
-            // Pick category colors
-            let sideColor = colors.border;
-            let iconText = '🔔';
-            if (item.category === 'critical') {
-              sideColor = colors.critical;
-              iconText = '⚠️';
-            } else if (item.category === 'nutrition') {
-              sideColor = colors.online;
-              iconText = '🍎';
-            } else if (item.category === 'fitness') {
-              sideColor = colors.accent;
-              iconText = '🏃';
-            }
+          <View style={s.unreadCard}>
+            <Text style={s.unreadLabel}>Unread alerts</Text>
+            <Text style={s.unreadValue}>{dndEnabled ? 0 : unreadCount}</Text>
+          </View>
+        </View>
 
-            return (
-              <View
-                key={item.id}
-                style={[
-                  s.alertCard,
-                  { borderLeftColor: sideColor },
-                  item.isLive && s.liveBorder,
-                ]}
-              >
-                <View style={s.alertHeader}>
-                  <View style={s.alertHeaderLeft}>
-                    <Text style={s.categoryIcon}>{iconText}</Text>
-                    <Text style={s.alertCardTitle} numberOfLines={1}>
-                      {item.title}
-                    </Text>
+        <View style={[s.dndControlCard, SHADOWS.subtle]}>
+          <View style={s.dndLeft}>
+            <Text style={s.dndTitle}>Do not disturb</Text>
+            <Text style={s.dndDesc}>
+              {dndEnabled
+                ? 'Visual alert counts are muted while the event feed remains available.'
+                : 'Critical warnings remain visible across the clinical workspace.'}
+            </Text>
+          </View>
+          <Switch
+            value={dndEnabled}
+            onValueChange={setDndEnabled}
+            trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+            thumbColor={dndEnabled ? colors.primaryLight : colors.textSecondary}
+          />
+        </View>
+
+        <View style={s.filterRow}>
+          {filters.map((item) => (
+            <TouchableOpacity
+              key={item.key}
+              style={[s.filterTab, filter === item.key && s.activeFilterTab]}
+              onPress={() => setFilter(item.key)}
+            >
+              <Text style={[s.filterTabText, filter === item.key ? s.activeFilterText : s.inactiveFilterText]}>
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={s.pageInner}>
+          {filteredNotifications.length === 0 ? (
+            <View style={s.emptyContainer}>
+              <Text style={s.emptyText}>No events found for this filter.</Text>
+            </View>
+          ) : (
+            filteredNotifications.map((item) => {
+              const itemColor = toneColor(item.tone);
+              return (
+                <View key={item.id} style={[s.alertCard, { borderLeftColor: itemColor }, item.read ? null : s.unreadBorder]}>
+                  <View style={s.alertHeader}>
+                    <View style={s.alertHeaderLeft}>
+                      <View style={[s.categoryDot, { backgroundColor: itemColor }]} />
+                      <Text style={s.alertCardTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                    </View>
+                    <Text style={[s.categoryTag, { color: itemColor }]}>{item.category.toUpperCase()}</Text>
                   </View>
-                  {item.isLive && <Text style={s.liveTag}>LIVE ALERT</Text>}
-                </View>
 
-                <Text style={s.alertCardMsg}>{item.message}</Text>
-                
-                <View style={s.alertFooter}>
-                  <Text style={s.alertTime}>{item.timestamp}</Text>
-                  <Text style={s.categoryTag}>{item.category.toUpperCase()}</Text>
+                  <Text style={s.alertCardMsg}>{item.message}</Text>
+
+                  <View style={s.alertFooter}>
+                    <Text style={s.alertTime}>{formatDateTime(item.timestamp)}</Text>
+                    {item.canAcknowledge ? (
+                      <TouchableOpacity style={s.ackButton} onPress={() => markAlertRead(item.rawId)}>
+                        <Text style={s.ackButtonText}>Acknowledge</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      <Text style={s.readState}>{item.read ? 'Read' : 'Unread'}</Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-            );
-          })
-        )}
+              );
+            })
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = (colors) => StyleSheet.create({
+const styles = (colors, metrics) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
+  pageFrame: {
+    padding: metrics.pagePadding,
+    paddingBottom: 0,
+  },
+  pageInner: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
+  },
+  pageHeader: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
+    flexDirection: metrics.isPhone ? 'column' : 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  eyebrow: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 4,
+  },
+  pageTitle: {
+    color: colors.textPrimary,
+    fontSize: metrics.isPhone ? 24 : 30,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  unreadCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
+    minWidth: metrics.isPhone ? '100%' : 180,
+  },
+  unreadLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  unreadValue: {
+    color: colors.textPrimary,
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: 2,
+  },
   dndControlCard: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    padding: SPACING.md + 4,
-    margin: SPACING.md,
-    borderRadius: SPACING.borderRadius,
+    padding: metrics.cardPadding,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: SPACING.md,
+    gap: SPACING.md,
   },
   dndLeft: {
-    flex: 0.85,
+    flex: 1,
   },
   dndTitle: {
     color: colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 15,
     marginBottom: 4,
   },
   dndDesc: {
     color: colors.textSecondary,
-    fontSize: 11,
-    lineHeight: 16,
+    fontSize: 12,
+    lineHeight: 18,
   },
   filterRow: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: SPACING.md,
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
     marginBottom: SPACING.sm,
-    gap: 6,
   },
   filterTab: {
-    flex: 1,
-    paddingVertical: SPACING.sm,
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '30%' : 120,
+    minHeight: 38,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
   },
   activeFilterTab: {
     backgroundColor: colors.surfaceLight,
-    borderColor: colors.primaryLight,
+    borderColor: colors.primary,
   },
   filterTabText: {
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   activeFilterText: {
-    color: colors.primaryLight,
+    color: colors.primary,
   },
   inactiveFilterText: {
     color: colors.textSecondary,
   },
   scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: 40,
+    padding: metrics.pagePadding,
+    paddingTop: SPACING.sm,
+    paddingBottom: metrics.isPhone ? 96 : 40,
   },
   alertCard: {
     backgroundColor: colors.surface,
     borderLeftWidth: 4,
-    borderRadius: SPACING.borderRadiusSm,
-    padding: SPACING.md,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
     marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  liveBorder: {
-    borderColor: colors.critical,
-    backgroundColor: 'rgba(239, 68, 68, 0.02)',
+  unreadBorder: {
+    backgroundColor: colors.elevated,
   },
   alertHeader: {
-    flexDirection: 'row',
+    flexDirection: metrics.isTiny ? 'column' : 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
+    gap: SPACING.sm,
+    marginBottom: 8,
   },
   alertHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 0.8,
+    flex: 1,
+    minWidth: 0,
+    gap: SPACING.sm,
   },
-  categoryIcon: {
-    fontSize: 16,
-    marginRight: 6,
+  categoryDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
   },
   alertCardTitle: {
+    flex: 1,
     color: colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 14,
   },
-  liveTag: {
-    color: colors.critical,
-    fontSize: 8,
-    fontWeight: 'bold',
-    borderWidth: 1,
-    borderColor: colors.critical,
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(239, 68, 68, 0.05)',
+  categoryTag: {
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   alertCardMsg: {
     color: colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 18,
-    marginBottom: 8,
+    fontSize: 13,
+    lineHeight: 19,
+    marginBottom: SPACING.sm,
   },
   alertFooter: {
-    flexDirection: 'row',
+    flexDirection: metrics.isTiny ? 'column' : 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    borderTopWidth: 0.5,
+    alignItems: metrics.isTiny ? 'flex-start' : 'center',
+    gap: SPACING.sm,
+    borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: 8,
-    marginTop: 4,
+    paddingTop: SPACING.sm,
   },
   alertTime: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 11,
   },
-  categoryTag: {
+  ackButton: {
+    minHeight: 32,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.md,
+  },
+  ackButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  readState: {
     color: colors.textMuted,
-    fontSize: 9,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   emptyContainer: {
+    minHeight: 180,
     alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: SPACING.sm,
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: SPACING.lg,
   },
   emptyText: {
     color: colors.textSecondary,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 14,
+    textAlign: 'center',
   },
 });

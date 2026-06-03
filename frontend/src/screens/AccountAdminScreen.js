@@ -1,5 +1,6 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
+  Alert,
   StyleSheet,
   View,
   Text,
@@ -7,61 +8,83 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
-  Alert,
+  useWindowDimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
-import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS, getResponsiveMetrics } from '../styles/theme';
 import { setAuthToken } from '../services/django_api';
 
-export default function AccountAdminScreen() {
-  const [activeSubView, setActiveSubView] = useState('account'); // 'account', 'admin'
+const OFFLINE_QUEUE_KEY = '@rhmt_offline_queue';
+const conditionsList = ['Malaria', 'Typhoid', 'HIV', 'Hypertension', 'Diabetes', 'None'];
+
+const formatDateTime = (value) => {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not recorded';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+export default function AccountAdminScreen({ initialSubView = 'account', lockedSubView = false }) {
+  const [activeSubView, setActiveSubView] = useState(initialSubView);
   const {
     user,
     setUser,
     profile,
-    deviceId,
-    setDeviceId,
     logs,
     alerts,
     recommendations,
+    emergencyEvents,
     healthRecords,
+    nutritionLogs,
+    foodLogs,
+    fitnessLogs,
     usersMetadata,
     setUsersMetadata,
+    connectionStatus,
+    setConnectionStatus,
+    isAutomaticMode,
+    setIsAutomaticMode,
     handleClearLogs,
     refreshSyncStats,
     updateProfileBaseline,
     colors,
   } = useContext(HealthContext);
+  const { width } = useWindowDimensions();
+  const metrics = getResponsiveMetrics(width);
 
-  // --- Profile Baseline States ---
-  const [profileName, setProfileName] = useState(user ? user.name : 'Patient Alpha');
-  const [ageInput, setAgeInput] = useState(usersMetadata.age ? String(usersMetadata.age) : '24');
-  const [weightInput, setWeightInput] = useState(usersMetadata.weight ? String(usersMetadata.weight) : '70');
-  const [heightInput, setHeightInput] = useState(usersMetadata.height ? String(usersMetadata.height) : '175');
-  const [bloodGroupInput, setBloodGroupInput] = useState(usersMetadata.blood_group || 'O+');
-  const [selectedConditions, setSelectedConditions] = useState(usersMetadata.diagnosed_conditions || ['None']);
-
-  // --- Settings states ---
-  const [realtimeSync, setRealtimeSync] = useState(true);
-  const [wifiOnly, setWifiOnly] = useState(false);
-  const [cloudBackups, setCloudBackups] = useState(true);
-
-  const conditionsList = ['Malaria', 'Typhoid', 'HIV', 'None'];
-  const cloudRecords = healthRecords;
-  const cloudAlerts = alerts;
-  const cloudRecommendations = recommendations;
+  const [profileName, setProfileName] = useState(user ? user.name : '');
+  const [ageInput, setAgeInput] = useState(usersMetadata.age ? String(usersMetadata.age) : '');
+  const [weightInput, setWeightInput] = useState(usersMetadata.weight ? String(usersMetadata.weight) : '');
+  const [heightInput, setHeightInput] = useState(usersMetadata.height ? String(usersMetadata.height) : '');
+  const [bloodGroupInput, setBloodGroupInput] = useState(usersMetadata.blood_group || '');
+  const [dailyWaterInput, setDailyWaterInput] = useState(profile?.daily_water_goal_ml ? String(profile.daily_water_goal_ml) : '');
+  const [dailyStepInput, setDailyStepInput] = useState(profile?.daily_step_goal ? String(profile.daily_step_goal) : '');
+  const [selectedConditions, setSelectedConditions] = useState(
+    usersMetadata.diagnosed_conditions?.length ? usersMetadata.diagnosed_conditions : ['None']
+  );
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
     setProfileName(profile.display_name || user?.name || profile.username || 'Patient');
-    setAgeInput(profile.age ? String(profile.age) : '24');
-    setWeightInput(profile.weight ? String(profile.weight) : '70');
-    setHeightInput(profile.height ? String(profile.height) : '175');
-    setBloodGroupInput(profile.blood_group || 'O+');
+    setAgeInput(profile.age ? String(profile.age) : '');
+    setWeightInput(profile.weight ? String(profile.weight) : '');
+    setHeightInput(profile.height ? String(profile.height) : '');
+    setBloodGroupInput(profile.blood_group || '');
+    setDailyWaterInput(profile.daily_water_goal_ml ? String(profile.daily_water_goal_ml) : '');
+    setDailyStepInput(profile.daily_step_goal ? String(profile.daily_step_goal) : '');
     setSelectedConditions(profile.diagnosed_conditions?.length ? profile.diagnosed_conditions : ['None']);
-    setDeviceId(profile.device_id || 'ESP32-RHM-NODE-001');
-  }, [profile, setDeviceId, user]);
+  }, [profile, user]);
+
+  useEffect(() => {
+    setActiveSubView(initialSubView);
+  }, [initialSubView]);
 
   const toggleCondition = (condition) => {
     if (condition === 'None') {
@@ -69,416 +92,429 @@ export default function AccountAdminScreen() {
       return;
     }
 
-    let updated = selectedConditions.filter(c => c !== 'None');
-    if (updated.includes(condition)) {
-      updated = updated.filter(c => c !== condition);
-      if (updated.length === 0) updated = ['None'];
-    } else {
-      updated = [...updated, condition];
-    }
-    setSelectedConditions(updated);
+    setSelectedConditions((current) => {
+      let updated = current.filter((item) => item !== 'None');
+      if (updated.includes(condition)) {
+        updated = updated.filter((item) => item !== condition);
+      } else {
+        updated = [...updated, condition];
+      }
+      return updated.length ? updated : ['None'];
+    });
+  };
+
+  const parseOptionalNumber = (value) => {
+    if (String(value).trim() === '') return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
   };
 
   const handleUpdateProfile = async () => {
-    const updatedMetadata = {
-      user_id: user ? user.id : null,
-      age: parseInt(ageInput) || 24,
-      weight: parseFloat(weightInput) || 70.0,
-      height: parseFloat(heightInput) || 175.0,
-      blood_group: bloodGroupInput,
-      diagnosed_conditions: selectedConditions,
-    };
+    setSaving(true);
+    try {
+      const diagnosedConditions = selectedConditions.includes('None') ? [] : selectedConditions;
+      const updatedMetadata = {
+        user_id: usersMetadata.user_id || user?.id || null,
+        age: parseOptionalNumber(ageInput),
+        weight: parseOptionalNumber(weightInput),
+        height: parseOptionalNumber(heightInput),
+        blood_group: bloodGroupInput,
+        diagnosed_conditions: diagnosedConditions,
+      };
 
-    setUsersMetadata(updatedMetadata);
-    await updateProfileBaseline({
-      display_name: profileName,
-      age: updatedMetadata.age,
-      weight: updatedMetadata.weight,
-      height: updatedMetadata.height,
-      blood_group: updatedMetadata.blood_group,
-      diagnosed_conditions: updatedMetadata.diagnosed_conditions,
-      device_id: deviceId,
-    });
-    
-    if (user) {
-      const updatedUser = { ...user, name: profileName };
-      setUser(updatedUser);
-      await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(updatedUser));
+      const updatedProfile = await updateProfileBaseline({
+        display_name: profileName,
+        age: updatedMetadata.age,
+        weight: updatedMetadata.weight,
+        height: updatedMetadata.height,
+        blood_group: updatedMetadata.blood_group,
+        diagnosed_conditions: updatedMetadata.diagnosed_conditions,
+        daily_water_goal_ml: parseOptionalNumber(dailyWaterInput) || 0,
+        daily_step_goal: parseOptionalNumber(dailyStepInput) || 0,
+      });
+
+      setUsersMetadata({
+        ...updatedMetadata,
+        user_id: updatedProfile.user_id || updatedMetadata.user_id,
+      });
+
+      if (user) {
+        const updatedUser = { ...user, name: profileName };
+        setUser(updatedUser);
+        await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(updatedUser));
+      }
+
+      Alert.alert('Profile saved', 'Patient baseline was synced to Django.');
+    } catch (error) {
+      Alert.alert('Save failed', error.message || 'Unable to sync the profile baseline.');
+    } finally {
+      setSaving(false);
     }
-    
-    Alert.alert('Profile Baseline Recalibrated', 'Patient users_metadata and medical baseline saved successfully.');
   };
 
-  const handlePurgeData = () => {
+  const handleSignOut = async () => {
+    setUser(null);
+    setAuthToken(null);
+    await AsyncStorage.removeItem('@rhmt_user_session');
+    await AsyncStorage.removeItem('@rhmt_auth_token');
+  };
+
+  const handlePurgeLocalSession = () => {
     Alert.alert(
-      '🚨 Clear Local Session?',
-      'This clears the local auth session and in-memory console state. Backend clinical records are retained.',
+      'Clear local cache?',
+      'This clears local auth, the offline queue, and the in-memory log display. Django records are retained.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Clear Session',
+          text: 'Clear cache',
           style: 'destructive',
           onPress: async () => {
             setUser(null);
+            setAuthToken(null);
             await AsyncStorage.removeItem('@rhmt_user_session');
             await AsyncStorage.removeItem('@rhmt_auth_token');
-            setAuthToken(null);
+            await AsyncStorage.removeItem(OFFLINE_QUEUE_KEY);
             handleClearLogs();
-            Alert.alert('Session Cleared', 'Local auth session and in-memory console logs cleared. Backend clinical records are retained.');
+            Alert.alert('Local cache cleared', 'Backend records were not deleted.');
           },
         },
       ]
     );
   };
 
-  const triggerHardwareBackup = async () => {
+  const refreshBackend = async () => {
     await refreshSyncStats();
-    Alert.alert(
-      'Backend Refresh Complete',
-      'Latest Django records, alerts, recommendations, nutrition logs, and system logs loaded.'
-    );
+    Alert.alert('Backend refreshed', 'Latest Django collections were loaded.');
   };
 
-  const triggerHardwareRestore = async () => {
-    const refreshedProfile = await updateProfileBaseline({ device_id: deviceId });
-    Alert.alert(
-      'Profile Synced',
-      `Device identifier saved to backend profile: ${refreshedProfile.device_id}`
-    );
-  };
+  const collectionCards = [
+    {
+      title: 'Health records',
+      count: healthRecords.length,
+      empty: 'No health records synced yet.',
+      rows: healthRecords.slice(0, 6).map((record) => ({
+        id: `health_${record.id}`,
+        title: `Record ${record.id}`,
+        detail: `${record.temperature} C | ${record.heart_rate} bpm | ${record.spo2}% SpO2`,
+        meta: formatDateTime(record.timestamp),
+      })),
+    },
+    {
+      title: 'Alerts',
+      count: alerts.length,
+      empty: 'No backend alerts found.',
+      rows: alerts.slice(0, 6).map((alert) => ({
+        id: `alert_${alert.id}`,
+        title: `${alert.severity} / ${alert.status}`,
+        detail: alert.alert_message,
+        meta: formatDateTime(alert.timestamp),
+      })),
+    },
+    {
+      title: 'Recommendations',
+      count: recommendations.length,
+      empty: 'No backend recommendations found.',
+      rows: recommendations.slice(0, 6).map((rec) => ({
+        id: `rec_${rec.id}`,
+        title: rec.fluid_target,
+        detail: rec.lifestyle_guideline,
+        meta: formatDateTime(rec.created_at),
+      })),
+    },
+    {
+      title: 'Nutrition logs',
+      count: nutritionLogs.length,
+      empty: 'No nutrition logs found.',
+      rows: nutritionLogs.slice(0, 6).map((log) => ({
+        id: `nutrition_${log.id}`,
+        title: `${log.entry_type}: ${log.value} ${log.unit}`,
+        detail: log.note || 'Nutrition entry',
+        meta: formatDateTime(log.timestamp),
+      })),
+    },
+    {
+      title: 'Food logs',
+      count: foodLogs.length,
+      empty: 'No food logs found.',
+      rows: foodLogs.slice(0, 6).map((log) => ({
+        id: `food_${log.id}`,
+        title: `${log.food_name} / ${log.calories} kcal`,
+        detail: `${log.meal_type}: ${log.carbs_g}g carbs, ${log.protein_g}g protein, ${log.fat_g}g fat`,
+        meta: formatDateTime(log.timestamp),
+      })),
+    },
+    {
+      title: 'Fitness logs',
+      count: fitnessLogs.length,
+      empty: 'No fitness logs found.',
+      rows: fitnessLogs.slice(0, 6).map((log) => ({
+        id: `fitness_${log.id}`,
+        title: `${log.activity_name} / ${log.steps} steps`,
+        detail: `${log.duration_minutes} min, ${log.intensity} intensity${log.heart_rate ? `, ${log.heart_rate} bpm` : ''}`,
+        meta: formatDateTime(log.timestamp),
+      })),
+    },
+    {
+      title: 'Emergency events',
+      count: emergencyEvents.length,
+      empty: 'No emergency events found.',
+      rows: emergencyEvents.slice(0, 6).map((event) => ({
+        id: `emergency_${event.id}`,
+        title: `${event.status} -> ${event.primary_contact}`,
+        detail: event.sms_content,
+        meta: formatDateTime(event.timestamp),
+      })),
+    },
+  ];
 
-  const handleSignOut = async () => {
-    try {
-      setUser(null);
-      await AsyncStorage.removeItem('@rhmt_user_session');
-      await AsyncStorage.removeItem('@rhmt_auth_token');
-      setAuthToken(null);
-    } catch (e) {
-      console.log(e);
-    }
-  };
-
-  const s = styles(colors);
+  const s = styles(colors, metrics);
 
   return (
     <View style={s.container}>
-      {/* Sub-Header Navigation Switch */}
-      <View style={s.subHeader}>
-        <TouchableOpacity
-          style={[s.subTab, activeSubView === 'account' && s.activeSubTab]}
-          onPress={() => setActiveSubView('account')}
-        >
-          <Text style={[s.subTabText, activeSubView === 'account' ? s.activeText : s.inactiveText]}>
-            Account & Baseline
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[s.subTab, activeSubView === 'admin' && s.activeSubTab]}
-          onPress={() => setActiveSubView('admin')}
-        >
-          <Text style={[s.subTabText, activeSubView === 'admin' ? s.activeText : s.inactiveText]}>
-            Backend Console
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {!lockedSubView ? (
+        <View style={s.subHeader}>
+          {[
+            { key: 'account', label: 'Account baseline' },
+            { key: 'admin', label: 'Backend console' },
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[s.subTab, activeSubView === tab.key && s.activeSubTab]}
+              onPress={() => setActiveSubView(tab.key)}
+            >
+              <Text style={[s.subTabText, activeSubView === tab.key ? s.activeText : s.inactiveText]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
 
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* ==================== 1. ACCOUNT BASELINE VIEW ==================== */}
-        {activeSubView === 'account' && (
-          <View>
-            {/* Medical Profiling Baseline Card */}
-            <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>👤 Patient Profile Baseline (users_metadata)</Text>
-              <Text style={s.cardDesc}>Configure baseline parameters synced with the Django backend for contextual guideline generation.</Text>
-              
-              <View style={s.formGroup}>
-                <Text style={s.label}>Patient Identifier (Read-only)</Text>
-                <TextInput style={[s.input, s.disabledInput]} editable={false} value="RHM-PAT-2026-981" />
-              </View>
-
-              <View style={s.formGroup}>
-                <Text style={s.label}>Full Name</Text>
-                <TextInput style={s.input} value={profileName} onChangeText={setProfileName} />
-              </View>
-
-              <View style={s.formRow}>
-                <View style={s.formCol}>
-                  <Text style={s.label}>Age (years)</Text>
-                  <TextInput style={s.input} keyboardType="numeric" value={ageInput} onChangeText={setAgeInput} />
+        <View style={s.pageInner}>
+          {activeSubView === 'account' ? (
+            <View>
+              <View style={s.pageHeader}>
+                <View>
+                  <Text style={s.eyebrow}>Portal</Text>
+                  <Text style={s.pageTitle}>Patient profile</Text>
                 </View>
-                <View style={s.formCol}>
-                  <Text style={s.label}>Blood Group</Text>
-                  <TextInput style={s.input} value={bloodGroupInput} onChangeText={setBloodGroupInput} />
+                <View style={s.identityCard}>
+                  <Text style={s.identityLabel}>Signed in as</Text>
+                  <Text style={s.identityValue}>{profile?.username || user?.username || 'Patient'}</Text>
                 </View>
               </View>
 
-              <View style={s.formRow}>
-                <View style={s.formCol}>
-                  <Text style={s.label}>Baseline Weight (kg)</Text>
-                  <TextInput style={s.input} keyboardType="numeric" value={weightInput} onChangeText={setWeightInput} />
+              <View style={[s.card, SHADOWS.subtle]}>
+                <Text style={s.cardTitle}>Clinical baseline</Text>
+                <Text style={s.cardDesc}>These fields are saved to the Django profile and used by recommendation rules.</Text>
+
+                <View style={s.formGroup}>
+                  <Text style={s.label}>Patient identifier</Text>
+                  <TextInput
+                    style={[s.input, s.disabledInput]}
+                    editable={false}
+                    value={String(profile?.username || user?.username || user?.id || '')}
+                  />
                 </View>
-                <View style={s.formCol}>
-                  <Text style={s.label}>Baseline Height (cm)</Text>
-                  <TextInput style={s.input} keyboardType="numeric" value={heightInput} onChangeText={setHeightInput} />
+
+                <View style={s.formGroup}>
+                  <Text style={s.label}>Display name</Text>
+                  <TextInput style={s.input} value={profileName} onChangeText={setProfileName} />
                 </View>
-              </View>
 
-              {/* Diagnosed Conditions Checkboxes */}
-              <Text style={s.formSectionTitle}>Diagnosed Illness Baseline</Text>
-              <View style={s.conditionsRow}>
-                {conditionsList.map(condition => {
-                  const checked = selectedConditions.includes(condition);
-                  return (
-                    <TouchableOpacity
-                      key={condition}
-                      style={[s.conditionChip, checked && s.conditionChipChecked]}
-                      onPress={() => toggleCondition(condition)}
-                    >
-                      <Text style={[s.conditionChipText, checked && s.conditionChipTextChecked]}>
-                        {condition}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-
-              <TouchableOpacity style={s.saveBtn} onPress={handleUpdateProfile} activeOpacity={0.8}>
-                <Text style={s.saveBtnText}>Save & Sync Profile Baseline</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Sync & Network Preferences Card */}
-            <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>⚙️ Sync & Network Preferences</Text>
-              <Text style={s.cardDesc}>Adjust synchronization parameters for offline-first resilience.</Text>
-              
-              <View style={s.prefRow}>
-                <View style={s.prefLeft}>
-                  <Text style={s.prefTitle}>Real-time Stream Sync</Text>
-                  <Text style={s.prefDesc}>Polls authenticated Django endpoints for realtime state feeds.</Text>
+                <View style={s.formGrid}>
+                  <View style={s.formCol}>
+                    <Text style={s.label}>Age</Text>
+                    <TextInput style={s.input} keyboardType="numeric" value={ageInput} onChangeText={setAgeInput} />
+                  </View>
+                  <View style={s.formCol}>
+                    <Text style={s.label}>Blood group</Text>
+                    <TextInput style={s.input} value={bloodGroupInput} onChangeText={setBloodGroupInput} />
+                  </View>
+                  <View style={s.formCol}>
+                    <Text style={s.label}>Weight (kg)</Text>
+                    <TextInput style={s.input} keyboardType="numeric" value={weightInput} onChangeText={setWeightInput} />
+                  </View>
+                  <View style={s.formCol}>
+                    <Text style={s.label}>Height (cm)</Text>
+                    <TextInput style={s.input} keyboardType="numeric" value={heightInput} onChangeText={setHeightInput} />
+                  </View>
+                  <View style={s.formCol}>
+                    <Text style={s.label}>Water goal (mL)</Text>
+                    <TextInput style={s.input} keyboardType="numeric" value={dailyWaterInput} onChangeText={setDailyWaterInput} />
+                  </View>
+                  <View style={s.formCol}>
+                    <Text style={s.label}>Step goal</Text>
+                    <TextInput style={s.input} keyboardType="numeric" value={dailyStepInput} onChangeText={setDailyStepInput} />
+                  </View>
                 </View>
-                <Switch
-                  value={realtimeSync}
-                  onValueChange={setRealtimeSync}
-                  trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-                  thumbColor={realtimeSync ? colors.primary : colors.border}
-                />
-              </View>
 
-              <View style={s.prefRow}>
-                <View style={s.prefLeft}>
-                  <Text style={s.prefTitle}>Wi-Fi Only Syncing</Text>
-                  <Text style={s.prefDesc}>Restricts heavy clinical uploads to Wi-Fi bands to protect data bounds.</Text>
-                </View>
-                <Switch
-                  value={wifiOnly}
-                  onValueChange={setWifiOnly}
-                  trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-                  thumbColor={wifiOnly ? colors.primary : colors.border}
-                />
-              </View>
-
-              <View style={s.prefRow}>
-                <View style={s.prefLeft}>
-                  <Text style={s.prefTitle}>Automated Backend Refresh</Text>
-                  <Text style={s.prefDesc}>Keeps clinical records, alerts, and recommendations refreshed from Django.</Text>
-                </View>
-                <Switch
-                  value={cloudBackups}
-                  onValueChange={setCloudBackups}
-                  trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-                  thumbColor={cloudBackups ? colors.primary : colors.border}
-                />
-              </View>
-            </View>
-
-            {/* Session Actions Card */}
-            <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>🔐 Session Actions</Text>
-              <Text style={s.cardDesc}>Disconnect account from active monitoring node.</Text>
-              <TouchableOpacity style={s.signOutBtn} onPress={handleSignOut} activeOpacity={0.8}>
-                <Text style={s.signOutBtnText}>Disconnect Account Session</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Privacy Zone Card */}
-            <View style={[s.card, s.dangerCard, SHADOWS.premium]}>
-              <Text style={[s.cardTitle, { color: colors.primary }]}>⚠️ Privacy & Security Zone</Text>
-              <Text style={s.cardDesc}>Purges enqueued logs, profile baselines, and clears local offline caches.</Text>
-              
-              <Text style={s.dangerWarning}>
-                Warning: Purging data will delete all unsynced measurements in the offline queue and erase local profiling metadata documents.
-              </Text>
-
-              <TouchableOpacity style={s.dangerBtn} onPress={handlePurgeData} activeOpacity={0.8}>
-                <Text style={s.dangerBtnText}>Purge Account Baseline & Cache</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* ==================== 2. ADMIN CLOUD CONSOLE ==================== */}
-        {activeSubView === 'admin' && (
-          <View>
-            <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>🌐 Django Backend Collections Registry</Text>
-              <Text style={s.cardDesc}>
-                Real-time view of records kept in the authenticated Django REST API.
-              </Text>
-
-              {/* Collection Registry: health_records */}
-              <Text style={s.collectionHeading}>📁 health_records Collection</Text>
-              <View style={s.dbBox}>
-                {cloudRecords.length === 0 ? (
-                  <Text style={s.dbEmptyText}>No synced journal entries found in cloud database.</Text>
-                ) : (
-                  <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
-                    {cloudRecords.map((rec) => (
-                      <View key={rec.id} style={s.dbRow}>
-                        <View style={s.dbRowHeader}>
-                          <Text style={s.dbDocId}>ID: {rec.id}</Text>
-                          <Text style={s.dbBadge}>HEALTH_RECORD</Text>
-                        </View>
-                        <Text style={s.dbDataText}>
-                          🌡️ Temp: {rec.temperature}°C | ❤️ HR: {rec.heart_rate} BPM | 🫁 SpO2: {rec.spo2}%
+                <Text style={s.formSectionTitle}>Diagnosed conditions</Text>
+                <View style={s.conditionsRow}>
+                  {conditionsList.map((condition) => {
+                    const checked = selectedConditions.includes(condition);
+                    return (
+                      <TouchableOpacity
+                        key={condition}
+                        style={[s.conditionChip, checked && s.conditionChipChecked]}
+                        onPress={() => toggleCondition(condition)}
+                      >
+                        <Text style={[s.conditionChipText, checked && s.conditionChipTextChecked]}>
+                          {condition}
                         </Text>
-                        <Text style={s.dbDataText}>
-                          Symptoms: {rec.symptoms_array.join(', ') || 'None'} | Meds Taken: {rec.meds_taken ? 'Yes' : 'No'} | Wellbeing: {rec.wellbeing_score}/5
-                        </Text>
-                        <View style={s.dbRowFooter}>
-                          <Text style={s.dbMetaText}>User: {rec.user}</Text>
-                          <Text style={s.dbMetaText}>{new Date(rec.timestamp).toLocaleTimeString()}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
-              {/* Collection Registry: recommendations */}
-              <Text style={s.collectionHeading}>📁 recommendations Collection</Text>
-              <View style={s.dbBox}>
-                {cloudRecommendations.length === 0 ? (
-                  <Text style={s.dbEmptyText}>No generated cloud recommendations found in BaaS collections.</Text>
-                ) : (
-                  <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
-                    {cloudRecommendations.map((rec) => (
-                      <View key={rec.id} style={s.dbRow}>
-                        <View style={s.dbRowHeader}>
-                          <Text style={s.dbDocId}>ID: {rec.id}</Text>
-                          <Text style={s.dbBadgeGold}>RECOMMENDATION</Text>
-                        </View>
-                        <Text style={s.dbDataTextBold}>{rec.lifestyle_guideline}</Text>
-                        <Text style={s.dbDataText}>Diet: {rec.meal_plan} | Fluids: {rec.fluid_target}</Text>
-                        <View style={s.dbRowFooter}>
-                          <Text style={s.dbMetaText}>User: {rec.user}</Text>
-                          <Text style={s.dbMetaText}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-
-              {/* Collection Registry: alerts */}
-              <Text style={s.collectionHeading}>📁 alerts Collection</Text>
-              <View style={s.dbBox}>
-                {cloudAlerts.length === 0 ? (
-                  <Text style={s.dbEmptyText}>No unread alarms or critical warnings enqueued in cloud databases.</Text>
-                ) : (
-                  <ScrollView style={s.dbScroll} nestedScrollEnabled contentContainerStyle={s.dbContent}>
-                    {cloudAlerts.map((alert) => (
-                      <View key={alert.id} style={s.dbRow}>
-                        <View style={s.dbRowHeader}>
-                          <Text style={s.dbDocId}>ID: {alert.id}</Text>
-                          <Text style={s.dbBadgeRed}>
-                            ALERT ({alert.severity.toUpperCase()})
-                          </Text>
-                        </View>
-                        <Text style={s.dbDataTextBold}>{alert.alert_message}</Text>
-                        <View style={s.dbRowFooter}>
-                          <Text style={s.dbMetaText}>User: {alert.user}</Text>
-                          <Text style={s.dbMetaText}>Status: {alert.status}</Text>
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                )}
-              </View>
-            </View>
-
-            {/* IoT Diagnostics card */}
-            <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>📟 ESP32 Microcontroller Node Identifier</Text>
-              <Text style={s.cardDesc}>Configure local network configuration settings.</Text>
-
-              <View style={s.formGroup}>
-                <Text style={s.label}>Node Config Identifier</Text>
-                <TextInput style={s.input} value={deviceId} onChangeText={setDeviceId} />
-              </View>
-            </View>
-
-            {/* Backups card */}
-            <View style={[s.card, SHADOWS.premium]}>
-              <Text style={s.cardTitle}>💾 Backend Sync Controls</Text>
-              <Text style={s.cardDesc}>Refresh backend collections or save the monitoring node identifier.</Text>
-
-              <View style={s.simButtonRow}>
-                <TouchableOpacity style={s.simBtnCol} onPress={triggerHardwareBackup}>
-                  <Text style={s.simBtnColText}>Refresh Backend</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={[s.simBtnCol, { backgroundColor: colors.surfaceLight }]} onPress={triggerHardwareRestore}>
-                  <Text style={[s.simBtnColText, { color: colors.textPrimary }]}>Save Device ID</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* System Logs console */}
-            <View style={[s.card, SHADOWS.premium]}>
-              <View style={s.terminalHeader}>
-                <Text style={s.terminalTitle}>📜 System Log Trails</Text>
-                <TouchableOpacity onPress={handleClearLogs}>
-                  <Text style={s.terminalClearText}>Clear Logs</Text>
+                <TouchableOpacity style={[s.saveBtn, saving && s.disabledButton]} onPress={handleUpdateProfile} disabled={saving}>
+                  <Text style={s.saveBtnText}>{saving ? 'Saving...' : 'Save profile baseline'}</Text>
                 </TouchableOpacity>
               </View>
 
-              <View style={s.terminal}>
-                <ScrollView nestedScrollEnabled style={s.terminalScroll} contentContainerStyle={s.terminalContent}>
-                  {logs.length === 0 ? (
-                    <Text style={s.terminalLineMuted}>No logging entries recorded in system registers.</Text>
-                  ) : (
-                    logs.map(log => {
-                      let levelColor = colors.textSecondary;
-                      if (log.level === 'ERROR' || log.level === 'SYNC_FAILED') levelColor = colors.primary;
-                      if (log.level === 'SYNC_SUCCESS' || log.level === 'RULE_TRIGGER') levelColor = colors.primary;
-                      if (log.level === 'QUEUE') levelColor = colors.primaryLight;
+              <View style={s.contentGrid}>
+                <View style={[s.card, s.halfCard, SHADOWS.subtle]}>
+                  <Text style={s.cardTitle}>Sync settings</Text>
+                  <Text style={s.cardDesc}>Controls here update application state for the current session.</Text>
 
-                      const formattedTime = new Date(log.timestamp).toLocaleTimeString();
+                  <View style={s.prefRow}>
+                    <View style={s.prefLeft}>
+                      <Text style={s.prefTitle}>Automatic refresh</Text>
+                      <Text style={s.prefDesc}>Poll Django endpoints while signed in.</Text>
+                    </View>
+                    <Switch
+                      value={isAutomaticMode}
+                      onValueChange={setIsAutomaticMode}
+                      trackColor={{ false: colors.surfaceLight, true: colors.primary }}
+                      thumbColor={isAutomaticMode ? colors.primaryLight : colors.textSecondary}
+                    />
+                  </View>
 
-                      return (
+                  <View style={s.prefRow}>
+                    <View style={s.prefLeft}>
+                      <Text style={s.prefTitle}>Simulated connectivity</Text>
+                      <Text style={s.prefDesc}>Switches the offline queue behavior for testing.</Text>
+                    </View>
+                    <Switch
+                      value={connectionStatus === 'online'}
+                      onValueChange={(value) => setConnectionStatus(value ? 'online' : 'offline')}
+                      trackColor={{ false: colors.surfaceLight, true: colors.success }}
+                      thumbColor={connectionStatus === 'online' ? colors.success : colors.textSecondary}
+                    />
+                  </View>
+                </View>
+
+                <View style={[s.card, s.halfCard, SHADOWS.subtle]}>
+                  <Text style={s.cardTitle}>Session actions</Text>
+                  <Text style={s.cardDesc}>Local session actions do not delete backend clinical records.</Text>
+                  <TouchableOpacity style={s.outlineBtn} onPress={handleSignOut}>
+                    <Text style={s.outlineBtnText}>Sign out</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={s.dangerBtn} onPress={handlePurgeLocalSession}>
+                    <Text style={s.dangerBtnText}>Clear local cache</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View>
+              <View style={s.pageHeader}>
+                <View>
+                  <Text style={s.eyebrow}>Backend console</Text>
+                  <Text style={s.pageTitle}>Django collections</Text>
+                </View>
+                <View style={s.consoleActions}>
+                  <TouchableOpacity style={s.saveBtn} onPress={refreshBackend}>
+                    <Text style={s.saveBtnText}>Refresh</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={[s.card, SHADOWS.subtle]}>
+                <Text style={s.cardTitle}>Manual records administration</Text>
+                <Text style={s.cardDesc}>
+                  This project uses manually entered patient records only. Admin tools review backend data, refresh collections, and inspect logs without hardware setup.
+                </Text>
+                <View style={s.manualAdminGrid}>
+                  <View style={s.manualAdminBox}>
+                    <Text style={s.manualAdminValue}>{healthRecords.length}</Text>
+                    <Text style={s.manualAdminLabel}>Manual health records</Text>
+                  </View>
+                  <View style={s.manualAdminBox}>
+                    <Text style={s.manualAdminValue}>{nutritionLogs.length + foodLogs.length}</Text>
+                    <Text style={s.manualAdminLabel}>Nutrition and food logs</Text>
+                  </View>
+                  <View style={s.manualAdminBox}>
+                    <Text style={s.manualAdminValue}>{fitnessLogs.length}</Text>
+                    <Text style={s.manualAdminLabel}>Manual fitness logs</Text>
+                  </View>
+                  <View style={s.manualAdminBox}>
+                    <Text style={s.manualAdminValue}>{alerts.length}</Text>
+                    <Text style={s.manualAdminLabel}>Clinical alerts</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={s.collectionGrid}>
+                {collectionCards.map((collection) => (
+                  <View key={collection.title} style={[s.card, s.collectionCard, SHADOWS.subtle]}>
+                    <View style={s.collectionHeader}>
+                      <Text style={s.cardTitle}>{collection.title}</Text>
+                      <Text style={s.countBadge}>{collection.count}</Text>
+                    </View>
+                    {collection.rows.length === 0 ? (
+                      <View style={s.emptyBox}>
+                        <Text style={s.emptyText}>{collection.empty}</Text>
+                      </View>
+                    ) : (
+                      collection.rows.map((row) => (
+                        <View key={row.id} style={s.dbRow}>
+                          <Text style={s.dbRowTitle}>{row.title}</Text>
+                          <Text style={s.dbRowDetail} numberOfLines={3}>{row.detail}</Text>
+                          <Text style={s.dbRowMeta}>{row.meta}</Text>
+                        </View>
+                      ))
+                    )}
+                  </View>
+                ))}
+              </View>
+
+              <View style={[s.card, SHADOWS.subtle]}>
+                <View style={s.terminalHeader}>
+                  <Text style={s.cardTitle}>System logs</Text>
+                  <TouchableOpacity onPress={handleClearLogs}>
+                    <Text style={s.clearText}>Clear display</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={s.terminal}>
+                  <ScrollView nestedScrollEnabled contentContainerStyle={s.terminalContent}>
+                    {logs.length === 0 ? (
+                      <Text style={s.terminalLineMuted}>No system logs loaded.</Text>
+                    ) : (
+                      logs.slice(0, 30).map((log) => (
                         <Text key={log.id} style={s.terminalLine}>
-                          <Text style={s.terminalTime}>[{formattedTime}] </Text>
-                          <Text style={{ color: levelColor, fontWeight: 'bold' }}>{log.level}</Text>
+                          <Text style={s.terminalTime}>[{formatDateTime(log.timestamp)}] </Text>
+                          <Text style={{ color: log.level === 'ERROR' || log.level === 'WARN' ? colors.warning : colors.secondary, fontWeight: TYPOGRAPHY.weights.bold }}>
+                            {log.level}
+                          </Text>
                           <Text style={s.terminalMsg}>: {log.message}</Text>
                         </Text>
-                      );
-                    })
-                  )}
-                </ScrollView>
+                      ))
+                    )}
+                  </ScrollView>
+                </View>
               </View>
             </View>
-          </View>
-        )}
-
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = (colors) => StyleSheet.create({
+const styles = (colors, metrics) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
@@ -491,17 +527,20 @@ const styles = (colors) => StyleSheet.create({
   },
   subTab: {
     flex: 1,
-    paddingVertical: SPACING.md,
+    minHeight: 48,
     alignItems: 'center',
+    justifyContent: 'center',
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
+    paddingHorizontal: SPACING.sm,
   },
   activeSubTab: {
     borderBottomColor: colors.primary,
   },
   subTabText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textAlign: 'center',
   },
   activeText: {
     color: colors.primary,
@@ -510,304 +549,344 @@ const styles = (colors) => StyleSheet.create({
     color: colors.textSecondary,
   },
   scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: 40,
+    padding: metrics.pagePadding,
+    paddingBottom: metrics.isPhone ? 96 : 40,
+  },
+  pageInner: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
+  },
+  pageHeader: {
+    flexDirection: metrics.isPhone ? 'column' : 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  eyebrow: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 4,
+  },
+  pageTitle: {
+    color: colors.textPrimary,
+    fontSize: metrics.isPhone ? 24 : 30,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  identityCard: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
+    minWidth: metrics.isPhone ? '100%' : 220,
+  },
+  identityLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  identityValue: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: 3,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: SPACING.borderRadius,
-    padding: SPACING.lg,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: SPACING.md,
   },
-  dangerCard: {
-    borderColor: 'rgba(225, 173, 1, 0.2)',
+  halfCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '48%',
+    minWidth: metrics.isPhone ? '100%' : 360,
   },
   cardTitle: {
     color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.body + 1,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 4,
   },
   cardDesc: {
     color: colors.textSecondary,
-    fontSize: 10,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 18,
     marginBottom: SPACING.md,
   },
   formGroup: {
     marginBottom: SPACING.md,
   },
-  formRow: {
+  formGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: SPACING.md,
+    flexWrap: 'wrap',
+    gap: SPACING.md,
   },
   formCol: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '30%',
+    minWidth: metrics.isPhone ? '100%' : 220,
   },
   label: {
     color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: colors.background,
+    minHeight: 42,
+    backgroundColor: colors.elevated,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: SPACING.borderRadiusSm,
+    borderRadius: 8,
     paddingHorizontal: SPACING.md,
     paddingVertical: 10,
     color: colors.textPrimary,
-    fontSize: 13,
+    fontSize: 14,
   },
   disabledInput: {
     color: colors.textMuted,
-    opacity: 0.8,
   },
   formSectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: colors.textPrimary,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
   conditionsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: SPACING.sm,
     marginBottom: SPACING.lg,
   },
   conditionChip: {
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.elevated,
   },
   conditionChipChecked: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(225, 173, 1, 0.05)',
+    backgroundColor: colors.surfaceLight,
   },
   conditionChipText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   conditionChipTextChecked: {
-    fontWeight: 'bold',
     color: colors.primary,
   },
   saveBtn: {
+    minHeight: 42,
     backgroundColor: colors.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveBtnText: {
-    color: '#000000',
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontWeight: TYPOGRAPHY.weights.bold,
     fontSize: 13,
+  },
+  disabledButton: {
+    opacity: 0.55,
+  },
+  contentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
   },
   prefRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: SPACING.md,
     paddingVertical: SPACING.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   prefLeft: {
-    flex: 0.8,
+    flex: 1,
   },
   prefTitle: {
     color: colors.textPrimary,
-    fontWeight: 'bold',
-    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 13,
     marginBottom: 2,
   },
   prefDesc: {
     color: colors.textMuted,
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  signOutBtn: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
-    alignItems: 'center',
-  },
-  signOutBtnText: {
-    color: colors.primary,
-    fontWeight: 'bold',
-  },
-  dangerWarning: {
-    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 16,
-    backgroundColor: 'rgba(225, 173, 1, 0.04)',
-    padding: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
+  },
+  outlineBtn: {
+    minHeight: 42,
     borderWidth: 1,
-    borderColor: 'rgba(225, 173, 1, 0.1)',
-    marginBottom: SPACING.md,
+    borderColor: colors.primary,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  outlineBtnText: {
+    color: colors.primary,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   dangerBtn: {
-    borderColor: colors.primary,
+    minHeight: 42,
     borderWidth: 1,
-    paddingVertical: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
+    borderColor: colors.critical,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   dangerBtnText: {
-    color: colors.primary,
-    fontWeight: 'bold',
+    color: colors.critical,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
-  simButtonRow: {
+  consoleActions: {
+    alignItems: metrics.isPhone ? 'stretch' : 'flex-end',
+  },
+  manualAdminGrid: {
     flexDirection: 'row',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
-  simBtnCol: {
-    flex: 1,
-    backgroundColor: colors.primary,
-    paddingVertical: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
-    alignItems: 'center',
+  manualAdminBox: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '30%',
+    minWidth: 150,
+    backgroundColor: colors.elevated,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 8,
+    padding: SPACING.md,
   },
-  simBtnColText: {
-    color: '#000000',
+  manualAdminValue: {
+    color: colors.primary,
+    fontSize: 24,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 4,
+  },
+  manualAdminLabel: {
+    color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: 'bold',
+    lineHeight: 17,
+  },
+  collectionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+  },
+  collectionCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '48%',
+    minWidth: metrics.isPhone ? '100%' : 360,
+  },
+  collectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+  },
+  countBadge: {
+    minWidth: 32,
+    height: 28,
+    borderRadius: 8,
+    color: '#FFFFFF',
+    backgroundColor: colors.primary,
+    textAlign: 'center',
+    paddingTop: 6,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  emptyBox: {
+    minHeight: 86,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.elevated,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: SPACING.md,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  dbRow: {
+    backgroundColor: colors.elevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  dbRowTitle: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 4,
+  },
+  dbRowDetail: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  dbRowMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 6,
   },
   terminalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: SPACING.md,
     alignItems: 'center',
     marginBottom: SPACING.sm,
   },
-  terminalTitle: {
-    color: colors.textPrimary,
-    fontWeight: 'bold',
+  clearText: {
+    color: colors.primary,
     fontSize: 12,
-  },
-  terminalClearText: {
-    color: colors.primaryLight,
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   terminal: {
-    height: 160,
-    backgroundColor: '#0A0A0A',
-    borderRadius: SPACING.borderRadiusSm,
+    maxHeight: 260,
+    minHeight: 160,
+    backgroundColor: '#07111F',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     padding: SPACING.md,
-  },
-  terminalScroll: {
-    flex: 1,
   },
   terminalContent: {
     paddingBottom: 10,
   },
   terminalLine: {
-    fontSize: 10,
-    lineHeight: 14,
-    marginBottom: 4,
+    fontSize: 11,
+    lineHeight: 17,
+    marginBottom: 5,
     fontFamily: 'monospace',
   },
   terminalLineMuted: {
-    fontSize: 10,
+    fontSize: 12,
     color: colors.textMuted,
-    fontStyle: 'italic',
     textAlign: 'center',
-    marginTop: 40,
+    marginTop: 46,
   },
   terminalTime: {
     color: colors.textMuted,
   },
   terminalMsg: {
     color: colors.textSecondary,
-  },
-  collectionHeading: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
-    marginTop: SPACING.md,
-    marginBottom: 6,
-  },
-  dbBox: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.background,
-    padding: 10,
-    marginBottom: SPACING.md,
-  },
-  dbEmptyText: {
-    fontSize: 10,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    paddingVertical: 12,
-  },
-  dbScroll: {
-    height: 140,
-  },
-  dbContent: {
-    gap: 8,
-  },
-  dbRow: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 6,
-    padding: 8,
-  },
-  dbRowHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
-    paddingBottom: 2,
-  },
-  dbDocId: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.primaryLight,
-  },
-  dbBadge: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: colors.primary,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  dbBadgeGold: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: colors.primary,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  dbBadgeRed: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: colors.primary,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
   },
 });

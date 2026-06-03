@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,9 +6,31 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
+  useWindowDimensions,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS, getResponsiveMetrics } from '../styles/theme';
+
+const symptomsList = [
+  { label: 'Chills', value: 'Chills' },
+  { label: 'Severe headache', value: 'Severe Headache' },
+  { label: 'Muscle aches', value: 'Muscle Aches' },
+  { label: 'Weakness', value: 'Weakness' },
+  { label: 'Stomach pain', value: 'Stomach Pain' },
+  { label: 'Chronic fatigue', value: 'Chronic Fatigue' },
+];
+
+const formatDateTime = (value) => {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not recorded';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
 export default function PatientMonitoringScreen() {
   const {
@@ -16,475 +38,540 @@ export default function PatientMonitoringScreen() {
     setVitals,
     handleOfflineEnqueue,
     refreshSyncStats,
+    healthRecords,
+    patientDetails,
     colors,
   } = useContext(HealthContext);
+  const { width } = useWindowDimensions();
+  const metrics = getResponsiveMetrics(width);
 
-  // --- Self-Reporting Form States ---
   const [journalTemp, setJournalTemp] = useState(36.6);
   const [journalHr, setJournalHr] = useState(72);
   const [journalSpO2, setJournalSpO2] = useState(98);
   const [wellbeing, setWellbeing] = useState(4);
   const [medsTaken, setMedsTaken] = useState(true);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
-  
-  // Guardrail popup state
   const [isGuardrailModalVisible, setIsGuardrailModalVisible] = useState(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState('');
-
-  // Available symptoms checklists
-  const symptomsList = [
-    { label: 'Chills 🥶', value: 'Chills' },
-    { label: 'Severe Headache 🤯', value: 'Severe Headache' },
-    { label: 'Muscle Aches 🩻', value: 'Muscle Aches' },
-    { label: 'Weakness 🫠', value: 'Weakness' },
-    { label: 'Stomach Pain 🤢', value: 'Stomach Pain' },
-    { label: 'Chronic Fatigue 🥱', value: 'Chronic Fatigue' },
-  ];
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const toggleSymptom = (symptom) => {
-    if (selectedSymptoms.includes(symptom)) {
-      setSelectedSymptoms(selectedSymptoms.filter(s => s !== symptom));
-    } else {
-      setSelectedSymptoms([...selectedSymptoms, symptom]);
-    }
+    setSelectedSymptoms((current) =>
+      current.includes(symptom)
+        ? current.filter((item) => item !== symptom)
+        : [...current, symptom]
+    );
   };
 
   const adjustFormMetric = (key, delta, min, max, decimal = 0) => {
-    if (key === 'temp') {
-      const val = Math.min(Math.max(journalTemp + delta, min), max);
-      setJournalTemp(parseFloat(val.toFixed(decimal)));
-    } else if (key === 'hr') {
-      const val = Math.min(Math.max(journalHr + delta, min), max);
-      setJournalHr(parseInt(val.toFixed(0)));
-    } else if (key === 'spo2') {
-      const val = Math.min(Math.max(journalSpO2 + delta, min), max);
-      setJournalSpO2(parseInt(val.toFixed(0)));
-    }
+    const updateValue = (value) => {
+      const nextValue = Math.min(Math.max(value + delta, min), max);
+      return decimal ? Number(nextValue.toFixed(decimal)) : Math.round(nextValue);
+    };
+
+    if (key === 'temp') setJournalTemp((value) => updateValue(value));
+    if (key === 'hr') setJournalHr((value) => updateValue(value));
+    if (key === 'spo2') setJournalSpO2((value) => updateValue(value));
   };
 
-  // Submit handler with Safety UI Guardrail checks
   const handleSubmitJournal = (bypass = false) => {
     const isTempCritical = journalTemp > 38.5;
     const isSpo2Critical = journalSpO2 < 92;
 
     if ((isTempCritical || isSpo2Critical) && !bypass) {
-      // Trigger the Safety UI Guardrail modal dialogue and pause submission
       setIsGuardrailModalVisible(true);
       return;
     }
 
-    const payload = {
+    submitJournalRecord({
       temperature: journalTemp,
       heartRate: journalHr,
       spo2: journalSpO2,
       symptoms_array: selectedSymptoms,
       meds_taken: medsTaken,
       wellbeing_score: wellbeing,
-      timestamp: new Date().toISOString()
-    };
-
-    // Update context instantly
-    setVitals({
-      heartRate: journalHr,
-      spo2: journalSpO2,
-      temperature: journalTemp
     });
-
-    submitJournalRecord(payload);
   };
 
   const submitJournalRecord = async (payload) => {
-    setSyncStatusMsg('Processing baseline submission...');
-    const isOnline = connectionStatus === 'online';
-    
-    if (isOnline) {
+    setIsSubmitting(true);
+    setSyncStatusMsg(connectionStatus === 'online' ? 'Sending record to Django...' : 'Saving record to offline queue...');
+
+    try {
+      setVitals({
+        heartRate: journalHr,
+        spo2: journalSpO2,
+        temperature: journalTemp,
+      });
+
       await handleOfflineEnqueue('vital', payload);
-      setSyncStatusMsg('✅ Synced to Django backend successfully!');
-    } else {
-      await handleOfflineEnqueue('vital', payload);
-      setSyncStatusMsg('Saved Offline (Pending Sync)');
+      await refreshSyncStats();
+      setSelectedSymptoms([]);
+      setWellbeing(4);
+      setMedsTaken(true);
+      setSyncStatusMsg(connectionStatus === 'online' ? 'Record synced to Django.' : 'Record saved locally for later sync.');
+    } catch (error) {
+      setSyncStatusMsg(error.message || 'Unable to save the monitoring record.');
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(() => setSyncStatusMsg(''), 3600);
     }
-
-    // Reset Form fields
-    setSelectedSymptoms([]);
-    setWellbeing(4);
-    setMedsTaken(true);
-    await refreshSyncStats();
-
-    setTimeout(() => {
-      setSyncStatusMsg('');
-    }, 4000);
   };
 
-  const s = styles(colors);
+  const latestRecord = healthRecords[0];
+  const baselineRows = [
+    { label: 'Blood pressure', value: patientDetails.bloodPressure ? `${patientDetails.bloodPressure} mmHg` : 'Not recorded' },
+    { label: 'Blood glucose', value: patientDetails.bloodGlucose ? `${patientDetails.bloodGlucose} mg/dL` : 'Not recorded' },
+    { label: 'Respiratory rate', value: patientDetails.respiratoryRate ? `${patientDetails.respiratoryRate} rpm` : 'Not recorded' },
+  ];
+
+  const s = styles(colors, metrics);
+
+  const renderMetricAdjuster = ({ keyName, label, value, unit, min, max, step, decimal, tone }) => {
+    const widthPercent = Math.min(Math.max(((value - min) / (max - min)) * 100, 0), 100);
+    return (
+      <View style={s.metricControl}>
+        <View style={s.metricHeader}>
+          <Text style={s.metricLabel}>{label}</Text>
+          <Text style={[s.metricValue, { color: tone }]}>{value}{unit}</Text>
+        </View>
+        <View style={s.adjusterControl}>
+          <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric(keyName, -step, min, max, decimal)}>
+            <Text style={s.adjustBtnText}>-</Text>
+          </TouchableOpacity>
+          <View style={s.sliderTrack}>
+            <View style={[s.sliderFill, { width: `${widthPercent}%`, backgroundColor: tone }]} />
+          </View>
+          <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric(keyName, step, min, max, decimal)}>
+            <Text style={s.adjustBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={s.container}>
       <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {syncStatusMsg ? (
-          <View style={s.statusMsgBox}>
-            <Text style={s.statusMsgText}>{syncStatusMsg}</Text>
-          </View>
-        ) : null}
-
-        {/* The Smart Self-Reporting Journal Form */}
-        <View style={[s.card, SHADOWS.premium]}>
-          <Text style={s.cardTitle}>📝 Daily Self-Reporting Patient Journal</Text>
-          <Text style={s.cardDesc}>
-            Log your daily physiological markers. The enqueued entries will be verified locally and synced with your cloud medical file.
-          </Text>
-
-          {/* Metric Adjuster: Temperature (Restricted 34°C to 42°C) */}
-          <View style={s.formRow}>
-            <View style={s.adjusterMeta}>
-              <Text style={s.adjusterLabel}>🌡️ Body Temperature (°C)</Text>
-              <Text style={[s.adjusterValText, journalTemp > 38.5 && s.critText]}>{journalTemp}°C</Text>
+        <View style={s.pageInner}>
+          <View style={s.pageHeader}>
+            <View>
+              <Text style={s.eyebrow}>Patient monitoring</Text>
+              <Text style={s.pageTitle}>Daily clinical journal</Text>
             </View>
-            <View style={s.adjusterControl}>
-              <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric('temp', -0.1, 34.0, 42.0, 1)}>
-                <Text style={s.adjustBtnText}>−</Text>
-              </TouchableOpacity>
-              <View style={s.sliderTrack}>
-                <View style={[s.sliderFill, { width: `${((journalTemp - 34) / 8) * 100}%` }]} />
+            <View style={s.headerBadge}>
+              <Text style={s.headerBadgeLabel}>Latest record</Text>
+              <Text style={s.headerBadgeValue}>{latestRecord ? formatDateTime(latestRecord.timestamp) : 'None yet'}</Text>
+            </View>
+          </View>
+
+          {syncStatusMsg ? (
+            <View style={s.statusMsgBox}>
+              <Text style={s.statusMsgText}>{syncStatusMsg}</Text>
+            </View>
+          ) : null}
+
+          <View style={s.contentGrid}>
+            <View style={[s.card, s.formCard, SHADOWS.subtle]}>
+              <Text style={s.cardTitle}>New biometric entry</Text>
+              <Text style={s.cardDesc}>
+                Saved records are posted to Django when online or held in the offline queue when connectivity is unavailable.
+              </Text>
+
+              {renderMetricAdjuster({
+                keyName: 'temp',
+                label: 'Body temperature',
+                value: journalTemp,
+                unit: ' C',
+                min: 34,
+                max: 42,
+                step: 0.1,
+                decimal: 1,
+                tone: journalTemp > 38.5 ? colors.critical : colors.warning,
+              })}
+
+              {renderMetricAdjuster({
+                keyName: 'hr',
+                label: 'Heart rate',
+                value: journalHr,
+                unit: ' bpm',
+                min: 40,
+                max: 200,
+                step: 2,
+                decimal: 0,
+                tone: journalHr > 100 ? colors.warning : colors.primary,
+              })}
+
+              {renderMetricAdjuster({
+                keyName: 'spo2',
+                label: 'Oxygen saturation',
+                value: journalSpO2,
+                unit: '%',
+                min: 50,
+                max: 100,
+                step: 1,
+                decimal: 0,
+                tone: journalSpO2 < 92 ? colors.critical : colors.secondary,
+              })}
+
+              <Text style={s.formSectionTitle}>Symptoms</Text>
+              <View style={s.symptomsGrid}>
+                {symptomsList.map((symptom) => {
+                  const checked = selectedSymptoms.includes(symptom.value);
+                  return (
+                    <TouchableOpacity
+                      key={symptom.value}
+                      style={[s.symptomBox, checked && s.symptomBoxChecked]}
+                      onPress={() => toggleSymptom(symptom.value)}
+                    >
+                      <Text style={[s.symptomText, checked && s.symptomTextChecked]}>{symptom.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-              <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric('temp', 0.1, 34.0, 42.0, 1)}>
-                <Text style={s.adjustBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Metric Adjuster: Heart Rate (Restricted 40 to 200 BPM) */}
-          <View style={s.formRow}>
-            <View style={s.adjusterMeta}>
-              <Text style={s.adjusterLabel}>❤️ Heart Rate (BPM)</Text>
-              <Text style={[s.adjusterValText, journalHr > 100 && s.critText]}>{journalHr} BPM</Text>
-            </View>
-            <View style={s.adjusterControl}>
-              <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric('hr', -2, 40, 200)}>
-                <Text style={s.adjustBtnText}>−</Text>
-              </TouchableOpacity>
-              <View style={s.sliderTrack}>
-                <View style={[s.sliderFill, { width: `${((journalHr - 40) / 160) * 100}%` }]} />
+              <View style={s.wellbeingRow}>
+                <Text style={s.formSectionTitle}>Wellbeing score</Text>
+                <View style={s.wellbeingButtons}>
+                  {[1, 2, 3, 4, 5].map((score) => (
+                    <TouchableOpacity
+                      key={score}
+                      style={[s.scoreBtn, wellbeing === score && s.scoreBtnSelected]}
+                      onPress={() => setWellbeing(score)}
+                    >
+                      <Text style={[s.scoreText, wellbeing === score && s.scoreTextSelected]}>{score}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
-              <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric('hr', 2, 40, 200)}>
-                <Text style={s.adjustBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* Metric Adjuster: SpO2 (Restricted 50% to 100%) */}
-          <View style={s.formRow}>
-            <View style={s.adjusterMeta}>
-              <Text style={s.adjusterLabel}>🫁 Capillary Oxygen (SpO2 %)</Text>
-              <Text style={[s.adjusterValText, journalSpO2 < 92 && s.critText]}>{journalSpO2}%</Text>
-            </View>
-            <View style={s.adjusterControl}>
-              <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric('spo2', -1, 50, 100)}>
-                <Text style={s.adjustBtnText}>−</Text>
-              </TouchableOpacity>
-              <View style={s.sliderTrack}>
-                <View style={[s.sliderFill, { width: `${((journalSpO2 - 50) / 50) * 100}%` }]} />
+              <View style={s.medsRow}>
+                <View style={s.medsLeft}>
+                  <Text style={s.medsTitle}>Medication taken</Text>
+                  <Text style={s.medsDesc}>Attach medication adherence to this journal entry.</Text>
+                </View>
+                <Switch
+                  value={medsTaken}
+                  onValueChange={setMedsTaken}
+                  trackColor={{ false: colors.surfaceLight, true: colors.secondary }}
+                  thumbColor={medsTaken ? colors.secondary : colors.border}
+                />
               </View>
-              <TouchableOpacity style={s.adjustBtn} onPress={() => adjustFormMetric('spo2', 1, 50, 100)}>
-                <Text style={s.adjustBtnText}>+</Text>
+
+              <TouchableOpacity
+                style={[s.submitBtn, isSubmitting && s.disabledBtn]}
+                onPress={() => handleSubmitJournal(false)}
+                disabled={isSubmitting}
+              >
+                <Text style={s.submitBtnText}>{isSubmitting ? 'Saving...' : 'Submit journal entry'}</Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Symptoms Checklist Matrix */}
-          <Text style={s.formSectionTitle}>Qualitative Symptoms Checked</Text>
-          <View style={s.symptomsGrid}>
-            {symptomsList.map(symptom => {
-              const checked = selectedSymptoms.includes(symptom.value);
-              return (
-                <TouchableOpacity
-                  key={symptom.value}
-                  style={[s.symptomBox, checked && s.symptomBoxChecked]}
-                  onPress={() => toggleSymptom(symptom.value)}
-                >
-                  <Text style={[s.symptomText, checked && s.symptomTextChecked]}>{symptom.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+            <View style={[s.card, s.sideCard, SHADOWS.subtle]}>
+              <Text style={s.cardTitle}>Backend baseline</Text>
+              <Text style={s.cardDesc}>Profile measurements loaded from the authenticated Django profile.</Text>
 
-          {/* Subjective Wellbeing Slider */}
-          <View style={s.wellbeingRow}>
-            <Text style={s.wellbeingLabel}>🧠 Subjective Wellbeing (1-5):</Text>
-            <View style={s.wellbeingButtons}>
-              {[1, 2, 3, 4, 5].map(score => (
-                <TouchableOpacity
-                  key={score}
-                  style={[s.scoreBtn, wellbeing === score && s.scoreBtnSelected]}
-                  onPress={() => setWellbeing(score)}
-                >
-                  <Text style={[s.scoreText, wellbeing === score && s.scoreTextSelected]}>{score}</Text>
-                </TouchableOpacity>
+              {baselineRows.map((row) => (
+                <View key={row.label} style={s.baselineRow}>
+                  <Text style={s.baselineLabel}>{row.label}</Text>
+                  <Text style={s.baselineValue}>{row.value}</Text>
+                </View>
               ))}
+
+              <Text style={[s.cardTitle, s.recentTitle]}>Recent Django records</Text>
+              {healthRecords.length === 0 ? (
+                <View style={s.emptyBox}>
+                  <Text style={s.emptyText}>No health records saved yet.</Text>
+                </View>
+              ) : (
+                healthRecords.slice(0, 6).map((record) => (
+                  <View key={record.id} style={s.recordRow}>
+                    <View>
+                      <Text style={s.recordTitle}>{formatDateTime(record.timestamp)}</Text>
+                      <Text style={s.recordMeta}>
+                        Symptoms: {record.symptoms_array?.length ? record.symptoms_array.join(', ') : 'None'}
+                      </Text>
+                    </View>
+                    <View style={s.recordVitals}>
+                      <Text style={s.recordVital}>{record.temperature} C</Text>
+                      <Text style={s.recordVital}>{record.heart_rate} bpm</Text>
+                      <Text style={s.recordVital}>{record.spo2}%</Text>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
           </View>
-
-          {/* Medication Adherence Check */}
-          <View style={s.medsRow}>
-            <View style={s.medsLeft}>
-              <Text style={s.medsTitle}>💊 Medication Adherence Check</Text>
-              <Text style={s.medsDesc}>Acknowledge if you took your scheduled prescription metrics today.</Text>
-            </View>
-            <Switch
-              value={medsTaken}
-              onValueChange={setMedsTaken}
-              trackColor={{ false: colors.surfaceLight, true: colors.primary }}
-              thumbColor={medsTaken ? colors.primary : colors.border}
-            />
-          </View>
-
-          <TouchableOpacity style={[s.submitBtn, SHADOWS.premium]} onPress={() => handleSubmitJournal(false)}>
-            <Text style={s.submitBtnText}>Submit Daily Journal Log</Text>
-          </TouchableOpacity>
         </View>
-
       </ScrollView>
 
-      {/* Safety UI Guardrail Warning Modal */}
-      {isGuardrailModalVisible && (
+      {isGuardrailModalVisible ? (
         <View style={s.modalOverlay}>
           <View style={[s.modalCard, SHADOWS.premium]}>
-            <Text style={s.modalHeader}>🚨 CRITICAL PARAMETERS DETECTED</Text>
+            <Text style={s.modalHeader}>Critical parameters detected</Text>
             <Text style={s.modalText}>
-              Warning: Critical parameters detected. Please verify input data accuracy or activate the Emergency Trigger immediately.
+              Confirm that these readings are accurate before saving them. Low SpO2 or elevated temperature will trigger backend alert rules.
             </Text>
-            
             <View style={s.modalMetricsBox}>
-              {journalTemp > 38.5 && (
-                <Text style={s.modalMetricLine}>• Temperature elevated: {journalTemp}°C</Text>
-              )}
-              {journalSpO2 < 92 && (
-                <Text style={s.modalMetricLine}>• SpO2 Oxygen low: {journalSpO2}%</Text>
-              )}
+              {journalTemp > 38.5 ? <Text style={s.modalMetricLine}>Temperature: {journalTemp} C</Text> : null}
+              {journalSpO2 < 92 ? <Text style={s.modalMetricLine}>SpO2: {journalSpO2}%</Text> : null}
             </View>
-
-            <Text style={s.modalWarningText}>
-              The parameters logged represent severe hypoxia or fever flare-ups. Recalibrate input vectors or confirm to sync enqueued records.
-            </Text>
-
             <View style={s.modalButtonsRow}>
-              <TouchableOpacity
-                style={[s.modalBtn, s.modalCloseBtn]}
-                onPress={() => setIsGuardrailModalVisible(false)}
-              >
-                <Text style={s.modalCloseText}>Recalibrate (Go Back)</Text>
+              <TouchableOpacity style={[s.modalBtn, s.modalCloseBtn]} onPress={() => setIsGuardrailModalVisible(false)}>
+                <Text style={s.modalCloseText}>Review entry</Text>
               </TouchableOpacity>
-              
               <TouchableOpacity
                 style={[s.modalBtn, s.modalBypassBtn]}
                 onPress={() => {
                   setIsGuardrailModalVisible(false);
-                  handleSubmitJournal(true); // Bypass submit
+                  handleSubmitJournal(true);
                 }}
               >
-                <Text style={s.modalBypassText}>Confirm & Log Entry</Text>
+                <Text style={s.modalBypassText}>Confirm and save</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
-const styles = (colors) => StyleSheet.create({
+const styles = (colors, metrics) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: 40,
+    padding: metrics.pagePadding,
+    paddingBottom: metrics.isPhone ? 96 : 40,
   },
-  statusMsgBox: {
-    backgroundColor: 'rgba(225, 173, 1, 0.05)',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 8,
-    padding: SPACING.sm,
+  pageInner: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
+  },
+  pageHeader: {
+    flexDirection: metrics.isPhone ? 'column' : 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
     marginBottom: SPACING.md,
-    alignItems: 'center',
   },
-  statusMsgText: {
+  eyebrow: {
     color: colors.primary,
-    fontWeight: 'bold',
     fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 4,
+  },
+  pageTitle: {
+    color: colors.textPrimary,
+    fontSize: metrics.isPhone ? 24 : 30,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  headerBadge: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
+    minWidth: metrics.isPhone ? '100%' : 220,
+  },
+  headerBadgeLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  headerBadgeValue: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: 3,
+  },
+  contentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: SPACING.borderRadius,
-    padding: SPACING.lg,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: SPACING.md,
+    padding: metrics.cardPadding,
+  },
+  formCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '58%',
+    minWidth: metrics.isPhone ? '100%' : 440,
+  },
+  sideCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '34%',
+    minWidth: metrics.isPhone ? '100%' : 320,
   },
   cardTitle: {
     color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.body + 1,
-    fontWeight: 'bold',
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 4,
   },
   cardDesc: {
     color: colors.textSecondary,
-    fontSize: 10,
-    lineHeight: 15,
+    fontSize: 12,
+    lineHeight: 18,
     marginBottom: SPACING.md,
   },
-  formRow: {
-    marginBottom: SPACING.md,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 10,
+  statusMsgBox: {
+    backgroundColor: colors.elevated,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 8,
+    padding: SPACING.sm,
+    marginBottom: SPACING.md,
   },
-  adjusterMeta: {
+  statusMsgText: {
+    color: colors.textPrimary,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  metricControl: {
+    backgroundColor: colors.elevated,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
+  },
+  metricHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    gap: SPACING.md,
+    marginBottom: SPACING.sm,
   },
-  adjusterLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
+  metricLabel: {
     color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
-  adjusterValText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: colors.primary,
+  metricValue: {
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   adjusterControl: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: SPACING.sm,
   },
   adjustBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceLight,
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   adjustBtnText: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: colors.textPrimary,
   },
   sliderTrack: {
     flex: 1,
-    height: 6,
+    height: 8,
     backgroundColor: colors.surfaceLight,
-    borderRadius: 3,
-    borderWidth: 0.5,
-    borderColor: colors.border,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   sliderFill: {
     height: '100%',
-    backgroundColor: colors.primary,
-    borderRadius: 3,
-  },
-  critText: {
-    color: colors.primary,
+    borderRadius: 8,
   },
   formSectionTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: colors.textPrimary,
-    marginTop: SPACING.md,
     marginBottom: SPACING.sm,
   },
   symptomsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: SPACING.sm,
     marginBottom: SPACING.md,
   },
   symptomBox: {
-    paddingVertical: 8,
+    paddingVertical: 9,
     paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.background,
+    backgroundColor: colors.elevated,
   },
   symptomBoxChecked: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(225, 173, 1, 0.05)',
+    backgroundColor: colors.surfaceLight,
   },
   symptomText: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.textSecondary,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   symptomTextChecked: {
-    fontWeight: 'bold',
     color: colors.primary,
   },
   wellbeingRow: {
-    marginVertical: SPACING.md,
-    gap: 8,
-  },
-  wellbeingLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+    marginBottom: SPACING.md,
   },
   wellbeingButtons: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
   },
   scoreBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.background,
+    backgroundColor: colors.elevated,
   },
   scoreBtnSelected: {
     borderColor: colors.primary,
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
+    backgroundColor: colors.primary,
   },
   scoreText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textSecondary,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   scoreTextSelected: {
-    fontWeight: 'bold',
-    color: colors.primary,
+    color: '#FFFFFF',
   },
   medsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: SPACING.md,
     paddingVertical: SPACING.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     marginBottom: SPACING.md,
   },
   medsLeft: {
-    flex: 0.8,
+    flex: 1,
   },
   medsTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: colors.textPrimary,
   },
   medsDesc: {
-    fontSize: 9,
+    fontSize: 11,
     color: colors.textMuted,
-    lineHeight: 13,
+    lineHeight: 16,
     marginTop: 2,
   },
   submitBtn: {
@@ -493,13 +580,84 @@ const styles = (colors) => StyleSheet.create({
     paddingVertical: SPACING.md,
     alignItems: 'center',
   },
+  disabledBtn: {
+    opacity: 0.55,
+  },
   submitBtnText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  baselineRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    paddingVertical: SPACING.sm,
+  },
+  baselineLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+  },
+  baselineValue: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textAlign: 'right',
+    flex: 1,
+  },
+  recentTitle: {
+    marginTop: SPACING.lg,
+  },
+  emptyBox: {
+    minHeight: 76,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.elevated,
+    padding: SPACING.md,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  recordRow: {
+    gap: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingVertical: SPACING.md,
+  },
+  recordTitle: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 3,
+  },
+  recordMeta: {
+    color: colors.textMuted,
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  recordVitals: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  recordVital: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    backgroundColor: colors.elevated,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
   modalOverlay: {
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(15, 23, 42, 0.78)',
     justifyContent: 'center',
     alignItems: 'center',
     position: 'absolute',
@@ -507,57 +665,47 @@ const styles = (colors) => StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    zIndex: 10,
+    zIndex: 20,
     padding: SPACING.lg,
   },
   modalCard: {
-    width: '90%',
+    width: '100%',
+    maxWidth: 480,
     backgroundColor: colors.surface,
-    borderRadius: SPACING.borderRadius,
-    padding: SPACING.lg,
-    borderWidth: 2,
-    borderColor: colors.primary,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
+    borderWidth: 1,
+    borderColor: colors.critical,
   },
   modalHeader: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-    letterSpacing: 0.3,
+    fontSize: 17,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: colors.critical,
+    marginBottom: SPACING.sm,
   },
   modalText: {
-    fontSize: 12,
+    fontSize: 13,
     color: colors.textPrimary,
-    lineHeight: 16,
-    marginBottom: SPACING.sm,
-    fontWeight: 'bold',
+    lineHeight: 19,
+    marginBottom: SPACING.md,
   },
   modalMetricsBox: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.elevated,
     borderRadius: 8,
-    padding: 10,
+    padding: SPACING.md,
     borderWidth: 1,
     borderColor: colors.border,
     marginBottom: SPACING.md,
   },
   modalMetricLine: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: colors.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: colors.critical,
     marginBottom: 4,
   },
-  modalWarningText: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    lineHeight: 15,
-    marginBottom: SPACING.lg,
-    fontStyle: 'italic',
-  },
   modalButtonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+    flexDirection: metrics.isPhone ? 'column' : 'row',
+    gap: SPACING.sm,
   },
   modalBtn: {
     flex: 1,
@@ -566,21 +714,21 @@ const styles = (colors) => StyleSheet.create({
     alignItems: 'center',
   },
   modalCloseBtn: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.elevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
   modalCloseText: {
     color: colors.textSecondary,
-    fontWeight: 'bold',
-    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 12,
   },
   modalBypassBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.critical,
   },
   modalBypassText: {
-    color: '#000000',
-    fontWeight: 'bold',
-    fontSize: 11,
+    color: '#FFFFFF',
+    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 12,
   },
 });

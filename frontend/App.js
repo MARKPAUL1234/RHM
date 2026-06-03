@@ -1,10 +1,32 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SafeAreaView, StyleSheet, StatusBar, View, ActivityIndicator, Text, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import djangoApi, { setAuthToken } from './src/services/django_api';
 import { DARK_COLORS, LIGHT_COLORS } from './src/styles/theme';
 import { HealthContext } from './src/context/HealthContext';
+
+const OFFLINE_QUEUE_KEY = '@rhmt_offline_queue';
+const EMPTY_VITALS = {
+  heartRate: null,
+  spo2: null,
+  temperature: null,
+};
+const EMPTY_FITNESS_SUMMARY = {
+  daily_steps: 0,
+  goal_steps: 10000,
+  locked: false,
+  routines: [],
+  source_record_count: 0,
+  manual_activity_count: 0,
+  latest_record: null,
+};
+
+const vitalsFromRecord = (record) => ({
+  heartRate: record ? record.heart_rate : null,
+  spo2: record ? record.spo2 : null,
+  temperature: record ? record.temperature : null,
+});
 
 function SplashScreen() {
   const pulse = useRef(new Animated.Value(1)).current;
@@ -31,7 +53,7 @@ function SplashScreen() {
   return (
     <View style={splashStyles.container}>
       <Animated.View style={{ transform: [{ scale: pulse }], alignItems: 'center' }}>
-        <Text style={splashStyles.logo}>🩺</Text>
+        <Text style={splashStyles.logo}>RH</Text>
         <Text style={splashStyles.title}>RHMT</Text>
         <Text style={splashStyles.subtitle}>Remote Health Monitoring Tool</Text>
       </Animated.View>
@@ -78,15 +100,10 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [isSplashActive, setIsSplashActive] = useState(true);
   const [isFetchingData, setIsFetchingData] = useState(true);
-  const [profile, setProfile] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('online');
   const [isAutomaticMode, setIsAutomaticMode] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [vitals, setVitals] = useState({
-    heartRate: 72,
-    spo2: 98,
-    temperature: 36.6,
-  });
+  const [vitals, setVitals] = useState(EMPTY_VITALS);
 
   const [usersMetadata, setUsersMetadata] = useState({
     user_id: null,
@@ -98,32 +115,29 @@ export default function App() {
   });
 
   const [patientDetails, setPatientDetails] = useState({
-    bloodPressure: '120/80',
-    bloodGlucose: '95',
-    respiratoryRate: 16,
+    bloodPressure: '',
+    bloodGlucose: '',
+    respiratoryRate: null,
   });
 
   const [nutrition, setNutrition] = useState({
-    calorieGoals: 2200,
-    waterGoal: 3000,
+    calorieGoals: 0,
+    waterGoal: 0,
   });
 
-  const [alerts, setAlerts] = useState([]);
-  const [recommendations, setRecommendations] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [healthRecords, setHealthRecords] = useState([]);
   const [nutritionLogs, setNutritionLogs] = useState([]);
+  const [foodLogs, setFoodLogs] = useState([]);
+  const [fitnessLogs, setFitnessLogs] = useState([]);
+  const [fitnessSummary, setFitnessSummary] = useState(EMPTY_FITNESS_SUMMARY);
+  const [alerts, setAlerts] = useState([]);
+  const [recommendations, setRecommendations] = useState([]);
   const [emergencyEvents, setEmergencyEvents] = useState([]);
-  const [fitnessSummary, setFitnessSummary] = useState({
-    daily_steps: 0,
-    goal_steps: 10000,
-    locked: false,
-    routines: [],
-    source_record_count: 0,
-  });
+  const [contactInquiries, setContactInquiries] = useState([]);
   const [dndEnabled, setDndEnabled] = useState(false);
   const [queueCount, setQueueCount] = useState(0);
   const [logs, setLogs] = useState([]);
-  const [deviceId, setDeviceId] = useState('');
 
   useEffect(() => {
     const loadThemePreference = async () => {
@@ -151,87 +165,138 @@ export default function App() {
 
   const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
 
-  const applyProfileToState = useCallback(async (profile, activeUser = user) => {
-    if (!profile) return;
-
-    setProfile(profile);
-
-    const displayName = profile.display_name || activeUser?.name || profile.username || 'Patient';
-
-    setUsersMetadata({
-      user_id: activeUser?.id || profile.id,
-      age: profile.age || 24,
-      weight: profile.weight || 70,
-      height: profile.height || 175,
-      blood_group: profile.blood_group || 'O+',
-      diagnosed_conditions: profile.diagnosed_conditions?.length ? profile.diagnosed_conditions : ['None'],
-    });
-
-    setPatientDetails({
-      bloodPressure: profile.blood_pressure || '120/80',
-      bloodGlucose: profile.blood_glucose || '95',
-      respiratoryRate: profile.respiratory_rate || 16,
-    });
-
-    setNutrition({
-      calorieGoals: profile.calorie_goals || 2200,
-      waterGoal: profile.daily_water_goal_ml || 3000,
-    });
-
-    setDeviceId(profile.device_id || 'ESP32-RHM-NODE-001');
-
-    if (activeUser && activeUser.name !== displayName) {
-      const updatedUser = { ...activeUser, name: displayName };
-      setUser(updatedUser);
-      await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(updatedUser));
+  const refreshQueueCount = useCallback(async () => {
+    try {
+      const rawQueue = await AsyncStorage.getItem(OFFLINE_QUEUE_KEY);
+      const queue = rawQueue ? JSON.parse(rawQueue) : [];
+      setQueueCount(queue.length);
+      return queue;
+    } catch (e) {
+      setQueueCount(0);
+      return [];
     }
+  }, []);
+
+  const applyProfile = useCallback((profileData) => {
+    if (!profileData) return;
+
+    setProfile(profileData);
+    setUsersMetadata({
+      user_id: profileData.user_id || user?.id || null,
+      age: profileData.age ?? null,
+      weight: profileData.weight ?? null,
+      height: profileData.height ?? null,
+      blood_group: profileData.blood_group || '',
+      diagnosed_conditions: Array.isArray(profileData.diagnosed_conditions)
+        ? profileData.diagnosed_conditions
+        : [],
+    });
+    setPatientDetails({
+      bloodPressure: profileData.blood_pressure || '',
+      bloodGlucose: profileData.blood_glucose || '',
+      respiratoryRate: profileData.respiratory_rate ?? null,
+    });
+    setNutrition((current) => ({
+      ...current,
+      waterGoal: profileData.daily_water_goal_ml ?? 0,
+    }));
   }, [user]);
 
   const refreshSyncStats = useCallback(async () => {
     if (!user) return;
-    
+
     try {
       const [
+        records,
         recs,
         cloudAlerts,
+        emergencyRows,
+        contactRows,
         systemLogs,
-        records,
-        nutritionEntries,
-        emergencyEntries,
+        nutritionLogRows,
+        foodLogRows,
+        fitnessLogRows,
         fitness,
       ] = await Promise.all([
+        djangoApi.getHealthRecords(),
         djangoApi.getRecommendations(),
         djangoApi.getAlerts(),
-        djangoApi.getSystemLogs(),
-        djangoApi.getHealthRecords(),
-        djangoApi.getNutritionLogs(),
         djangoApi.getEmergencyEvents(),
+        djangoApi.getContactInquiries(),
+        djangoApi.getSystemLogs(),
+        djangoApi.getNutritionLogs(),
+        djangoApi.getFoodLogs(),
+        djangoApi.getFitnessLogs(),
         djangoApi.getFitnessSummary(),
       ]);
 
+      setHealthRecords(records);
       setRecommendations(recs);
       setAlerts(cloudAlerts);
+      setEmergencyEvents(emergencyRows);
+      setContactInquiries(contactRows);
       setLogs(systemLogs);
-      setHealthRecords(records);
-      setNutritionLogs(nutritionEntries);
-      setEmergencyEvents(emergencyEntries);
-      setFitnessSummary(fitness);
-
-      if (records.length > 0) {
-        const latest = records[0];
-        setVitals({
-          heartRate: latest.heart_rate,
-          spo2: latest.spo2,
-          temperature: latest.temperature,
-        });
-      }
-
-      setConnectionStatus('online');
+      setNutritionLogs(nutritionLogRows);
+      setFoodLogs(foodLogRows);
+      setFitnessLogs(fitnessLogRows);
+      setFitnessSummary(fitness || EMPTY_FITNESS_SUMMARY);
+      setVitals(vitalsFromRecord(records[0]));
+      await refreshQueueCount();
     } catch (e) {
-      console.error("Failed to refresh backend data:", e);
-      setConnectionStatus('offline');
+      console.error("Failed to refresh Django data:", e);
     }
-  }, [user]);
+  }, [refreshQueueCount, user]);
+
+  const updateProfileBaseline = async (data) => {
+    const updatedProfile = await djangoApi.updateProfile(data);
+    applyProfile(updatedProfile);
+    return updatedProfile;
+  };
+
+  const logNutritionEntry = async (payload) => {
+    const savedLog = await djangoApi.createNutritionLog(payload);
+    const [profileData] = await Promise.all([
+      djangoApi.getProfile(),
+      refreshSyncStats(),
+    ]);
+    applyProfile(profileData);
+    return savedLog;
+  };
+
+  const logFoodEntry = async (payload) => {
+    const savedLog = await djangoApi.createFoodLog(payload);
+    await refreshSyncStats();
+    return savedLog;
+  };
+
+  const logFitnessEntry = async (payload) => {
+    const savedLog = await djangoApi.createFitnessLog(payload);
+    await refreshSyncStats();
+    return savedLog;
+  };
+
+  const createEmergencyEvent = async (payload) => {
+    const event = await djangoApi.createEmergencyEvent(payload);
+    await refreshSyncStats();
+    return event;
+  };
+
+  const createContactInquiry = async (payload) => {
+    const inquiry = await djangoApi.createContactInquiry(payload);
+    await refreshSyncStats();
+    return inquiry;
+  };
+
+  const markAlertRead = async (alertId) => {
+    const updatedAlert = await djangoApi.updateAlert(alertId, { status: 'read' });
+    setAlerts((currentAlerts) =>
+      currentAlerts.map((alert) =>
+        alert.id === alertId ? updatedAlert : alert
+      )
+    );
+    await refreshSyncStats();
+    return updatedAlert;
+  };
 
   useEffect(() => {
     const verifySession = async () => {
@@ -258,94 +323,90 @@ export default function App() {
   useEffect(() => {
     if (!user) return;
 
-    let isActive = true;
     const initializeProfile = async () => {
       setIsFetchingData(true);
       try {
-        const profile = await djangoApi.getProfile();
-        if (isActive) {
-          await applyProfileToState(profile, user);
-        }
+        const profileData = await djangoApi.getProfile();
+        applyProfile(profileData);
       } catch (e) {
         console.error("Failed to get profile:", e);
       }
       await refreshSyncStats();
-      if (isActive) {
-        setIsFetchingData(false);
-      }
+      setIsFetchingData(false);
     };
+
     initializeProfile();
     
     const statsInterval = setInterval(refreshSyncStats, isAutomaticMode ? 5000 : 10000);
-    return () => {
-      isActive = false;
-      clearInterval(statsInterval);
-    };
-  }, [applyProfileToState, isAutomaticMode, refreshSyncStats, user]);
-
-  const updateProfileBaseline = async (data) => {
-    const profile = await djangoApi.updateProfile(data);
-    await applyProfileToState(profile);
-    await refreshSyncStats();
-    return profile;
-  };
-
-  const logNutritionEntry = async (data) => {
-    const log = await djangoApi.createNutritionLog(data);
-    if (data.entry_type === 'weight') {
-      const profile = await djangoApi.getProfile();
-      await applyProfileToState(profile);
-    }
-    await refreshSyncStats();
-    return log;
-  };
-
-  const createEmergencyEvent = async (data) => {
-    const event = await djangoApi.createEmergencyEvent(data);
-    await refreshSyncStats();
-    return event;
-  };
+    return () => clearInterval(statsInterval);
+  }, [applyProfile, isAutomaticMode, refreshSyncStats, user]);
 
   const handleOfflineEnqueue = async (type, payload) => {
-    if (type === 'vital' && payload.event === 'water_logged') {
-      await logNutritionEntry({
-        entry_type: 'water',
-        value: payload.amount_ml || payload.amount || 250,
-        unit: 'ml',
-        note: payload.total ? `Total logged: ${payload.total}` : 'Hydration entry',
-      });
-      return;
-    }
+    if (type !== 'vital') return null;
 
-    if (type === 'vital') {
+    const recordPayload = {
+      temperature: payload.temperature,
+      heart_rate: payload.heartRate || payload.heart_rate,
+      spo2: payload.spo2,
+      symptoms_array: payload.symptoms_array || [],
+      meds_taken: payload.meds_taken || false,
+      wellbeing_score: payload.wellbeing_score || 3,
+    };
+
+    if (connectionStatus === 'online') {
       try {
-        await djangoApi.createHealthRecord({
-          temperature: payload.temperature,
-          heart_rate: payload.heartRate || payload.heart_rate,
-          spo2: payload.spo2,
-          symptoms_array: payload.symptoms_array || [],
-          meds_taken: payload.meds_taken || false,
-          wellbeing_score: payload.wellbeing_score || 3,
-        });
+        const savedRecord = await djangoApi.createHealthRecord(recordPayload);
+        await refreshSyncStats();
+        return savedRecord;
       } catch (e) {
         console.error("Failed to send record:", e);
       }
     }
 
-    if (type === 'nutrition') {
-      await logNutritionEntry(payload);
-    }
-
-    if (type === 'emergency') {
-      await createEmergencyEvent(payload);
-    }
-
-    await refreshSyncStats();
+    const queue = await refreshQueueCount();
+    const queueItem = {
+      id: `vital_${Date.now()}`,
+      type,
+      payload: recordPayload,
+      timestamp: new Date().toISOString(),
+    };
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify([...queue, queueItem]));
+    await refreshQueueCount();
+    return queueItem;
   };
 
   const handleSyncQueue = async () => {
+    if (connectionStatus !== 'online') {
+      return { success: false, syncedCount: 0, error: 'App is offline' };
+    }
+
+    const queue = await refreshQueueCount();
+    if (queue.length === 0) {
+      return { success: true, syncedCount: 0 };
+    }
+
+    const failedItems = [];
+    let syncedCount = 0;
+
+    for (const item of queue) {
+      try {
+        if (item.type === 'vital') {
+          await djangoApi.createHealthRecord(item.payload);
+          syncedCount += 1;
+        }
+      } catch (e) {
+        failedItems.push(item);
+      }
+    }
+
+    await AsyncStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(failedItems));
+    await refreshQueueCount();
     await refreshSyncStats();
-    return { success: true, syncedCount: 0 };
+    return {
+      success: failedItems.length === 0,
+      syncedCount,
+      pendingCount: failedItems.length,
+    };
   };
 
   const handleClearLogs = async () => {
@@ -365,8 +426,6 @@ export default function App() {
         value={{
           user,
           setUser,
-          profile,
-          setProfile,
           isFetchingData,
           setIsFetchingData,
           connectionStatus,
@@ -375,37 +434,47 @@ export default function App() {
           setIsAutomaticMode,
           vitals,
           setVitals,
+          profile,
+          setProfile,
           usersMetadata,
           setUsersMetadata,
           patientDetails,
           setPatientDetails,
           nutrition,
           setNutrition,
-          alerts,
-          setAlerts,
-          recommendations,
-          setRecommendations,
           healthRecords,
           setHealthRecords,
           nutritionLogs,
           setNutritionLogs,
-          emergencyEvents,
-          setEmergencyEvents,
+          foodLogs,
+          setFoodLogs,
+          fitnessLogs,
+          setFitnessLogs,
           fitnessSummary,
           setFitnessSummary,
+          alerts,
+          setAlerts,
+          recommendations,
+          setRecommendations,
+          emergencyEvents,
+          setEmergencyEvents,
+          contactInquiries,
+          setContactInquiries,
           dndEnabled,
           setDndEnabled,
           queueCount,
           logs,
-          deviceId,
-          setDeviceId,
           handleOfflineEnqueue,
           handleSyncQueue,
           handleClearLogs,
-          refreshSyncStats,
           updateProfileBaseline,
           logNutritionEntry,
+          logFoodEntry,
+          logFitnessEntry,
           createEmergencyEvent,
+          createContactInquiry,
+          markAlertRead,
+          refreshSyncStats,
           isDarkMode,
           colors,
           toggleTheme,
