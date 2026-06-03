@@ -1,70 +1,53 @@
 import { Platform } from 'react-native';
 
-// Custom Design System Tokens for the Remote Health Monitoring Tool (RHMT)
-
 export const DARK_COLORS = {
-  // Base Clinical / Hospital Dark-mode backgrounds
-  background: '#121212',    // Premium Charcoal Black background
-  surface: '#1E1E1E',       // Dark Charcoal grey cards/surfaces
-  surfaceLight: '#2D2D2D',  // Soft dark grey for input boxes, pills, and headers
-  
-  // Glassmorphic translucent overlays (dark mode)
-  glassBackground: 'rgba(30, 30, 30, 0.85)',
-  glassBorder: 'rgba(225, 173, 1, 0.12)',
-  
-  // Accent & Health Status colors (vibrant, clinical gold)
-  primary: '#E1AD01',       // Mustard Yellow / Dull Gold for core navigation & primary operations
-  primaryLight: '#F3C623',  // Lighter Gold for active links & selected highlights
-  secondary: '#FFFFFF',     // Crisp White for data trends and parameters
-  accent: '#E1AD01',        // Gold accent for fitness metrics
-  
-  // Connection / Alert levels (strictly gold and grey/white scale)
-  online: '#E1AD01',        // Gold for online status
-  offline: '#666666',       // Muted grey for offline status
-  critical: '#E1AD01',      // Gold for vital alarms (no green, no red to respect strict palette)
-  
-  // Typography Neutral Scale (High-contrast for accessibility)
-  textPrimary: '#FFFFFF',   // Crisp White for core body & head text
-  textSecondary: '#CCCCCC', // Light grey for labels & summaries
-  textMuted: '#888888',     // Medium grey for timestamps and descriptions
-  
-  // Interactive / State colors
-  border: '#2E2E2E',        // Dark grey borders for cards & dividers
-  shadow: 'rgba(0, 0, 0, 0.5)', // Dark shadow depth
+  background: '#0F172A',
+  surface: '#111827',
+  surfaceLight: '#1F2937',
+  elevated: '#172033',
+  primary: '#3B82F6',
+  primaryLight: '#60A5FA',
+  secondary: '#14B8A6',
+  accent: '#F59E0B',
+  online: '#22C55E',
+  offline: '#94A3B8',
+  critical: '#EF4444',
+  warning: '#F59E0B',
+  success: '#22C55E',
+  info: '#38BDF8',
+  textPrimary: '#F8FAFC',
+  textSecondary: '#CBD5E1',
+  textMuted: '#94A3B8',
+  border: '#263247',
+  shadow: 'rgba(2, 6, 23, 0.35)',
+  glassBackground: 'rgba(17, 24, 39, 0.88)',
+  glassBorder: 'rgba(148, 163, 184, 0.18)',
 };
 
 export const LIGHT_COLORS = {
-  // Base Clinical / Hospital Light-mode backgrounds
-  background: '#F8F9FA',    // Premium Soft Light Grey background
-  surface: '#FFFFFF',       // Clean Crisp White cards/surfaces
-  surfaceLight: '#E9ECEF',  // Soft light grey for input boxes, pills, and headers
-  
-  // Glassmorphic translucent overlays (light mode)
-  glassBackground: 'rgba(255, 255, 255, 0.85)',
-  glassBorder: 'rgba(225, 173, 1, 0.08)',
-  
-  // Accent & Health Status colors (vibrant, clinical gold)
-  primary: '#C99E02',       // Warm Golden Mustard for high readability on light backgrounds
-  primaryLight: '#E1AD01',  // Muted Gold for highlights
-  secondary: '#121212',     // Crisp Charcoal Black for secondary details
-  accent: '#C99E02',        // Gold accent
-  
-  // Connection / Alert levels
-  online: '#C99E02',
-  offline: '#888888',
-  critical: '#C99E02',
-  
-  // Typography Neutral Scale
-  textPrimary: '#1E1E1E',   // Deep Charcoal Black for core text
-  textSecondary: '#495057', // Medium Charcoal for labels & summaries
-  textMuted: '#6C757D',     // Medium-light grey for timestamps and descriptions
-  
-  // Interactive / State colors
-  border: '#DEE2E6',        // Light grey borders
-  shadow: 'rgba(0, 0, 0, 0.08)', // Soft light shadow depth
+  background: '#F6F8FB',
+  surface: '#FFFFFF',
+  surfaceLight: '#EEF3F8',
+  elevated: '#F9FBFD',
+  primary: '#2563EB',
+  primaryLight: '#1D4ED8',
+  secondary: '#0D9488',
+  accent: '#D97706',
+  online: '#16A34A',
+  offline: '#64748B',
+  critical: '#DC2626',
+  warning: '#D97706',
+  success: '#16A34A',
+  info: '#0284C7',
+  textPrimary: '#111827',
+  textSecondary: '#334155',
+  textMuted: '#64748B',
+  border: '#D8E0EA',
+  shadow: 'rgba(15, 23, 42, 0.08)',
+  glassBackground: 'rgba(255, 255, 255, 0.9)',
+  glassBorder: 'rgba(37, 99, 235, 0.12)',
 };
 
-// Default export compatibility
 export const COLORS = DARK_COLORS;
 
 export const TYPOGRAPHY = {
@@ -81,7 +64,7 @@ export const TYPOGRAPHY = {
     semiBold: '600',
     medium: '500',
     regular: '400',
-  }
+  },
 };
 
 export const SPACING = {
@@ -90,47 +73,53 @@ export const SPACING = {
   md: 16,
   lg: 24,
   xl: 32,
-  borderRadius: 16,
-  borderRadiusSm: 8,
+  borderRadius: 8,
+  borderRadiusSm: 6,
 };
 
 export const SHADOWS = {
   premium: Platform.select({
     web: {
-      boxShadow: '0 6px 18px rgba(0, 0, 0, 0.2)',
+      boxShadow: '0 12px 28px rgba(15, 23, 42, 0.10)',
     },
     default: {
-      shadowColor: '#000000',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 6 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
+      shadowOpacity: 0.14,
+      shadowRadius: 12,
       elevation: 3,
     },
   }),
-  neonGreen: Platform.select({
+  subtle: Platform.select({
     web: {
-      boxShadow: '0 0 14px rgba(225, 173, 1, 0.3)',
+      boxShadow: '0 6px 16px rgba(15, 23, 42, 0.08)',
     },
     default: {
-      shadowColor: '#E1AD01',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.3,
-      shadowRadius: 6,
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
       elevation: 2,
     },
   }),
-  neonRed: Platform.select({
-    web: {
-      boxShadow: '0 0 16px rgba(225, 173, 1, 0.4)',
-    },
-    default: {
-      shadowColor: '#E1AD01',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.4,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-  }),
+};
+
+export const getResponsiveMetrics = (width = 390) => {
+  const isTiny = width < 360;
+  const isPhone = width < 768;
+  const isTablet = width >= 768 && width < 1100;
+  const isDesktop = width >= 1100;
+
+  return {
+    isTiny,
+    isPhone,
+    isTablet,
+    isDesktop,
+    pagePadding: isTiny ? 12 : isPhone ? 14 : 24,
+    contentMaxWidth: isDesktop ? 1180 : '100%',
+    cardPadding: isTiny ? 12 : isPhone ? 14 : 18,
+    columns: isPhone ? 1 : isTablet ? 2 : 3,
+  };
 };
 
 export default {
@@ -140,6 +129,5 @@ export default {
   TYPOGRAPHY,
   SPACING,
   SHADOWS,
+  getResponsiveMetrics,
 };
-
-

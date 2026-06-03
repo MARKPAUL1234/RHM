@@ -2,7 +2,10 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from .models import (
     Alert,
+    ContactInquiry,
     EmergencyEvent,
+    FitnessLog,
+    FoodLog,
     HealthRecord,
     NutritionLog,
     Recommendation,
@@ -22,18 +25,18 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 class UserProfileSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
     email = serializers.CharField(source='user.email', read_only=True)
 
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'username', 'email', 'display_name', 'age', 'weight', 'height',
-            'blood_group', 'diagnosed_conditions', 'blood_pressure',
+            'id', 'user_id', 'username', 'email', 'display_name', 'age', 'weight',
+            'height', 'blood_group', 'diagnosed_conditions', 'blood_pressure',
             'blood_glucose', 'respiratory_rate', 'daily_water_goal_ml',
-            'daily_step_goal', 'device_id', 'emergency_primary_contact',
-            'emergency_secondary_contact', 'medical_notes', 'created_at',
-            'updated_at',
+            'daily_step_goal', 'emergency_primary_contact', 'emergency_secondary_contact',
+            'medical_notes', 'created_at', 'updated_at',
         ]
 
 class HealthRecordSerializer(serializers.ModelSerializer):
@@ -56,6 +59,24 @@ class NutritionLogSerializer(serializers.ModelSerializer):
         fields = ['id', 'user', 'entry_type', 'value', 'unit', 'note', 'timestamp']
         read_only_fields = ['user', 'timestamp']
 
+class FoodLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FoodLog
+        fields = [
+            'id', 'user', 'meal_type', 'food_name', 'calories', 'carbs_g',
+            'protein_g', 'fat_g', 'note', 'timestamp',
+        ]
+        read_only_fields = ['user', 'timestamp']
+
+class FitnessLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FitnessLog
+        fields = [
+            'id', 'user', 'activity_name', 'steps', 'duration_minutes',
+            'heart_rate', 'intensity', 'goal_note', 'timestamp',
+        ]
+        read_only_fields = ['user', 'timestamp']
+
 class EmergencyEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmergencyEvent
@@ -64,6 +85,15 @@ class EmergencyEventSerializer(serializers.ModelSerializer):
             'sms_content', 'status', 'timestamp',
         ]
         read_only_fields = ['user', 'timestamp']
+
+class ContactInquirySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ContactInquiry
+        fields = [
+            'id', 'user', 'purpose', 'message', 'preferred_response_time',
+            'status', 'confirmation_code', 'timestamp',
+        ]
+        read_only_fields = ['user', 'status', 'confirmation_code', 'timestamp']
 
 class RecommendationSerializer(serializers.ModelSerializer):
     class Meta:

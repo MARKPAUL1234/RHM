@@ -1,299 +1,269 @@
-import React, { useState, useContext } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Animated, useWindowDimensions } from 'react-native';
+import React, { useContext, useMemo, useState } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  useWindowDimensions,
+} from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, SHADOWS, getResponsiveMetrics } from '../styles/theme';
 
-// Import Screens
 import HomeScreen from '../screens/HomeScreen';
 import DashboardScreen from '../screens/DashboardScreen';
-import PatientMonitoringScreen from '../screens/PatientMonitoringScreen';
-import NutritionHubScreen from '../screens/NutritionHubScreen';
-import FitnessCenterScreen from '../screens/FitnessCenterScreen';
+import ServicesScreen from '../screens/ServicesScreen';
 import EmergencyPanelScreen from '../screens/EmergencyPanelScreen';
 import AccountAdminScreen from '../screens/AccountAdminScreen';
 import VisualizationScreen from '../screens/VisualizationScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import ContactUsScreen from '../screens/ContactUsScreen';
+
+function AccountSettingsScreen() {
+  return <AccountAdminScreen initialSubView="account" lockedSubView />;
+}
+
+function AdminConsoleScreen() {
+  return <AccountAdminScreen initialSubView="admin" lockedSubView />;
+}
+
+const tabs = [
+  { name: 'Dashboard', label: 'Dashboard', icon: 'DB', component: DashboardScreen },
+  { name: 'Services', label: 'Services', icon: 'SV', component: ServicesScreen },
+  { name: 'Visualization', label: 'Visualization', icon: 'VZ', component: VisualizationScreen },
+  { name: 'Notifications', label: 'Notifications', icon: 'NT', component: NotificationsScreen },
+  { name: 'Contact', label: 'Contact Us', icon: 'CU', component: ContactUsScreen },
+  { name: 'Account', label: 'Account', icon: 'AC', component: AccountSettingsScreen },
+  { name: 'Emergency', label: 'Emergency', icon: 'ER', component: EmergencyPanelScreen },
+  { name: 'Admin', label: 'Admin', icon: 'AD', component: AdminConsoleScreen },
+];
 
 export default function AppNavigator() {
-  const { user, connectionStatus, alerts, dndEnabled, isDarkMode, colors, toggleTheme } = useContext(HealthContext);
+  const {
+    user,
+    connectionStatus,
+    alerts,
+    dndEnabled,
+    isDarkMode,
+    colors,
+    toggleTheme,
+  } = useContext(HealthContext);
   const [activeTab, setActiveTab] = useState('Dashboard');
   const { width } = useWindowDimensions();
-  
-  // Responsive layout configuration
-  const isWeb = width >= 768;
+  const metrics = getResponsiveMetrics(width);
+  const isWide = width >= 860;
 
-  // Enforce Route Protection: If no user session is verified, force render the Login/Registration panel
+  const unreadAlertCount = useMemo(() => {
+    if (dndEnabled) return 0;
+    return alerts.filter((alert) => alert.status !== 'read').length;
+  }, [alerts, dndEnabled]);
+
   if (!user) {
     return <HomeScreen />;
   }
 
-  // Tab definitions matching the responsive sitemap layout
-  const tabs = [
-    { name: 'Dashboard', label: 'Dashboard', icon: '📊', component: DashboardScreen },
-    { name: 'Monitoring', label: 'Monitoring', icon: '🩺', component: PatientMonitoringScreen },
-    { name: 'Telemetry', label: 'Telemetry', icon: '📈', component: VisualizationScreen },
-    { name: 'Alerts', label: 'Alerts', icon: '🔔', component: NotificationsScreen },
-    { name: 'Nutrition', label: 'Nutrition', icon: '🥗', component: NutritionHubScreen },
-    { name: 'Fitness', label: 'Fitness', icon: '🏃', component: FitnessCenterScreen },
-    { name: 'Emergency', label: 'Emergency', icon: '🚨', component: EmergencyPanelScreen },
-    { name: 'Portal', label: 'Portal', icon: '👤', component: AccountAdminScreen },
-  ];
+  const currentTab = tabs.find((tab) => tab.name === activeTab) || tabs[0];
+  const ScreenComponent = currentTab.component;
+  const s = styles(colors, metrics, isWide);
 
-  const renderActiveScreen = () => {
-    const currentTab = tabs.find(t => t.name === activeTab);
-    if (!currentTab) return <DashboardScreen />;
-    const ScreenComponent = currentTab.component;
-    return <ScreenComponent />;
+  const renderNavButton = (tab, compact = false) => {
+    const isActive = activeTab === tab.name;
+    const isAlertTab = tab.name === 'Notifications';
+
+    return (
+      <TouchableOpacity
+        key={tab.name}
+        style={[compact ? s.mobileTab : s.navButton, isActive && (compact ? s.activeMobileTab : s.activeNavButton)]}
+        activeOpacity={0.75}
+        onPress={() => setActiveTab(tab.name)}
+      >
+        <View style={[compact ? s.mobileIcon : s.navIcon, isActive && s.activeIcon]}>
+          <Text style={[s.iconText, isActive && s.activeIconText]}>{tab.icon}</Text>
+          {isAlertTab && unreadAlertCount > 0 ? (
+            <View style={s.badge}>
+              <Text style={s.badgeText}>{unreadAlertCount > 9 ? '9+' : unreadAlertCount}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text
+          style={[compact ? s.mobileLabel : s.navLabel, isActive && s.activeNavLabel]}
+          numberOfLines={1}
+        >
+          {tab.label}
+        </Text>
+      </TouchableOpacity>
+    );
   };
-
-  const getUnreadAlertCount = () => {
-    if (dndEnabled) return 0;
-    return alerts.length;
-  };
-
-  const s = styles(colors);
 
   return (
     <View style={s.container}>
-      {/* Responsive Clinical Header / Top Navbar */}
       <View style={s.header}>
         <View style={s.brandContainer}>
-          <Text style={s.logoIcon}>🩺</Text>
-          <View>
+          <View style={s.brandMark}>
+            <Text style={s.brandMarkText}>RH</Text>
+          </View>
+          <View style={s.brandTextBlock}>
             <Text style={s.brandTitle}>RHMT</Text>
-            <Text style={s.brandSubtitle}>Remote Health Monitoring Tool</Text>
+            {width >= 420 ? (
+              <Text style={s.brandSubtitle}>Remote Health Monitoring</Text>
+            ) : null}
           </View>
         </View>
 
-        {/* Horizontal Navigation Menu (Only shown on Web / Large Screens) */}
-        {isWeb && (
-          <View style={s.webNavContainer}>
-            {tabs.map(tab => {
-              const isActive = activeTab === tab.name;
-              const isAlertsTab = tab.name === 'Dashboard'; // Alerts count displayed on Dashboard
-              const alertCount = getUnreadAlertCount();
-
-              return (
-                <TouchableOpacity
-                  key={tab.name}
-                  style={[s.webNavButton, isActive && s.activeWebNavButton]}
-                  activeOpacity={0.7}
-                  onPress={() => setActiveTab(tab.name)}
-                >
-                  <Text style={s.webNavIcon}>{tab.icon}</Text>
-                  <Text style={[s.webNavLabel, isActive ? s.activeWebNavLabel : s.inactiveWebNavLabel]}>
-                    {tab.label}
-                  </Text>
-                  
-                  {isAlertsTab && alertCount > 0 && (
-                    <View style={s.webAlertBadge}>
-                      <Text style={s.webAlertBadgeText}>{alertCount}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        )}
-
-        {/* Top Header Actions (Theme Selector & Connection Badge) */}
-        <View style={s.headerRight}>
-          {/* Theme Toggle Button */}
-          <TouchableOpacity
-            style={s.themeToggle}
-            onPress={toggleTheme}
-            activeOpacity={0.7}
+        {isWide ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.webNavContainer}
+            style={s.webNavScroller}
           >
-            <Text style={s.themeToggleText}>{isDarkMode ? '☀️' : '🌙'}</Text>
+            {tabs.map((tab) => renderNavButton(tab))}
+          </ScrollView>
+        ) : null}
+
+        <View style={s.headerActions}>
+          <TouchableOpacity style={s.themeToggle} onPress={toggleTheme} activeOpacity={0.75}>
+            <Text style={s.themeToggleText}>{isDarkMode ? 'LT' : 'DK'}</Text>
           </TouchableOpacity>
-
-          {/* Global Connection Badge */}
-          <View
-            style={[
-              s.connectionBadge,
-              {
-                backgroundColor:
-                  connectionStatus === 'online'
-                    ? 'rgba(225, 173, 1, 0.05)'
-                    : 'rgba(102, 102, 102, 0.05)',
-                borderColor:
-                  connectionStatus === 'online' ? colors.online : colors.offline,
-              },
-            ]}
-          >
-            <View
-              style={[
-                s.connectionDot,
-                {
-                  backgroundColor:
-                    connectionStatus === 'online' ? colors.online : colors.offline,
-                },
-              ]}
-            />
-            <Text
-              style={[
-                s.connectionText,
-                { color: connectionStatus === 'online' ? colors.online : colors.offline },
-              ]}
-            >
+          <View style={[s.connectionBadge, connectionStatus === 'online' ? s.onlineBadge : s.offlineBadge]}>
+            <View style={[s.connectionDot, { backgroundColor: connectionStatus === 'online' ? colors.online : colors.offline }]} />
+            <Text style={[s.connectionText, { color: connectionStatus === 'online' ? colors.online : colors.offline }]}>
               {connectionStatus === 'online' ? 'Online' : 'Offline'}
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Screen Content Container */}
-      <View style={s.content}>{renderActiveScreen()}</View>
+      <View style={s.content}>
+        <ScreenComponent />
+      </View>
 
-      {/* Horizontally Scrollable Mobile Bottom Navigation Bar (Shown on Mobile dimension views) */}
-      {!isWeb && (
+      {!isWide ? (
         <View style={s.tabBarContainer}>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={s.tabBarScrollContent}
           >
-            {tabs.map(tab => {
-              const isActive = activeTab === tab.name;
-              const isAlertsTab = tab.name === 'Dashboard';
-              const alertCount = getUnreadAlertCount();
-
-              return (
-                <TouchableOpacity
-                  key={tab.name}
-                  style={[s.tabButton, isActive && s.activeTabButton]}
-                  activeOpacity={0.7}
-                  onPress={() => setActiveTab(tab.name)}
-                >
-                  <View
-                    style={[
-                      s.tabIconWrapper,
-                      isActive && s.activeTabIconWrapper,
-                    ]}
-                  >
-                    <Text style={[s.tabIcon, isActive && s.activeTabIcon]}>
-                      {tab.icon}
-                    </Text>
-                    
-                    {isAlertsTab && alertCount > 0 && (
-                      <View style={s.alertBadge}>
-                        <Text style={s.alertBadgeText}>{alertCount}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text
-                    style={[
-                      s.tabLabel,
-                      isActive ? s.activeTabLabel : s.inactiveTabLabel,
-                    ]}
-                    numberOfLines={1}
-                  >
-                    {tab.label.split(' ')[0]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {tabs.map((tab) => renderNavButton(tab, true))}
           </ScrollView>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
 
-const styles = (colors) => StyleSheet.create({
+const styles = (colors, metrics, isWide) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   header: {
+    minHeight: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm + 4,
+    gap: SPACING.md,
+    paddingHorizontal: metrics.pagePadding,
+    paddingVertical: SPACING.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     backgroundColor: colors.surface,
-    ...SHADOWS.premium,
+    ...SHADOWS.subtle,
   },
   brandContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: isWide ? 210 : 0,
+    flexShrink: 0,
   },
-  logoIcon: {
-    fontSize: 24,
+  brandMark: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: SPACING.sm,
+  },
+  brandMarkText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  brandTextBlock: {
+    minWidth: 0,
   },
   brandTitle: {
     color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.h3 - 1,
+    fontSize: TYPOGRAPHY.sizes.h3,
     fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
   },
   brandSubtitle: {
     color: colors.textMuted,
-    fontSize: 9,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    fontSize: 10,
+    marginTop: 1,
+  },
+  webNavScroller: {
+    flex: 1,
   },
   webNavContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.sm,
+    gap: SPACING.xs,
+    paddingHorizontal: SPACING.xs,
   },
-  webNavButton: {
+  navButton: {
+    height: 42,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: 'transparent',
   },
-  activeWebNavButton: {
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    borderColor: 'rgba(225, 173, 1, 0.15)',
+  activeNavButton: {
+    backgroundColor: colors.surfaceLight,
+    borderColor: colors.border,
   },
-  webNavIcon: {
-    fontSize: 16,
-    marginRight: 6,
+  navIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.elevated,
+    marginRight: 7,
+    position: 'relative',
   },
-  webNavLabel: {
+  activeIcon: {
+    backgroundColor: colors.primary,
+  },
+  iconText: {
+    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  activeIconText: {
+    color: '#FFFFFF',
+  },
+  navLabel: {
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
-  activeWebNavLabel: {
-    color: colors.primary,
-    fontWeight: TYPOGRAPHY.weights.bold,
+  activeNavLabel: {
+    color: colors.textPrimary,
   },
-  inactiveWebNavLabel: {
-    color: colors.textSecondary,
-  },
-  webAlertBadge: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    minWidth: 14,
-    height: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 3,
-    marginLeft: 6,
-  },
-  webAlertBadgeText: {
-    color: '#000000',
-    fontSize: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  headerRight: {
+  headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.sm,
+    marginLeft: 'auto',
   },
   themeToggle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 8,
     backgroundColor: colors.surfaceLight,
     borderWidth: 1,
     borderColor: colors.border,
@@ -301,100 +271,95 @@ const styles = (colors) => StyleSheet.create({
     justifyContent: 'center',
   },
   themeToggleText: {
-    fontSize: 15,
+    color: colors.textPrimary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   connectionBadge: {
+    height: 36,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: SPACING.xs,
-    paddingHorizontal: SPACING.sm + 2,
-    borderRadius: 20,
+    paddingHorizontal: SPACING.sm,
+    borderRadius: 8,
     borderWidth: 1,
   },
+  onlineBadge: {
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    borderColor: 'rgba(34, 197, 94, 0.24)',
+  },
+  offlineBadge: {
+    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+    borderColor: 'rgba(148, 163, 184, 0.24)',
+  },
   connectionDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
     marginRight: 6,
   },
   connectionText: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: 'uppercase',
   },
   content: {
     flex: 1,
   },
   tabBarContainer: {
-    height: 70,
+    height: 74,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    ...SHADOWS.premium,
+    ...SHADOWS.subtle,
   },
   tabBarScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING.xs,
-    paddingBottom: 6,
+    paddingBottom: SPACING.xs,
   },
-  tabButton: {
-    width: 72,
+  mobileTab: {
+    width: 76,
+    height: 66,
     alignItems: 'center',
     justifyContent: 'center',
-    height: '100%',
-  },
-  activeTabButton: {
-    backgroundColor: 'rgba(225, 173, 1, 0.03)',
-  },
-  tabIconWrapper: {
-    width: 40,
-    height: 32,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    marginBottom: 2,
-  },
-  activeTabIconWrapper: {
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
-  },
-  tabIcon: {
-    fontSize: 18,
-  },
-  activeTabIcon: {
-    transform: [{ scale: 1.1 }],
-  },
-  tabLabel: {
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  activeTabLabel: {
-    color: colors.primary,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  inactiveTabLabel: {
-    color: colors.textSecondary,
-  },
-  alertBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -2,
-    backgroundColor: colors.primary,
     borderRadius: 8,
-    minWidth: 16,
-    height: 16,
+  },
+  activeMobileTab: {
+    backgroundColor: colors.surfaceLight,
+  },
+  mobileIcon: {
+    width: 30,
+    height: 28,
+    borderRadius: 7,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.elevated,
+    marginBottom: 4,
+    position: 'relative',
+  },
+  mobileLabel: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
+    maxWidth: 70,
+  },
+  badge: {
+    position: 'absolute',
+    top: -7,
+    right: -7,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.critical,
     paddingHorizontal: 3,
     borderWidth: 1,
     borderColor: colors.surface,
   },
-  alertBadgeText: {
-    color: '#000000',
+  badgeText: {
+    color: '#FFFFFF',
     fontSize: 9,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
 });
-

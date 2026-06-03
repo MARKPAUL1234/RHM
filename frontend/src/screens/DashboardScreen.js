@@ -1,70 +1,57 @@
-import React, { useState, useContext, useEffect, useRef } from 'react';
+import React, { useContext, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   StyleSheet,
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Animated,
-  Easing,
   useWindowDimensions,
 } from 'react-native';
 import { HealthContext } from '../context/HealthContext';
-import { TYPOGRAPHY, SPACING, SHADOWS } from '../styles/theme';
-import djangoApi from '../services/django_api';
+import { TYPOGRAPHY, SPACING, SHADOWS, getResponsiveMetrics } from '../styles/theme';
 
-// Pure React Native Skeleton Shimmer Loader Component
-function SkeletonLoader() {
-  const shimmerOpacity = useRef(new Animated.Value(0.3)).current;
+const formatReading = (value, suffix = '') => {
+  if (value === null || value === undefined || value === '') return 'No data';
+  return `${value}${suffix}`;
+};
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(shimmerOpacity, {
-          toValue: 0.7,
-          duration: 800,
-          useNativeDriver: false,
-        }),
-        Animated.timing(shimmerOpacity, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: false,
-        })
-      ])
-    );
-    animation.start();
-    return () => animation.stop();
-  }, [shimmerOpacity]);
+const formatDateTime = (value) => {
+  if (!value) return 'Not recorded';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not recorded';
+  return date.toLocaleString([], {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
 
+function EmptyState({ text, colors }) {
   return (
-    <View style={skeletonStyles.container}>
-      <Animated.View style={[skeletonStyles.bannerPlaceholder, { opacity: shimmerOpacity }]} />
-      <Animated.View style={[skeletonStyles.chartPlaceholder, { opacity: shimmerOpacity }]} />
-      <Animated.View style={[skeletonStyles.cardPlaceholder, { opacity: shimmerOpacity }]} />
-      <Animated.View style={[skeletonStyles.cardPlaceholder, { opacity: shimmerOpacity }]} />
+    <View style={[emptyStyles(colors).box]}>
+      <Text style={emptyStyles(colors).text}>{text}</Text>
     </View>
   );
 }
 
-const skeletonStyles = StyleSheet.create({
-  container: {
+const emptyStyles = (colors) => StyleSheet.create({
+  box: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.elevated,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: SPACING.md,
-    gap: SPACING.md,
   },
-  bannerPlaceholder: {
-    height: 80,
-    backgroundColor: '#2D2D2D',
-    borderRadius: SPACING.borderRadiusSm,
-  },
-  chartPlaceholder: {
-    height: 180,
-    backgroundColor: '#2D2D2D',
-    borderRadius: SPACING.borderRadius,
-  },
-  cardPlaceholder: {
-    height: 120,
-    backgroundColor: '#2D2D2D',
-    borderRadius: SPACING.borderRadius,
+  text: {
+    color: colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
 
@@ -73,546 +60,647 @@ export default function DashboardScreen() {
     isFetchingData,
     connectionStatus,
     vitals,
-    alerts,
-    setAlerts,
-    recommendations,
     healthRecords,
+    alerts,
+    recommendations,
+    emergencyEvents,
+    fitnessSummary,
     queueCount,
     handleSyncQueue,
-    refreshSyncStats,
+    markAlertRead,
     colors,
   } = useContext(HealthContext);
-
+  const { width } = useWindowDimensions();
+  const metrics = getResponsiveMetrics(width);
   const [syncStatusMsg, setSyncStatusMsg] = useState('');
-  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, {
-          toValue: 1.15,
-          duration: 600,
-          easing: Easing.ease,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseAnim, {
-          toValue: 1.0,
-          duration: 600,
-          easing: Easing.ease,
-          useNativeDriver: true,
-        }),
-      ])
-    );
-    pulse.start();
-    return () => pulse.stop();
-  }, [pulseAnim]);
+  const latestRecord = healthRecords[0] || null;
+  const unreadAlerts = alerts.filter((alert) => alert.status !== 'read');
+  const criticalAlerts = unreadAlerts.filter((alert) => alert.severity === 'critical');
 
-  // Handle Mark as Read for local session alerts
-  const handleMarkAlertRead = async (alertId) => {
-    try {
-      await djangoApi.updateAlert(alertId, { status: 'read' });
-      const updatedAlerts = alerts.map(a => 
-        a.id === alertId ? { ...a, status: 'read' } : a
-      );
-      setAlerts(updatedAlerts);
-      await refreshSyncStats();
-    } catch (e) {
-      console.log("Failed to update alert state:", e);
+  const trendRecords = useMemo(() => healthRecords.slice(0, 8).reverse(), [healthRecords]);
+  const averageHeartRate = trendRecords.length
+    ? Math.round(trendRecords.reduce((sum, record) => sum + Number(record.heart_rate || 0), 0) / trendRecords.length)
+    : null;
+
+  const statCards = [
+    {
+      label: 'Temperature',
+      value: formatReading(vitals.temperature, ' C'),
+      detail: latestRecord ? `Last captured ${formatDateTime(latestRecord.timestamp)}` : 'Awaiting first health record',
+      tone: Number(vitals.temperature) > 38.5 ? 'critical' : 'normal',
+    },
+    {
+      label: 'Heart Rate',
+      value: formatReading(vitals.heartRate, ' bpm'),
+      detail: averageHeartRate ? `Average ${averageHeartRate} bpm across recent records` : 'No recent trend yet',
+      tone: Number(vitals.heartRate) > 100 ? 'warning' : 'normal',
+    },
+    {
+      label: 'Oxygen Saturation',
+      value: formatReading(vitals.spo2, '%'),
+      detail: Number(vitals.spo2) < 92 ? 'Low oxygen threshold crossed' : 'Backend triage threshold 92%',
+      tone: Number(vitals.spo2) < 92 ? 'critical' : 'normal',
+    },
+    {
+      label: 'Activity Plan',
+      value: fitnessSummary.locked ? 'Recovery' : `${fitnessSummary.daily_steps || 0} steps`,
+      detail: fitnessSummary.locked ? 'Exercise is locked by clinical rules' : `Goal ${fitnessSummary.goal_steps || 10000} steps`,
+      tone: fitnessSummary.locked ? 'warning' : 'normal',
+    },
+  ];
+
+  const syncQueue = async () => {
+    const result = await handleSyncQueue();
+    if (result.success) {
+      setSyncStatusMsg(`Synced ${result.syncedCount || 0} queued record(s).`);
+    } else {
+      setSyncStatusMsg(result.error || 'Queue sync was not completed.');
     }
+    setTimeout(() => setSyncStatusMsg(''), 3200);
   };
 
-  const historicalVitals = healthRecords.length > 0
-    ? healthRecords.slice(0, 4).reverse().map(record => ({
-        time: new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        temp: record.temperature,
-        hr: record.heart_rate,
-      }))
-    : [{ time: 'No logs', temp: vitals.temperature, hr: vitals.heartRate }];
-
   if (isFetchingData) {
-    return <SkeletonLoader />;
+    return (
+      <View style={[styles(colors, metrics).loadingState]}>
+        <ActivityIndicator color={colors.primary} />
+        <Text style={styles(colors, metrics).loadingText}>Loading authenticated health data...</Text>
+      </View>
+    );
   }
 
-  const s = styles(colors);
+  const s = styles(colors, metrics);
 
   return (
-    <View style={s.container}>
-      <ScrollView contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
-        
-        {/* 1. Offline Mode Pending Sync Banner */}
-        <View
-          style={[
-            s.networkBanner,
-            {
-              backgroundColor:
-                connectionStatus === 'online'
-                  ? 'rgba(225, 173, 1, 0.05)'
-                  : 'rgba(102, 102, 102, 0.05)',
-              borderColor:
-                connectionStatus === 'online'
-                  ? 'rgba(225, 173, 1, 0.15)'
-                  : 'rgba(102, 102, 102, 0.15)',
-            },
-          ]}
-        >
-          <Text style={s.networkBannerText}>
-            {connectionStatus === 'online'
-              ? '🟢 Sync Pipeline Enabled (Django Backend Connected)'
-              : 'Saved Locally (Pending Sync)'}
-          </Text>
-          {queueCount > 0 && (
-            <TouchableOpacity
-              style={s.syncButton}
-              onPress={async () => {
-                const res = await handleSyncQueue();
-                if (res.success) {
-                  setSyncStatusMsg('✅ Synced offline queue successfully!');
-                  setTimeout(() => setSyncStatusMsg(''), 3000);
-                }
-              }}
-              disabled={connectionStatus === 'offline'}
-            >
-              <Text style={[s.syncButtonText, connectionStatus === 'offline' && s.disabledText]}>
-                Sync Now ({queueCount})
-              </Text>
-            </TouchableOpacity>
-          )}
+    <ScrollView style={s.container} contentContainerStyle={s.scrollContent} showsVerticalScrollIndicator={false}>
+      <View style={s.pageInner}>
+        <View style={s.hero}>
+          <View style={s.heroCopy}>
+            <Text style={s.eyebrow}>Clinical Command Center</Text>
+            <Text style={s.pageTitle}>Patient overview</Text>
+            <Text style={s.pageSubtitle}>
+              Live Django records, generated alerts, recommendations, and offline queue state in one operational view.
+            </Text>
+          </View>
+          <View style={s.heroStatus}>
+            <Text style={s.statusLabel}>Connection</Text>
+            <Text style={[s.statusValue, { color: connectionStatus === 'online' ? colors.online : colors.offline }]}>
+              {connectionStatus === 'online' ? 'Online sync' : 'Offline queue'}
+            </Text>
+            <Text style={s.statusMeta}>{queueCount} pending record(s)</Text>
+          </View>
+        </View>
+
+        <View style={s.syncBanner}>
+          <View style={s.syncCopy}>
+            <Text style={s.syncTitle}>{queueCount > 0 ? 'Offline queue pending' : 'Backend sync healthy'}</Text>
+            <Text style={s.syncText}>
+              {queueCount > 0
+                ? 'Measurements saved while offline can be pushed to Django when connectivity is available.'
+                : 'Recent records, alerts, recommendations, nutrition logs, and emergency events are refreshed from Django.'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[s.secondaryButton, (connectionStatus !== 'online' || queueCount === 0) && s.disabledButton]}
+            onPress={syncQueue}
+            disabled={connectionStatus !== 'online' || queueCount === 0}
+          >
+            <Text style={s.secondaryButtonText}>Sync queue</Text>
+          </TouchableOpacity>
         </View>
 
         {syncStatusMsg ? (
-          <View style={s.statusMsgBox}>
-            <Text style={s.statusMsgText}>{syncStatusMsg}</Text>
+          <View style={s.inlineNotice}>
+            <Text style={s.inlineNoticeText}>{syncStatusMsg}</Text>
           </View>
         ) : null}
 
-        {/* 2. Active Alarms / Critical Warning Banners (Gold/Charcoal palette) */}
-        {alerts.filter(a => a.status === 'unread').length > 0 && (
-          <View style={[s.alertsContainer, SHADOWS.premium]}>
-            <View style={s.alertsHeader}>
-              <Animated.Text style={[s.alertHeaderIcon, { transform: [{ scale: pulseAnim }] }]}>
-                ⚠️
-              </Animated.Text>
-              <Text style={s.alertsTitle}>ACTIVE CLINICAL ALERTS ({alerts.filter(a => a.status === 'unread').length})</Text>
+        {criticalAlerts.length > 0 ? (
+          <View style={[s.alertPanel, SHADOWS.premium]}>
+            <View style={s.sectionHeader}>
+              <View>
+                <Text style={s.sectionKicker}>Immediate attention</Text>
+                <Text style={s.sectionTitle}>Active clinical alerts</Text>
+              </View>
+              <Text style={s.alertCount}>{criticalAlerts.length}</Text>
             </View>
-            {alerts.filter(a => a.status === 'unread').slice(0, 2).map((alert) => (
-              <View key={alert.id} style={s.alertItem}>
-                <View style={s.alertRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={s.alertItemTitle}>Critical Notification</Text>
-                    <Text style={s.alertItemMsg}>{alert.alert_message}</Text>
-                  </View>
-                  <TouchableOpacity 
-                    style={s.markReadBtn} 
-                    onPress={() => handleMarkAlertRead(alert.id)}
-                  >
-                    <Text style={s.markReadBtnText}>Acknowledge</Text>
-                  </TouchableOpacity>
+            {criticalAlerts.slice(0, 3).map((alert) => (
+              <View key={alert.id} style={s.alertRow}>
+                <View style={s.alertCopy}>
+                  <Text style={s.alertSeverity}>{alert.severity.toUpperCase()}</Text>
+                  <Text style={s.alertMessage}>{alert.alert_message}</Text>
+                  <Text style={s.alertTime}>{formatDateTime(alert.timestamp)}</Text>
                 </View>
+                <TouchableOpacity style={s.primarySmallButton} onPress={() => markAlertRead(alert.id)}>
+                  <Text style={s.primarySmallButtonText}>Acknowledge</Text>
+                </TouchableOpacity>
               </View>
             ))}
           </View>
-        )}
+        ) : null}
 
-        {/* 3. Vitals Cards Summary */}
-        <View style={s.vitalsGrid}>
-          <View style={s.vitalCard}>
-            <Text style={s.cardLabel}>BODY TEMPERATURE</Text>
-            <Text style={[s.vitalValue, vitals.temperature > 38.0 && s.critText]}>{vitals.temperature}°C</Text>
-            <Text style={s.cardSub}>Body Homeostasis</Text>
-          </View>
-          
-          <View style={s.vitalCard}>
-            <Text style={s.cardLabel}>HEART RATE</Text>
-            <Text style={[s.vitalValue, vitals.heartRate > 100 && s.critText]}>{vitals.heartRate} BPM</Text>
-            <Text style={s.cardSub}>Capillary Pulse</Text>
-          </View>
-
-          <View style={s.vitalCard}>
-            <Text style={s.cardLabel}>OXYGEN LEVEL</Text>
-            <Text style={[s.vitalValue, vitals.spo2 < 92 && s.critText]}>{vitals.spo2}%</Text>
-            <Text style={s.cardSub}>SpO2 Perfused</Text>
-          </View>
+        <View style={s.statGrid}>
+          {statCards.map((card) => {
+            const toneColor = card.tone === 'critical' ? colors.critical : card.tone === 'warning' ? colors.warning : colors.secondary;
+            return (
+              <View key={card.label} style={[s.statCard, SHADOWS.subtle]}>
+                <View style={[s.statMarker, { backgroundColor: toneColor }]} />
+                <Text style={s.statLabel}>{card.label}</Text>
+                <Text style={[s.statValue, { color: toneColor }]}>{card.value}</Text>
+                <Text style={s.statDetail}>{card.detail}</Text>
+              </View>
+            );
+          })}
         </View>
 
-        {/* 4. Historical Vitals SVG Chart Display */}
-        <View style={[s.card, SHADOWS.premium]}>
-          <Text style={s.cardTitle}>📈 Historical Biometric Summary (Last 4 Backend Logs)</Text>
-          <Text style={s.cardDesc}>
-            Dynamic vector projection mapping temperature fluctuations and cardiac telemetry coordinates.
-          </Text>
-
-          {/* Simple Vector Plotted Grid Chart */}
-          <View style={s.chartWrapper}>
-            <View style={s.chartYLabels}>
-              <Text style={s.yLabel}>39°C</Text>
-              <Text style={s.yLabel}>37°C</Text>
-              <Text style={s.yLabel}>35°C</Text>
+        <View style={s.contentGrid}>
+          <View style={[s.card, s.largeCard, SHADOWS.subtle]}>
+            <View style={s.sectionHeader}>
+              <View>
+                <Text style={s.sectionKicker}>Vitals trend</Text>
+                <Text style={s.sectionTitle}>Recent biometric records</Text>
+              </View>
+              <Text style={s.sectionMeta}>{trendRecords.length} records</Text>
             </View>
-            
-            <View style={s.chartMainArea}>
-              {/* Plotting points using CSS layout vectors */}
-              <View style={s.plottedGrid}>
-                {/* Horizontal baseline guides */}
-                <View style={s.baselineGuide} />
-                <View style={s.baselineGuide} />
-                <View style={s.baselineGuide} />
-                
-                {/* Plot line coordinates */}
-                <View style={s.dotsRow}>
-                  {historicalVitals.map((pt, index) => {
-                    // Map temperature coordinates (range 34 to 40)
-                    const tempPercent = Math.min(Math.max((pt.temp - 34) / 6, 0), 1) * 100;
-                    return (
-                      <View key={index} style={s.dotContainer}>
-                        <View style={[s.vitalPlotDot, { bottom: `${tempPercent}%` }]} />
-                        <Text style={s.dotLabel}>{pt.temp}°C</Text>
-                        <Text style={s.timeLabel}>{pt.time}</Text>
+            {trendRecords.length === 0 ? (
+              <EmptyState colors={colors} text="Submit a monitoring journal entry to populate authenticated trend data." />
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chartScroller}>
+                {trendRecords.map((record) => {
+                  const temp = Number(record.temperature || 0);
+                  const pulse = Number(record.heart_rate || 0);
+                  const oxygen = Number(record.spo2 || 0);
+                  const pulseHeight = Math.max(18, Math.min(128, (pulse / 130) * 128));
+                  const tempHeight = Math.max(18, Math.min(128, ((temp - 34) / 8) * 128));
+                  return (
+                    <View key={record.id} style={s.chartColumn}>
+                      <View style={s.chartBars}>
+                        <View style={[s.bar, { height: tempHeight, backgroundColor: temp > 38.5 ? colors.critical : colors.warning }]} />
+                        <View style={[s.bar, { height: pulseHeight, backgroundColor: pulse > 100 ? colors.warning : colors.primary }]} />
                       </View>
-                    );
-                  })}
-                </View>
+                      <Text style={s.chartValue}>{oxygen}%</Text>
+                      <Text style={s.chartLabel}>
+                        {new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
+            <View style={s.legendRow}>
+              <Text style={s.legendText}>Temperature and pulse bars; oxygen label below each record.</Text>
+            </View>
+          </View>
+
+          <View style={[s.card, s.sideCard, SHADOWS.subtle]}>
+            <View style={s.sectionHeader}>
+              <View>
+                <Text style={s.sectionKicker}>Rules engine</Text>
+                <Text style={s.sectionTitle}>Care recommendations</Text>
               </View>
             </View>
+            {recommendations.length === 0 ? (
+              <EmptyState colors={colors} text="No recommendation rules have triggered for this patient yet." />
+            ) : (
+              recommendations.slice(0, 3).map((rec) => (
+                <View key={rec.id} style={s.recommendationItem}>
+                  <Text style={s.recommendationTitle}>{rec.fluid_target}</Text>
+                  <Text style={s.recommendationText}>{rec.lifestyle_guideline}</Text>
+                  <Text style={s.recommendationMeta}>{formatDateTime(rec.created_at)}</Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
 
-        {/* 5. Real-Time Lifestyle Recommendation Feeds */}
-        <View style={[s.card, SHADOWS.premium]}>
-          <Text style={s.cardTitle}>💡 Backend Clinical Recommendations</Text>
-          <Text style={s.cardDesc}>
-            Clinical diet guidelines and lifestyle instructions generated automatically by Serverless Triage.
-          </Text>
-
-          {recommendations.length === 0 ? (
-            <View style={s.emptyNotice}>
-              <Text style={s.emptyNoticeText}>No recommendation rules triggered. Vitals indicate stable physiological conditions.</Text>
-            </View>
-          ) : (
-            recommendations.slice(0, 3).map((rec, index) => (
-              <View key={rec.id || index} style={s.recItem}>
-                <View style={s.recHeader}>
-                  <Text style={s.recTag}>RECOMMENDATION</Text>
-                  <Text style={s.recTime}>{new Date(rec.created_at).toLocaleTimeString()}</Text>
-                </View>
-                <Text style={s.recGuideline}>{rec.lifestyle_guideline}</Text>
-                <View style={s.recMetaGrid}>
-                  <View style={s.recMetaItem}>
-                    <Text style={s.recMetaLabel}>Diet Plan:</Text>
-                    <Text style={s.recMetaVal}>{rec.meal_plan}</Text>
-                  </View>
-                  <View style={s.recMetaItem}>
-                    <Text style={s.recMetaLabel}>Fluid Intake Target:</Text>
-                    <Text style={s.recMetaVal}>{rec.fluid_target}</Text>
-                  </View>
-                </View>
+        <View style={s.contentGrid}>
+          <View style={[s.card, s.sideCard, SHADOWS.subtle]}>
+            <View style={s.sectionHeader}>
+              <View>
+                <Text style={s.sectionKicker}>Alerts feed</Text>
+                <Text style={s.sectionTitle}>Unread notifications</Text>
               </View>
-            ))
-          )}
+              <Text style={s.sectionMeta}>{unreadAlerts.length}</Text>
+            </View>
+            {unreadAlerts.length === 0 ? (
+              <EmptyState colors={colors} text="No unread alerts from Django." />
+            ) : (
+              unreadAlerts.slice(0, 4).map((alert) => (
+                <View key={alert.id} style={s.feedRow}>
+                  <View style={[s.feedDot, { backgroundColor: alert.severity === 'critical' ? colors.critical : colors.warning }]} />
+                  <View style={s.feedCopy}>
+                    <Text style={s.feedTitle}>{alert.severity}</Text>
+                    <Text style={s.feedText}>{alert.alert_message}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+
+          <View style={[s.card, s.sideCard, SHADOWS.subtle]}>
+            <View style={s.sectionHeader}>
+              <View>
+                <Text style={s.sectionKicker}>Emergency</Text>
+                <Text style={s.sectionTitle}>Recent dispatch events</Text>
+              </View>
+              <Text style={s.sectionMeta}>{emergencyEvents.length}</Text>
+            </View>
+            {emergencyEvents.length === 0 ? (
+              <EmptyState colors={colors} text="No emergency dispatch events recorded." />
+            ) : (
+              emergencyEvents.slice(0, 3).map((event) => (
+                <View key={event.id} style={s.feedRow}>
+                  <View style={[s.feedDot, { backgroundColor: event.status === 'queued' ? colors.warning : colors.critical }]} />
+                  <View style={s.feedCopy}>
+                    <Text style={s.feedTitle}>{event.status}</Text>
+                    <Text style={s.feedText}>{event.primary_contact}</Text>
+                    <Text style={s.feedMeta}>{formatDateTime(event.timestamp)}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
         </View>
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 
-const styles = (colors) => StyleSheet.create({
+const styles = (colors, metrics) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
   },
   scrollContent: {
-    padding: SPACING.md,
-    paddingBottom: 40,
+    padding: metrics.pagePadding,
+    paddingBottom: metrics.isPhone ? 96 : 40,
   },
-  networkBanner: {
-    flexDirection: 'row',
+  pageInner: {
+    width: '100%',
+    maxWidth: metrics.contentMaxWidth,
+    alignSelf: 'center',
+  },
+  loadingState: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    gap: SPACING.sm,
+  },
+  loadingText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+  },
+  hero: {
+    flexDirection: metrics.isPhone ? 'column' : 'row',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderRadius: SPACING.borderRadiusSm,
-    borderWidth: 1,
+    alignItems: metrics.isPhone ? 'stretch' : 'flex-end',
+    gap: SPACING.md,
     marginBottom: SPACING.md,
   },
-  networkBannerText: {
-    color: colors.textPrimary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semiBold,
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
   },
-  syncButton: {
-    backgroundColor: colors.surface,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  syncButtonText: {
+  eyebrow: {
     color: colors.primary,
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 4,
   },
-  disabledText: {
-    color: colors.textMuted,
+  pageTitle: {
+    color: colors.textPrimary,
+    fontSize: metrics.isPhone ? 24 : 30,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
-  statusMsgBox: {
-    backgroundColor: 'rgba(225, 173, 1, 0.05)',
+  pageSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6,
+    maxWidth: 680,
+  },
+  heroStatus: {
+    minWidth: metrics.isPhone ? '100%' : 210,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
+  },
+  statusLabel: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  statusValue: {
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: 2,
+  },
+  statusMeta: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  syncBanner: {
+    flexDirection: metrics.isPhone ? 'column' : 'row',
+    alignItems: metrics.isPhone ? 'stretch' : 'center',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
+    marginBottom: SPACING.md,
+  },
+  syncCopy: {
+    flex: 1,
+  },
+  syncTitle: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 3,
+  },
+  syncText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  secondaryButton: {
+    minHeight: 40,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary,
+  },
+  secondaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  inlineNotice: {
+    backgroundColor: colors.elevated,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: SPACING.sm,
     marginBottom: SPACING.md,
-    alignItems: 'center',
   },
-  statusMsgText: {
-    color: colors.primary,
-    fontWeight: 'bold',
-    fontSize: 11,
+  inlineNoticeText: {
+    color: colors.textPrimary,
+    fontSize: 12,
+    textAlign: 'center',
   },
-  alertsContainer: {
-    backgroundColor: '#1E293B',
-    borderColor: colors.primary,
-    borderWidth: 2,
-    borderRadius: SPACING.borderRadius,
-    padding: SPACING.md,
+  alertPanel: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.critical,
+    borderRadius: 8,
+    padding: metrics.cardPadding,
     marginBottom: SPACING.md,
   },
-  alertsHeader: {
+  sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.sm,
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
-  alertHeaderIcon: {
-    fontSize: 18,
-    marginRight: 6,
+  sectionKicker: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 3,
   },
-  alertsTitle: {
-    color: colors.primary,
-    fontWeight: 'bold',
-    fontSize: 13,
-    letterSpacing: 0.5,
+  sectionTitle: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
-  alertItem: {
-    marginBottom: 8,
-    borderLeftWidth: 2,
-    borderLeftColor: colors.primary,
-    paddingLeft: 8,
+  sectionMeta: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  alertCount: {
+    minWidth: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: colors.critical,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    paddingTop: 7,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   alertRow: {
-    flexDirection: 'row',
+    flexDirection: metrics.isPhone ? 'column' : 'row',
+    alignItems: metrics.isPhone ? 'stretch' : 'center',
+    gap: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  alertCopy: {
+    flex: 1,
+  },
+  alertSeverity: {
+    color: colors.critical,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 3,
+  },
+  alertMessage: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  alertTime: {
+    color: colors.textMuted,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  primarySmallButton: {
+    minHeight: 36,
+    borderRadius: 8,
+    paddingHorizontal: SPACING.md,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
+    justifyContent: 'center',
+    backgroundColor: colors.critical,
   },
-  alertItemTitle: {
+  primarySmallButtonText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: 'bold',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
-  alertItemMsg: {
-    color: '#CCCCCC',
-    fontSize: 11,
-    lineHeight: 16,
-  },
-  markReadBtn: {
-    backgroundColor: colors.surfaceLight,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  markReadBtnText: {
-    color: colors.primary,
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  vitalsGrid: {
+  statGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: SPACING.md,
     marginBottom: SPACING.md,
   },
-  vitalCard: {
-    flex: 1,
+  statCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : metrics.isTablet ? '47%' : '22%',
+    minWidth: metrics.isPhone ? '100%' : 210,
     backgroundColor: colors.surface,
-    borderRadius: SPACING.borderRadiusSm,
-    padding: SPACING.sm + 4,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
+    padding: metrics.cardPadding,
+    position: 'relative',
+    overflow: 'hidden',
   },
-  cardLabel: {
-    fontSize: 9,
-    fontWeight: 'bold',
+  statMarker: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3,
+  },
+  statLabel: {
     color: colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 4,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 8,
   },
-  vitalValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.textPrimary,
+  statValue: {
+    fontSize: 23,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 6,
   },
-  cardSub: {
-    fontSize: 9,
+  statDetail: {
     color: colors.textSecondary,
-    marginTop: 2,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  contentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING.md,
+    marginBottom: SPACING.md,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: SPACING.borderRadius,
-    padding: SPACING.lg,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    marginBottom: SPACING.md,
+    padding: metrics.cardPadding,
   },
-  cardTitle: {
+  largeCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '60%',
+    minWidth: metrics.isPhone ? '100%' : 460,
+  },
+  sideCard: {
+    flexGrow: 1,
+    flexBasis: metrics.isPhone ? '100%' : '34%',
+    minWidth: metrics.isPhone ? '100%' : 320,
+  },
+  chartScroller: {
+    minHeight: 174,
+    alignItems: 'flex-end',
+    gap: SPACING.md,
+    paddingTop: SPACING.md,
+    paddingRight: SPACING.md,
+  },
+  chartColumn: {
+    width: 68,
+    alignItems: 'center',
+  },
+  chartBars: {
+    height: 136,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  bar: {
+    width: 15,
+    borderRadius: 6,
+  },
+  chartValue: {
     color: colors.textPrimary,
-    fontSize: TYPOGRAPHY.sizes.body + 1,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: 8,
+  },
+  chartLabel: {
+    color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  legendRow: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+  },
+  legendText: {
+    color: colors.textMuted,
+    fontSize: 11,
+  },
+  recommendationItem: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: SPACING.md,
+    marginTop: SPACING.sm,
+  },
+  recommendationTitle: {
+    color: colors.secondary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 4,
   },
-  cardDesc: {
+  recommendationText: {
     color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  recommendationMeta: {
+    color: colors.textMuted,
     fontSize: 10,
-    lineHeight: 15,
-    marginBottom: SPACING.md,
+    marginTop: 6,
   },
-  chartWrapper: {
+  feedRow: {
     flexDirection: 'row',
-    height: 180,
-    marginTop: SPACING.md,
-    borderLeftWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: colors.border,
-    paddingBottom: 20,
+    alignItems: 'flex-start',
+    gap: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: SPACING.md,
+    marginTop: SPACING.sm,
   },
-  chartYLabels: {
-    width: 36,
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    alignItems: 'flex-end',
-    paddingRight: 6,
+  feedDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    marginTop: 5,
   },
-  yLabel: {
-    color: colors.textMuted,
-    fontSize: 9,
-  },
-  chartMainArea: {
+  feedCopy: {
     flex: 1,
-    position: 'relative',
+    minWidth: 0,
   },
-  plottedGrid: {
-    flex: 1,
-    position: 'relative',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  baselineGuide: {
-    height: 1,
-    backgroundColor: '#2D2D2D',
-    width: '100%',
-  },
-  dotsRow: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  dotContainer: {
-    alignItems: 'center',
-    position: 'relative',
-    height: '100%',
-    width: 48,
-  },
-  vitalPlotDot: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    zIndex: 2,
-  },
-  dotLabel: {
-    position: 'absolute',
-    bottom: 30,
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  timeLabel: {
-    position: 'absolute',
-    bottom: -18,
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  critText: {
-    color: colors.primary,
-  },
-  emptyNotice: {
-    padding: SPACING.md,
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  emptyNoticeText: {
-    fontSize: 10,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-  },
-  recItem: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: SPACING.sm,
-  },
-  recHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
-    paddingBottom: 4,
-  },
-  recTag: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    backgroundColor: 'rgba(225, 173, 1, 0.08)',
-    color: colors.primary,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  recTime: {
-    fontSize: 9,
-    color: colors.textMuted,
-  },
-  recGuideline: {
-    fontSize: 11,
-    fontWeight: 'bold',
+  feedTitle: {
     color: colors.textPrimary,
-    lineHeight: 16,
-    marginBottom: 6,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textTransform: 'capitalize',
+    marginBottom: 2,
   },
-  recMetaGrid: {
-    gap: 4,
-  },
-  recMetaItem: {
-    flexDirection: 'row',
-    fontSize: 10,
-  },
-  recMetaLabel: {
-    fontWeight: 'bold',
+  feedText: {
     color: colors.textSecondary,
-    marginRight: 4,
+    fontSize: 12,
+    lineHeight: 17,
   },
-  recMetaVal: {
+  feedMeta: {
     color: colors.textMuted,
+    fontSize: 10,
+    marginTop: 4,
   },
 });

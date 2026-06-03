@@ -7,7 +7,10 @@ from rest_framework.response import Response
 
 from .models import (
     Alert,
+    ContactInquiry,
     EmergencyEvent,
+    FitnessLog,
+    FoodLog,
     HealthRecord,
     NutritionLog,
     Recommendation,
@@ -16,7 +19,10 @@ from .models import (
 )
 from .serializers import (
     AlertSerializer,
+    ContactInquirySerializer,
     EmergencyEventSerializer,
+    FitnessLogSerializer,
+    FoodLogSerializer,
     HealthRecordSerializer,
     NutritionLogSerializer,
     RecommendationSerializer,
@@ -34,6 +40,11 @@ class UserViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return []
         return [IsAuthenticated()]
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):
@@ -123,11 +134,17 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
             if timezone.localtime(record.timestamp).date() == today
         ]
         source_records = todays_records or records[:1]
-
-        daily_steps = sum(
-            max(0, int(((record.wellbeing_score or 3) * 900) + ((record.heart_rate or 70) * 8)))
-            for record in source_records
+        todays_fitness_logs = FitnessLog.objects.filter(
+            user=request.user,
+            timestamp__date=today,
         )
+
+        daily_steps = sum(max(0, log.steps or 0) for log in todays_fitness_logs)
+        if daily_steps == 0:
+            daily_steps = sum(
+                max(0, int(((record.wellbeing_score or 3) * 900) + ((record.heart_rate or 70) * 8)))
+                for record in source_records
+            )
         daily_steps = min(daily_steps, profile.daily_step_goal or 10000)
 
         has_critical_alert = Alert.objects.filter(
@@ -158,6 +175,7 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
             'locked': locked,
             'routines': routines,
             'source_record_count': len(source_records),
+            'manual_activity_count': todays_fitness_logs.count(),
             'latest_record': HealthRecordSerializer(latest).data if latest else None,
         })
 
@@ -179,6 +197,54 @@ class NutritionLogViewSet(viewsets.ModelViewSet):
         SystemLog.objects.create(
             level='SYNC',
             message=f'Nutrition {log.entry_type} log {log.id} synced for user {self.request.user.id}',
+        )
+
+class FoodLogViewSet(viewsets.ModelViewSet):
+    queryset = FoodLog.objects.all()
+    serializer_class = FoodLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FoodLog.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        log = serializer.save(user=self.request.user)
+        if log.calories >= 900:
+            Alert.objects.create(
+                user=self.request.user,
+                severity='info',
+                alert_message=f'Large meal logged ({log.calories} kcal): review hydration and balanced macros for {log.food_name}.',
+            )
+        SystemLog.objects.create(
+            level='SYNC',
+            message=f'Food log {log.id} synced for user {self.request.user.id}',
+        )
+
+class FitnessLogViewSet(viewsets.ModelViewSet):
+    queryset = FitnessLog.objects.all()
+    serializer_class = FitnessLogSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return FitnessLog.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        log = serializer.save(user=self.request.user)
+        if log.intensity == 'high':
+            has_unread_critical = Alert.objects.filter(
+                user=self.request.user,
+                severity='critical',
+                status='unread',
+            ).exists()
+            if has_unread_critical:
+                Alert.objects.create(
+                    user=self.request.user,
+                    severity='warning',
+                    alert_message='High intensity workout was logged while critical alerts are still unread. Consider recovery mode.',
+                )
+        SystemLog.objects.create(
+            level='SYNC',
+            message=f'Fitness log {log.id} synced for user {self.request.user.id}',
         )
 
 
@@ -212,6 +278,24 @@ class EmergencyEventViewSet(viewsets.ModelViewSet):
         SystemLog.objects.create(
             level='ERROR',
             message=f'Emergency event {event.id} {event.status} for user {self.request.user.id}',
+        )
+
+
+class ContactInquiryViewSet(viewsets.ModelViewSet):
+    queryset = ContactInquiry.objects.all()
+    serializer_class = ContactInquirySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ContactInquiry.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        inquiry = serializer.save(user=self.request.user)
+        inquiry.confirmation_code = f'INQ-{inquiry.id:05d}'
+        inquiry.save(update_fields=['confirmation_code'])
+        SystemLog.objects.create(
+            level='INFO',
+            message=f'Contact inquiry {inquiry.confirmation_code} submitted by user {self.request.user.id}',
         )
 
 

@@ -2,6 +2,8 @@ from django.contrib import admin
 from .models import (
     Alert,
     EmergencyEvent,
+    FitnessLog,
+    FoodLog,
     HealthRecord,
     NutritionLog,
     Recommendation,
@@ -12,6 +14,8 @@ from .models import (
 admin.site.register(UserProfile)
 admin.site.register(HealthRecord)
 admin.site.register(NutritionLog)
+admin.site.register(FoodLog)
+admin.site.register(FitnessLog)
 admin.site.register(Alert)
 admin.site.register(EmergencyEvent)
 admin.site.register(Recommendation)

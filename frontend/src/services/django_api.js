@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://localhost:8001/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
 
 let authToken = null;
 
@@ -23,53 +23,6 @@ const getHeaders = () => {
   return headers;
 };
 
-const formatApiErrors = (payload) => {
-  if (!payload) {
-    return '';
-  }
-
-  if (typeof payload === 'string') {
-    return payload;
-  }
-
-  if (Array.isArray(payload)) {
-    return payload.map(formatApiErrors).filter(Boolean).join(' ');
-  }
-
-  if (typeof payload === 'object') {
-    return Object.entries(payload)
-      .map(([field, value]) => {
-        const message = formatApiErrors(value);
-        if (!message) {
-          return '';
-        }
-        if (field === 'detail' || field === 'non_field_errors') {
-          return message;
-        }
-        const label = field
-          .replace(/_/g, ' ')
-          .replace(/^\w/, (char) => char.toUpperCase());
-        return `${label}: ${message}`;
-      })
-      .filter(Boolean)
-      .join(' ');
-  }
-
-  return String(payload);
-};
-
-const getErrorMessage = async (response, fallback) => {
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch (e) {
-    // Some development errors are HTML or empty responses.
-  }
-
-  const details = formatApiErrors(payload);
-  return details ? `${fallback}: ${details}` : `${fallback} (${response.status})`;
-};
-
 const apiRequest = async (url, options = {}) => {
   const config = {
     headers: getHeaders(),
@@ -78,8 +31,20 @@ const apiRequest = async (url, options = {}) => {
   const response = await fetch(`${API_BASE_URL}${url}`, config);
   
   if (!response.ok) {
-    throw new Error(await getErrorMessage(response, 'API request failed'));
+    let detail = `API error: ${response.status}`;
+    try {
+      const payload = await response.json();
+      detail = payload.detail || payload.message || JSON.stringify(payload);
+    } catch (e) {
+      detail = response.statusText || detail;
+    }
+    throw new Error(detail);
   }
+
+  if (response.status === 204) {
+    return null;
+  }
+
   return response.json();
 };
 
@@ -92,7 +57,7 @@ export const djangoApi = {
     });
 
     if (!response.ok) {
-      throw new Error(await getErrorMessage(response, 'Login failed'));
+      throw new Error('Login failed');
     }
 
     const data = await response.json();
@@ -108,9 +73,26 @@ export const djangoApi = {
     });
 
     if (!response.ok) {
-      throw new Error(await getErrorMessage(response, 'Registration failed'));
+      let detail = 'Registration failed';
+      try {
+        const errorData = await response.json();
+        if (errorData.password && Array.isArray(errorData.password)) {
+          detail = errorData.password.join(', ');
+        } else if (errorData.username && Array.isArray(errorData.username)) {
+          detail = errorData.username.join(', ');
+        } else {
+          detail = JSON.stringify(errorData);
+        }
+      } catch (e) {
+        detail = response.statusText || detail;
+      }
+      throw new Error(detail);
     }
     return response.json();
+  },
+
+  async getCurrentUser() {
+    return apiRequest('/users/me/');
   },
 
   async getProfile() {
@@ -143,8 +125,8 @@ export const djangoApi = {
     return apiRequest('/alerts/');
   },
 
-  async updateAlert(id, data) {
-    return apiRequest(`/alerts/${id}/`, {
+  async updateAlert(alertId, data) {
+    return apiRequest(`/alerts/${alertId}/`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
@@ -152,6 +134,10 @@ export const djangoApi = {
 
   async getRecommendations() {
     return apiRequest('/recommendations/');
+  },
+
+  async getSystemLogs() {
+    return apiRequest('/logs/');
   },
 
   async getNutritionLogs() {
@@ -165,8 +151,26 @@ export const djangoApi = {
     });
   },
 
-  async getEmergencyEvents() {
-    return apiRequest('/emergency-events/');
+  async getFoodLogs() {
+    return apiRequest('/food-logs/');
+  },
+
+  async createFoodLog(data) {
+    return apiRequest('/food-logs/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getFitnessLogs() {
+    return apiRequest('/fitness-logs/');
+  },
+
+  async createFitnessLog(data) {
+    return apiRequest('/fitness-logs/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 
   async createEmergencyEvent(data) {
@@ -176,8 +180,19 @@ export const djangoApi = {
     });
   },
 
-  async getSystemLogs() {
-    return apiRequest('/logs/');
+  async getEmergencyEvents() {
+    return apiRequest('/emergency-events/');
+  },
+
+  async getContactInquiries() {
+    return apiRequest('/contact-inquiries/');
+  },
+
+  async createContactInquiry(data) {
+    return apiRequest('/contact-inquiries/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   },
 };
 

@@ -14,7 +14,6 @@ class UserProfile(models.Model):
     respiratory_rate = models.IntegerField(default=16)
     daily_water_goal_ml = models.IntegerField(default=3000)
     daily_step_goal = models.IntegerField(default=10000)
-    device_id = models.CharField(max_length=100, blank=True, default='ESP32-RHM-NODE-001')
     emergency_primary_contact = models.CharField(max_length=40, blank=True, default='+254 712 345 678')
     emergency_secondary_contact = models.CharField(max_length=40, blank=True, default='+254 789 012 345')
     medical_notes = models.TextField(blank=True, default='Active treatment baseline. Update allergies and clinical remarks here.')
@@ -59,6 +58,51 @@ class NutritionLog(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.entry_type}: {self.value}{self.unit}"
 
+class FoodLog(models.Model):
+    MEAL_CHOICES = [
+        ('breakfast', 'Breakfast'),
+        ('lunch', 'Lunch'),
+        ('dinner', 'Dinner'),
+        ('snack', 'Snack'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='food_logs')
+    meal_type = models.CharField(max_length=20, choices=MEAL_CHOICES, default='breakfast')
+    food_name = models.CharField(max_length=120)
+    calories = models.IntegerField(default=0)
+    carbs_g = models.FloatField(default=0)
+    protein_g = models.FloatField(default=0)
+    fat_g = models.FloatField(default=0)
+    note = models.CharField(max_length=255, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.food_name}: {self.calories} kcal"
+
+class FitnessLog(models.Model):
+    INTENSITY_CHOICES = [
+        ('recovery', 'Recovery'),
+        ('low', 'Low'),
+        ('moderate', 'Moderate'),
+        ('high', 'High'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='fitness_logs')
+    activity_name = models.CharField(max_length=120, default='Manual activity')
+    steps = models.IntegerField(default=0)
+    duration_minutes = models.IntegerField(default=0)
+    heart_rate = models.IntegerField(null=True, blank=True)
+    intensity = models.CharField(max_length=20, choices=INTENSITY_CHOICES, default='low')
+    goal_note = models.CharField(max_length=255, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.activity_name}: {self.steps} steps"
+
 class Alert(models.Model):
     SEVERITY_CHOICES = [
         ('critical', 'Critical'),
@@ -95,6 +139,26 @@ class EmergencyEvent(models.Model):
 
     def __str__(self):
         return f"Emergency event for {self.user.username} - {self.status}"
+
+class ContactInquiry(models.Model):
+    STATUS_CHOICES = [
+        ('submitted', 'Submitted'),
+        ('in_review', 'In Review'),
+        ('closed', 'Closed'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contact_inquiries')
+    purpose = models.CharField(max_length=120)
+    message = models.TextField()
+    preferred_response_time = models.CharField(max_length=80, blank=True, default='Within 24 hours')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
+    confirmation_code = models.CharField(max_length=40, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Inquiry {self.confirmation_code or self.id} - {self.user.username}"
 
 class Recommendation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recommendations')
