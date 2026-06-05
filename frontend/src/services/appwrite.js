@@ -3,9 +3,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // 1. Initialize Appwrite Client
 const client = new Client();
-client
-  .setEndpoint('https://cloud.appwrite.io/v1') // Replace with actual Endpoint
-  .setProject('65f3a09b002c0b001a1a');         // Replace with actual Project ID
+const appwriteEndpoint = process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1';
+const appwriteProjectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID;
+
+client.setEndpoint(appwriteEndpoint);
+
+if (appwriteProjectId) {
+  client.setProject(appwriteProjectId);
+}
 
 if (typeof client.setPlatform === 'function') {
   client.setPlatform('com.rhmt.health');

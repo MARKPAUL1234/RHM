@@ -26,6 +26,7 @@ export default function HomeScreen() {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const [isRecoveringAccount, setIsRecoveringAccount] = useState(false);
 
   const handleAuth = async () => {
     const normalizedUsername = username.trim();
@@ -66,13 +67,24 @@ export default function HomeScreen() {
     }
   };
 
+  const handleRecoveryNotice = () => {
+    const identifier = username.trim() || email.trim();
+    setAuthError(
+      identifier
+        ? `Password reset is not enabled on this backend yet. Ask an administrator to reset ${identifier} in Django Admin.`
+        : 'Enter your username or email, then ask an administrator to reset the account in Django Admin.'
+    );
+  };
+
   const handleSignOut = async () => {
     setLoading(true);
     try {
       setUser(null);
       setAuthToken(null);
+      await djangoApi.logout();
       await AsyncStorage.removeItem('@rhmt_user_session');
       await AsyncStorage.removeItem('@rhmt_auth_token');
+      await AsyncStorage.removeItem('@rhmt_refresh_token');
     } finally {
       setLoading(false);
     }
@@ -137,9 +149,11 @@ export default function HomeScreen() {
             </View>
 
             <View style={[s.authCard, SHADOWS.premium]}>
-              <Text style={s.authTitle}>{isRegistering ? 'Create account' : 'Access dashboard'}</Text>
+              <Text style={s.authTitle}>{isRecoveringAccount ? 'Recover account' : isRegistering ? 'Create account' : 'Access dashboard'}</Text>
               <Text style={s.authDescription}>
-                {isRegistering
+                {isRecoveringAccount
+                  ? 'This frontend will not fake password reset. Use the real Django admin reset process until a reset endpoint exists.'
+                  : isRegistering
                   ? 'Register a patient account and initialize a Django profile.'
                   : 'Sign in with a Django user to load real backend data.'}
               </Text>
@@ -163,7 +177,7 @@ export default function HomeScreen() {
                 />
               </View>
 
-              {isRegistering ? (
+              {isRegistering || isRecoveringAccount ? (
                 <View style={s.inputGroup}>
                   <Text style={s.inputLabel}>Email</Text>
                   <TextInput
@@ -179,24 +193,26 @@ export default function HomeScreen() {
                 </View>
               ) : null}
 
-              <View style={s.inputGroup}>
-                <Text style={s.inputLabel}>Password</Text>
-                <TextInput
-                  style={s.input}
-                  placeholder="Password"
-                  placeholderTextColor={colors.textMuted}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCorrect={false}
-                />
-              </View>
+              {!isRecoveringAccount ? (
+                <View style={s.inputGroup}>
+                  <Text style={s.inputLabel}>Password</Text>
+                  <TextInput
+                    style={s.input}
+                    placeholder="Password"
+                    placeholderTextColor={colors.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    autoCorrect={false}
+                  />
+                </View>
+              ) : null}
 
-              <TouchableOpacity style={[s.authButton, loading && s.disabledButton]} onPress={handleAuth} disabled={loading}>
+              <TouchableOpacity style={[s.authButton, loading && s.disabledButton]} onPress={isRecoveringAccount ? handleRecoveryNotice : handleAuth} disabled={loading}>
                 {loading ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={s.authButtonText}>{isRegistering ? 'Create account' : 'Sign in'}</Text>
+                  <Text style={s.authButtonText}>{isRecoveringAccount ? 'Show Recovery Step' : isRegistering ? 'Create account' : 'Sign in'}</Text>
                 )}
               </TouchableOpacity>
 
@@ -204,6 +220,7 @@ export default function HomeScreen() {
                 style={s.switchAuth}
                 onPress={() => {
                   setIsRegistering((value) => !value);
+                  setIsRecoveringAccount(false);
                   setAuthError('');
                 }}
               >
@@ -211,6 +228,19 @@ export default function HomeScreen() {
                   {isRegistering ? 'Already registered? Sign in' : 'New patient? Create an account'}
                 </Text>
               </TouchableOpacity>
+              {!isRegistering ? (
+                <TouchableOpacity
+                  style={s.switchAuth}
+                  onPress={() => {
+                    setIsRecoveringAccount((value) => !value);
+                    setAuthError('');
+                  }}
+                >
+                  <Text style={s.switchAuthText}>
+                    {isRecoveringAccount ? 'Back to sign in' : 'Forgot password?'}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           </View>
         </View>

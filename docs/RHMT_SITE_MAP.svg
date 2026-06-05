@@ -1,0 +1,150 @@
+<svg width="1600" height="1120" viewBox="0 0 1600 1120" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">RHMT Project Site Map</title>
+  <desc id="desc">Site map for the Remote Health Monitoring Tool showing public entry, patient workspace, doctor workspace, shared services, Django REST API, and database layer.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f4f7fb; }
+      .title { font: 800 38px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 600 18px Arial, sans-serif; fill: #475569; }
+      .section-title { font: 800 22px Arial, sans-serif; fill: #0f172a; }
+      .node-title { font: 800 18px Arial, sans-serif; fill: #0f172a; }
+      .node-text { font: 600 14px Arial, sans-serif; fill: #475569; }
+      .small { font: 600 12px Arial, sans-serif; fill: #64748b; }
+      .pill-text { font: 800 12px Arial, sans-serif; fill: #ffffff; }
+      .card { fill: #ffffff; stroke: #d8e0ea; stroke-width: 2; rx: 8; }
+      .public { fill: #eff6ff; stroke: #93c5fd; }
+      .patient { fill: #ecfdf5; stroke: #86efac; }
+      .clinical { fill: #fff7ed; stroke: #fdba74; }
+      .shared { fill: #f8fafc; stroke: #cbd5e1; }
+      .api { fill: #eef2ff; stroke: #a5b4fc; }
+      .db { fill: #f0fdfa; stroke: #5eead4; }
+      .warning { fill: #fef2f2; stroke: #fca5a5; }
+      .line { stroke: #64748b; stroke-width: 3; fill: none; }
+      .line-soft { stroke: #94a3b8; stroke-width: 2.5; fill: none; }
+      .dash { stroke-dasharray: 8 8; }
+      .arrow { fill: #64748b; }
+      .badge-blue { fill: #2563eb; }
+      .badge-green { fill: #047857; }
+      .badge-orange { fill: #d97706; }
+      .badge-purple { fill: #4f46e5; }
+      .badge-slate { fill: #334155; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" class="arrow" />
+    </marker>
+  </defs>
+
+  <rect width="1600" height="1120" class="bg" />
+
+  <text x="80" y="72" class="title">Remote Health Monitoring Tool - Site Map</text>
+  <text x="80" y="106" class="subtitle">React Native Expo frontend with Django REST backend, JWT authentication, role-based patient and clinical workspaces</text>
+
+  <!-- Public entry -->
+  <rect x="620" y="150" width="360" height="108" class="card public" />
+  <rect x="645" y="174" width="84" height="28" rx="8" class="badge-blue" />
+  <text x="662" y="193" class="pill-text">PUBLIC</text>
+  <text x="645" y="226" class="node-title">Login / Register</text>
+  <text x="645" y="248" class="node-text">JWT auth, account creation, session restore</text>
+
+  <!-- App shell -->
+  <line x1="800" y1="258" x2="800" y2="318" class="line" marker-end="url(#arrow)" />
+  <rect x="560" y="320" width="480" height="96" class="card shared" />
+  <rect x="585" y="344" width="95" height="28" rx="8" class="badge-slate" />
+  <text x="602" y="363" class="pill-text">APP SHELL</text>
+  <text x="585" y="393" class="node-title">Authenticated Workspace</text>
+  <text x="585" y="413" class="node-text">Theme, notifications, offline queue, role-aware navigation</text>
+
+  <!-- Branch lines -->
+  <line x1="800" y1="416" x2="450" y2="480" class="line" marker-end="url(#arrow)" />
+  <line x1="800" y1="416" x2="1150" y2="480" class="line" marker-end="url(#arrow)" />
+
+  <!-- Patient workspace -->
+  <text x="95" y="482" class="section-title">Patient Workspace</text>
+  <rect x="80" y="505" width="640" height="420" rx="8" class="patient" opacity="0.38" />
+
+  <rect x="110" y="535" width="270" height="82" class="card patient" />
+  <text x="130" y="565" class="node-title">Dashboard Overview</text>
+  <text x="130" y="587" class="node-text">Latest vitals, health score, risk reasons</text>
+  <text x="130" y="607" class="small">Trend charts from saved backend records</text>
+
+  <rect x="410" y="535" width="270" height="82" class="card patient" />
+  <text x="430" y="565" class="node-title">Log Daily Vitals</text>
+  <text x="430" y="587" class="node-text">Temperature, SpO2, pulse, symptoms</text>
+  <text x="430" y="607" class="small">Offline queue until Django sync</text>
+
+  <rect x="110" y="645" width="270" height="92" class="card patient" />
+  <text x="130" y="675" class="node-title">Medical Insights</text>
+  <text x="130" y="697" class="node-text">Diet, fitness, medication reminders</text>
+  <text x="130" y="717" class="small">Recommendations and in-app alerts</text>
+
+  <rect x="410" y="645" width="270" height="92" class="card patient" />
+  <text x="430" y="675" class="node-title">Appointments & Chat</text>
+  <text x="430" y="697" class="node-text">Book care requests, send updates</text>
+  <text x="430" y="717" class="small">Doctor replies linked to appointments</text>
+
+  <rect x="110" y="765" width="270" height="92" class="card patient" />
+  <text x="130" y="795" class="node-title">Profile & History</text>
+  <text x="130" y="817" class="node-text">Baseline, emergency contacts, goals</text>
+  <text x="130" y="837" class="small">Weekly report preview and export</text>
+
+  <rect x="410" y="765" width="270" height="92" class="card patient" />
+  <text x="430" y="795" class="node-title">Settings</text>
+  <text x="430" y="817" class="node-text">Theme, DND, notification preferences</text>
+  <text x="430" y="837" class="small">Sync queue and local cache controls</text>
+
+  <!-- Clinical workspace -->
+  <text x="895" y="482" class="section-title">Doctor / Admin Workspace</text>
+  <rect x="880" y="505" width="640" height="420" rx="8" class="clinical" opacity="0.42" />
+
+  <rect x="910" y="535" width="270" height="82" class="card clinical" />
+  <text x="930" y="565" class="node-title">Clinical Overview</text>
+  <text x="930" y="587" class="node-text">Live animated counters and refresh</text>
+  <text x="930" y="607" class="small">Patients, urgent risk, reviews, bookings</text>
+
+  <rect x="1210" y="535" width="270" height="82" class="card clinical" />
+  <text x="1230" y="565" class="node-title">Patient Reviews</text>
+  <text x="1230" y="587" class="node-text">Clinician review queue</text>
+  <text x="1230" y="607" class="small">Reviewed and follow-up actions</text>
+
+  <rect x="910" y="645" width="270" height="92" class="card clinical" />
+  <text x="930" y="675" class="node-title">Appointments & Alerts</text>
+  <text x="930" y="697" class="node-text">Appointment triage and alerts</text>
+  <text x="930" y="717" class="small">Doctor reply actions</text>
+
+  <rect x="1210" y="645" width="270" height="92" class="card clinical" />
+  <text x="1230" y="675" class="node-title">Patients & Reports</text>
+  <text x="1230" y="697" class="node-text">Patient rows and latest risk state</text>
+  <text x="1230" y="717" class="small">Clinical access only</text>
+
+  <rect x="1060" y="765" width="270" height="92" class="card clinical" />
+  <text x="1080" y="795" class="node-title">Settings</text>
+  <text x="1080" y="817" class="node-text">Same controls as patient workspace</text>
+  <text x="1080" y="837" class="small">Theme, DND, sync, logout</text>
+
+  <!-- Shared services -->
+  <line x1="400" y1="925" x2="400" y2="980" class="line-soft" marker-end="url(#arrow)" />
+  <line x1="1200" y1="925" x2="1200" y2="980" class="line-soft" marker-end="url(#arrow)" />
+  <line x1="400" y1="980" x2="1200" y2="980" class="line-soft dash" />
+
+  <rect x="480" y="950" width="640" height="92" class="card api" />
+  <rect x="505" y="974" width="120" height="28" rx="8" class="badge-purple" />
+  <text x="522" y="993" class="pill-text">DJANGO API</text>
+  <text x="505" y="1025" class="node-title">REST Endpoints</text>
+  <text x="505" y="1047" class="node-text">Users, profiles, records, scores, alerts, recommendations, logs, appointments, care messages</text>
+
+  <line x1="800" y1="1042" x2="800" y2="1078" class="line" marker-end="url(#arrow)" />
+  <rect x="560" y="1080" width="480" height="58" class="card db" />
+  <text x="585" y="1114" class="node-title">Django Database</text>
+  <text x="760" y="1114" class="node-text">UserProfile, HealthRecord, HealthScore, Alert, Recommendation, Reminder, Appointment, CareMessage</text>
+
+  <!-- Side notes -->
+  <rect x="80" y="950" width="320" height="92" class="card warning" />
+  <text x="105" y="980" class="node-title">Offline Behavior</text>
+  <text x="105" y="1002" class="node-text">AsyncStorage queues vitals locally</text>
+  <text x="105" y="1022" class="small">Queued data appears in history only after Django saves it</text>
+
+  <rect x="1200" y="950" width="320" height="92" class="card shared" />
+  <text x="1225" y="980" class="node-title">Local Preferences</text>
+  <text x="1225" y="1002" class="node-text">Theme, DND, notification toggles</text>
+  <text x="1225" y="1022" class="small">Stored locally, not as backend health records</text>
+</svg>

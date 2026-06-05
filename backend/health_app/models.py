@@ -2,8 +2,16 @@ from django.db import models
 from django.contrib.auth.models import User
 
 class UserProfile(models.Model):
+    ROLE_CHOICES = [
+        ('patient', 'Patient'),
+        ('doctor', 'Doctor'),
+        ('clinician', 'Clinician'),
+        ('caregiver', 'Caregiver'),
+        ('admin', 'Admin'),
+    ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     display_name = models.CharField(max_length=150, blank=True)
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='patient')
     age = models.IntegerField(null=True, blank=True)
     weight = models.FloatField(null=True, blank=True)
     height = models.FloatField(null=True, blank=True)
@@ -24,6 +32,12 @@ class UserProfile(models.Model):
         return f"{self.user.username}'s Profile"
 
 class HealthRecord(models.Model):
+    REVIEW_CHOICES = [
+        ('pending', 'Pending Review'),
+        ('reviewed', 'Reviewed'),
+        ('follow_up', 'Needs Follow Up'),
+        ('escalated', 'Escalated'),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='health_records')
     temperature = models.FloatField()
     heart_rate = models.IntegerField()
@@ -31,6 +45,16 @@ class HealthRecord(models.Model):
     symptoms_array = models.JSONField(default=list, blank=True)
     meds_taken = models.BooleanField(default=False)
     wellbeing_score = models.IntegerField(default=3)
+    review_status = models.CharField(max_length=20, choices=REVIEW_CHOICES, default='pending')
+    clinician_note = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_health_records',
+    )
     timestamp = models.DateTimeField(auto_now_add=True)
     is_synced = models.BooleanField(default=True)
 
@@ -39,6 +63,50 @@ class HealthRecord(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.timestamp.strftime('%Y-%m-%d %H:%M')}"
+
+class HealthScoreSnapshot(models.Model):
+    RISK_CHOICES = [
+        ('stable', 'Stable'),
+        ('watch', 'Watch'),
+        ('urgent', 'Urgent'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='health_scores')
+    record = models.ForeignKey(HealthRecord, on_delete=models.SET_NULL, null=True, blank=True, related_name='score_snapshots')
+    score = models.IntegerField(default=100)
+    risk_level = models.CharField(max_length=20, choices=RISK_CHOICES, default='stable')
+    reasons = models.JSONField(default=list, blank=True)
+    next_actions = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.score}/100 ({self.risk_level})"
+
+class MedicationReminder(models.Model):
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('taken', 'Taken'),
+        ('missed', 'Missed'),
+        ('paused', 'Paused'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='medication_reminders')
+    medicine_name = models.CharField(max_length=120)
+    dosage = models.CharField(max_length=80, blank=True)
+    scheduled_time = models.TimeField()
+    frequency = models.CharField(max_length=80, default='Daily')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    notes = models.CharField(max_length=255, blank=True)
+    last_taken_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['scheduled_time', 'medicine_name']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.medicine_name} at {self.scheduled_time}"
 
 class NutritionLog(models.Model):
     ENTRY_CHOICES = [
@@ -159,6 +227,75 @@ class ContactInquiry(models.Model):
 
     def __str__(self):
         return f"Inquiry {self.confirmation_code or self.id} - {self.user.username}"
+
+class AppointmentRequest(models.Model):
+    STATUS_CHOICES = [
+        ('requested', 'Requested'),
+        ('confirmed', 'Confirmed'),
+        ('cancelled', 'Cancelled'),
+        ('completed', 'Completed'),
+    ]
+    URGENCY_CHOICES = [
+        ('routine', 'Routine'),
+        ('soon', 'Soon'),
+        ('urgent', 'Urgent'),
+        ('emergency', 'Emergency'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointment_requests')
+    reason = models.CharField(max_length=180)
+    urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='routine')
+    patient_location = models.CharField(max_length=160, blank=True)
+    preferred_date = models.DateField(null=True, blank=True)
+    preferred_time = models.TimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested')
+    triage_level = models.CharField(max_length=30, blank=True)
+    triage_summary = models.TextField(blank=True)
+    assigned_facility_name = models.CharField(max_length=160, blank=True)
+    assigned_facility_address = models.CharField(max_length=220, blank=True)
+    assigned_facility_contact = models.CharField(max_length=60, blank=True)
+    assigned_doctor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_appointment_requests',
+    )
+    clinician_note = models.TextField(blank=True)
+    confirmation_code = models.CharField(max_length=40, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Appointment {self.confirmation_code or self.id} - {self.user.username}"
+
+class CareMessage(models.Model):
+    MESSAGE_CHOICES = [
+        ('patient_update', 'Patient Update'),
+        ('doctor_reply', 'Doctor Reply'),
+        ('system_triage', 'System Triage'),
+    ]
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_care_messages')
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_care_messages')
+    appointment = models.ForeignKey(
+        AppointmentRequest,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='care_messages',
+    )
+    message_type = models.CharField(max_length=30, choices=MESSAGE_CHOICES, default='patient_update')
+    body = models.TextField()
+    status = models.CharField(max_length=20, default='unread')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.sender.username} -> {self.recipient.username}: {self.body[:40]}"
 
 class Recommendation(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recommendations')

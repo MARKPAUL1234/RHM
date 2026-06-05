@@ -113,3 +113,19 @@ local.properties
 .expo-shared/
 web-build/
 dist/
+
+# Python / Django
+__pycache__/
+*.py[cod]
+*.sqlite3
+db.sqlite3
+backend/db.sqlite3
+venv/
+.venv/
+env/
+backend/venv/
+
+# Local environment
+.env
+.env.*
+!.env.example
