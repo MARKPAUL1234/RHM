@@ -1,0 +1,208 @@
+<svg width="1600" height="980" viewBox="0 0 1600 980" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">RHMT Flow Site Map</title>
+  <desc id="desc">Dark flow-style site map for the Remote Health Monitoring Tool showing public entry, patient application, and clinical admin application.</desc>
+  <defs>
+    <style>
+      .bg { fill: #1f2020; }
+      .title { font: 800 28px Arial, sans-serif; fill: #f8fafc; }
+      .subtitle { font: 600 14px Arial, sans-serif; fill: #aeb8c4; }
+      .gateway { fill: #525252; stroke: #a3a3a3; stroke-width: 2; }
+      .gateway-title { font: 800 18px Arial, sans-serif; fill: #ffffff; }
+      .gateway-text { font: 600 13px Arial, sans-serif; fill: #d4d4d4; }
+      .branch-label { font: 800 14px Arial, sans-serif; fill: #f1f5f9; }
+      .patient-head { fill: #0f624f; stroke: #10b981; stroke-width: 2; }
+      .clinical-head { fill: #4b3f95; stroke: #8b7cf6; stroke-width: 2; }
+      .head-text { font: 800 20px Arial, sans-serif; fill: #eafdf7; }
+      .patient-node { fill: #0c5f4e; stroke: #13b981; stroke-width: 2; }
+      .clinical-node { fill: #4d4693; stroke: #8b7cf6; stroke-width: 2; }
+      .node-text { font: 800 15px Arial, sans-serif; fill: #f8fafc; }
+      .leaf-text { font: 700 13px Arial, sans-serif; fill: #dffcf2; }
+      .clinical-leaf-text { font: 700 13px Arial, sans-serif; fill: #ece9ff; }
+      .line { stroke: #a3a3a3; stroke-width: 2.3; fill: none; }
+      .line-soft { stroke: #737373; stroke-width: 1.8; fill: none; }
+      .patient-line { stroke: #10b981; stroke-width: 1.9; fill: none; opacity: .75; }
+      .clinical-line { stroke: #8b7cf6; stroke-width: 1.9; fill: none; opacity: .75; }
+      .note { fill: #2f3030; stroke: #525252; stroke-width: 1.5; }
+      .note-title { font: 800 15px Arial, sans-serif; fill: #f8fafc; }
+      .note-text { font: 600 12px Arial, sans-serif; fill: #cbd5e1; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10 Z" fill="#a3a3a3" />
+    </marker>
+    <marker id="patientArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M1,1 L8,5 L1,9 Z" fill="#10b981" />
+    </marker>
+    <marker id="clinicalArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M1,1 L8,5 L1,9 Z" fill="#8b7cf6" />
+    </marker>
+  </defs>
+
+  <rect width="1600" height="980" class="bg" />
+  <text x="80" y="58" class="title">Remote Health Monitoring Tool - Site Map</text>
+  <text x="80" y="84" class="subtitle">Actual project flow: React Native Expo frontend, Django REST API, JWT authentication, Django ORM database, AsyncStorage offline queue</text>
+
+  <!-- Public entry -->
+  <rect x="620" y="118" width="360" height="74" rx="8" class="gateway" />
+  <text x="800" y="148" text-anchor="middle" class="gateway-title">Public entry gateway</text>
+  <text x="800" y="171" text-anchor="middle" class="gateway-text">Login | Register | Recover account notice</text>
+
+  <!-- Branch labels and lines -->
+  <path d="M740 192 L472 268" class="line" marker-end="url(#arrow)" />
+  <path d="M860 192 L1128 268" class="line" marker-end="url(#arrow)" />
+  <text x="512" y="246" class="branch-label">Patient</text>
+  <text x="1030" y="246" class="branch-label">Doctor / Admin</text>
+
+  <!-- App headers -->
+  <rect x="150" y="285" width="560" height="58" rx="8" class="patient-head" />
+  <text x="430" y="321" text-anchor="middle" class="head-text">Patient application</text>
+
+  <rect x="890" y="285" width="560" height="58" rx="8" class="clinical-head" />
+  <text x="1170" y="321" text-anchor="middle" class="head-text">Clinical &amp; admin application</text>
+
+  <!-- Patient main nav -->
+  <path d="M430 343 L430 396" class="patient-line" marker-end="url(#patientArrow)" />
+  <g id="patient-main">
+    <rect x="90" y="415" width="115" height="54" rx="7" class="patient-node" />
+    <text x="147.5" y="447" text-anchor="middle" class="node-text">Dashboard</text>
+
+    <rect x="225" y="415" width="115" height="54" rx="7" class="patient-node" />
+    <text x="282.5" y="447" text-anchor="middle" class="node-text">Log vitals</text>
+
+    <rect x="360" y="415" width="115" height="54" rx="7" class="patient-node" />
+    <text x="417.5" y="447" text-anchor="middle" class="node-text">Insights</text>
+
+    <rect x="495" y="415" width="115" height="54" rx="7" class="patient-node" />
+    <text x="552.5" y="447" text-anchor="middle" class="node-text">Profile</text>
+
+    <rect x="630" y="415" width="115" height="54" rx="7" class="patient-node" />
+    <text x="687.5" y="447" text-anchor="middle" class="node-text">Settings</text>
+  </g>
+
+  <!-- Patient leaves -->
+  <path d="M147.5 469 L147.5 502" class="patient-line" />
+  <rect x="88" y="505" width="118" height="40" rx="6" class="patient-node" />
+  <text x="147" y="530" text-anchor="middle" class="leaf-text">Health score</text>
+  <rect x="88" y="570" width="118" height="40" rx="6" class="patient-node" />
+  <text x="147" y="595" text-anchor="middle" class="leaf-text">Latest log</text>
+  <rect x="88" y="635" width="118" height="40" rx="6" class="patient-node" />
+  <text x="147" y="660" text-anchor="middle" class="leaf-text">Trend charts</text>
+  <rect x="88" y="700" width="118" height="40" rx="6" class="patient-node" />
+  <text x="147" y="725" text-anchor="middle" class="leaf-text">Risk alerts</text>
+
+  <path d="M282.5 469 L282.5 502" class="patient-line" />
+  <rect x="224" y="505" width="118" height="40" rx="6" class="patient-node" />
+  <text x="283" y="530" text-anchor="middle" class="leaf-text">Temp slider</text>
+  <rect x="224" y="570" width="118" height="40" rx="6" class="patient-node" />
+  <text x="283" y="595" text-anchor="middle" class="leaf-text">SpO2 field</text>
+  <rect x="224" y="635" width="118" height="40" rx="6" class="patient-node" />
+  <text x="283" y="660" text-anchor="middle" class="leaf-text">Pulse / BPM</text>
+  <rect x="224" y="700" width="118" height="40" rx="6" class="patient-node" />
+  <text x="283" y="725" text-anchor="middle" class="leaf-text">Symptoms</text>
+  <rect x="224" y="765" width="118" height="40" rx="6" class="patient-node" />
+  <text x="283" y="790" text-anchor="middle" class="leaf-text">Submit entry</text>
+
+  <path d="M417.5 469 L417.5 502" class="patient-line" />
+  <rect x="359" y="505" width="118" height="40" rx="6" class="patient-node" />
+  <text x="418" y="530" text-anchor="middle" class="leaf-text">Diet plan</text>
+  <rect x="359" y="570" width="118" height="40" rx="6" class="patient-node" />
+  <text x="418" y="595" text-anchor="middle" class="leaf-text">Fitness tasks</text>
+  <rect x="359" y="635" width="118" height="40" rx="6" class="patient-node" />
+  <text x="418" y="660" text-anchor="middle" class="leaf-text">Medication</text>
+  <rect x="359" y="700" width="118" height="40" rx="6" class="patient-node" />
+  <text x="418" y="725" text-anchor="middle" class="leaf-text">Reminders</text>
+
+  <path d="M552.5 469 L552.5 502" class="patient-line" />
+  <rect x="494" y="505" width="118" height="40" rx="6" class="patient-node" />
+  <text x="553" y="530" text-anchor="middle" class="leaf-text">Edit profile</text>
+  <rect x="494" y="570" width="118" height="40" rx="6" class="patient-node" />
+  <text x="553" y="595" text-anchor="middle" class="leaf-text">History log</text>
+  <rect x="494" y="635" width="118" height="40" rx="6" class="patient-node" />
+  <text x="553" y="660" text-anchor="middle" class="leaf-text">Weekly report</text>
+  <rect x="494" y="700" width="118" height="40" rx="6" class="patient-node" />
+  <text x="553" y="725" text-anchor="middle" class="leaf-text">Appointments</text>
+  <rect x="494" y="765" width="118" height="40" rx="6" class="patient-node" />
+  <text x="553" y="790" text-anchor="middle" class="leaf-text">Messages</text>
+
+  <path d="M687.5 469 L687.5 502" class="patient-line" />
+  <rect x="629" y="505" width="118" height="40" rx="6" class="patient-node" />
+  <text x="688" y="530" text-anchor="middle" class="leaf-text">Dark mode</text>
+  <rect x="629" y="570" width="118" height="40" rx="6" class="patient-node" />
+  <text x="688" y="595" text-anchor="middle" class="leaf-text">DND</text>
+  <rect x="629" y="635" width="118" height="40" rx="6" class="patient-node" />
+  <text x="688" y="660" text-anchor="middle" class="leaf-text">Sync queue</text>
+  <rect x="629" y="700" width="118" height="40" rx="6" class="patient-node" />
+  <text x="688" y="725" text-anchor="middle" class="leaf-text">Logout</text>
+
+  <!-- Clinical main nav -->
+  <path d="M1170 343 L1170 396" class="clinical-line" marker-end="url(#clinicalArrow)" />
+  <g id="clinical-main">
+    <rect x="820" y="415" width="118" height="54" rx="7" class="clinical-node" />
+    <text x="879" y="447" text-anchor="middle" class="node-text">Overview</text>
+
+    <rect x="958" y="415" width="118" height="54" rx="7" class="clinical-node" />
+    <text x="1017" y="447" text-anchor="middle" class="node-text">Reviews</text>
+
+    <rect x="1096" y="415" width="118" height="54" rx="7" class="clinical-node" />
+    <text x="1155" y="447" text-anchor="middle" class="node-text">Appointments</text>
+
+    <rect x="1234" y="415" width="118" height="54" rx="7" class="clinical-node" />
+    <text x="1293" y="447" text-anchor="middle" class="node-text">Patients</text>
+
+    <rect x="1372" y="415" width="118" height="54" rx="7" class="clinical-node" />
+    <text x="1431" y="447" text-anchor="middle" class="node-text">Settings</text>
+  </g>
+
+  <!-- Clinical leaves -->
+  <path d="M879 469 L879 502" class="clinical-line" />
+  <rect x="817" y="505" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="879" y="530" text-anchor="middle" class="clinical-leaf-text">Live counters</text>
+  <rect x="817" y="570" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="879" y="595" text-anchor="middle" class="clinical-leaf-text">Risk rows</text>
+  <rect x="817" y="635" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="879" y="660" text-anchor="middle" class="clinical-leaf-text">Refresh status</text>
+
+  <path d="M1017 469 L1017 502" class="clinical-line" />
+  <rect x="955" y="505" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1017" y="530" text-anchor="middle" class="clinical-leaf-text">Review queue</text>
+  <rect x="955" y="570" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1017" y="595" text-anchor="middle" class="clinical-leaf-text">Approve</text>
+  <rect x="955" y="635" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1017" y="660" text-anchor="middle" class="clinical-leaf-text">Follow-up</text>
+  <rect x="955" y="700" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1017" y="725" text-anchor="middle" class="clinical-leaf-text">Clinical note</text>
+
+  <path d="M1155 469 L1155 502" class="clinical-line" />
+  <rect x="1093" y="505" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1155" y="530" text-anchor="middle" class="clinical-leaf-text">Request list</text>
+  <rect x="1093" y="570" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1155" y="595" text-anchor="middle" class="clinical-leaf-text">Triage summary</text>
+  <rect x="1093" y="635" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1155" y="660" text-anchor="middle" class="clinical-leaf-text">Doctor reply</text>
+  <rect x="1093" y="700" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1155" y="725" text-anchor="middle" class="clinical-leaf-text">Alerts</text>
+
+  <path d="M1293 469 L1293 502" class="clinical-line" />
+  <rect x="1231" y="505" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1293" y="530" text-anchor="middle" class="clinical-leaf-text">Patient rows</text>
+  <rect x="1231" y="570" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1293" y="595" text-anchor="middle" class="clinical-leaf-text">Score cards</text>
+  <rect x="1231" y="635" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1293" y="660" text-anchor="middle" class="clinical-leaf-text">Vitals detail</text>
+  <rect x="1231" y="700" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1293" y="725" text-anchor="middle" class="clinical-leaf-text">Reports</text>
+
+  <path d="M1431 469 L1431 502" class="clinical-line" />
+  <rect x="1369" y="505" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1431" y="530" text-anchor="middle" class="clinical-leaf-text">Dark mode</text>
+  <rect x="1369" y="570" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1431" y="595" text-anchor="middle" class="clinical-leaf-text">Notifications</text>
+  <rect x="1369" y="635" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1431" y="660" text-anchor="middle" class="clinical-leaf-text">Sync controls</text>
+  <rect x="1369" y="700" width="124" height="40" rx="6" class="clinical-node" />
+  <text x="1431" y="725" text-anchor="middle" class="clinical-leaf-text">Logout</text>
+
+  <!-- Backend note -->
+  <rect x="500" y="865" width="600" height="74" rx="8" class="note" />
+  <text x="800" y="893" text-anchor="middle" class="note-title">Backend layer</text>
+  <text x="800" y="916" text-anchor="middle" class="note-text">Django REST API | JWT auth | Django ORM database | health score, alert, recommendation, appointment, and messaging endpoints</text>
+</svg>
