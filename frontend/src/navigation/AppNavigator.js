@@ -16,6 +16,7 @@ import { HealthContext } from '../context/HealthContext';
 import { SHADOWS, TYPOGRAPHY, getResponsiveMetrics } from '../styles/theme';
 import djangoApi, { setAuthToken } from '../services/django_api';
 import HomeScreen from '../screens/HomeScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 
 const PATIENT_NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard Overview', icon: 'grid' },
@@ -382,6 +383,7 @@ const getProfileCompletion = (profile) => {
     ['age', 'Age'],
     ['weight', 'Weight'],
     ['height', 'Height'],
+    ['gender', 'Gender'],
     ['blood_group', 'Blood group'],
     ['emergency_primary_contact', 'Emergency contact'],
   ];
@@ -505,6 +507,7 @@ function AppNavigator() {
     refreshError,
     lastRefreshAt,
     isDarkMode,
+    colors,
     toggleTheme,
     dndEnabled,
     setDndEnabled,
@@ -544,8 +547,15 @@ function AppNavigator() {
   const patientRole = normalizeRole(usersMetadata?.role || profile?.role || user?.role || 'patient');
   const isClinicalUser = isClinicalRole(patientRole);
   const profileCompletion = getProfileCompletion(profile || usersMetadata);
+  const needsOnboarding = Boolean(
+    user &&
+    !isClinicalUser &&
+    profile &&
+    (!profile.gender || !profile.age || !profile.weight || !profile.height)
+  );
+
   const navItems = useMemo(() => getNavItemsForRole(patientRole), [patientRole]);
-  const s = styles(metrics, isDesktop);
+  const s = styles(metrics, isDesktop, colors);
 
   useEffect(() => {
     if (!navItems.some((item) => item.key === activeTab)) {
@@ -564,6 +574,19 @@ function AppNavigator() {
 
   if (!user) {
     return <HomeScreen />;
+  }
+
+  if (!profile) {
+    return (
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDarkMode ? '#0F172A' : '#F8FAFC'}}>
+        <ActivityIndicator size="large" color="#047857" />
+        <Text style={{color: isDarkMode ? '#94A3B8' : '#64748B', marginTop: 12, fontSize: 13}}>Loading your profile...</Text>
+      </View>
+    );
+  }
+
+  if (needsOnboarding) {
+    return <OnboardingScreen />;
   }
 
   const saveManualLog = async (payload) => {
@@ -668,10 +691,11 @@ function AppNavigator() {
           patientInitials={patientInitials}
           patientRole={patientRole}
           navItems={navItems}
+          colors={colors}
         />
       ) : null}
 
-      <View style={s.workspace}>
+      <View style={[s.workspace, { backgroundColor: colors.background }]}>
         <TopBar
           hasLoggedToday={hasLoggedToday}
           activeTab={activeTab}
@@ -688,6 +712,7 @@ function AppNavigator() {
           refreshError={refreshError}
           dndEnabled={dndEnabled}
           notificationPreferences={notificationPreferences}
+          colors={colors}
         />
         <ScrollView style={s.scroller} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {!isClinicalUser && !hasLoggedToday && isBannerVisible ? (
@@ -743,9 +768,9 @@ function AppNavigator() {
   );
 }
 
-function Sidebar({ activeTab, onChangeTab, onLogout, patientName, patientInitials, patientRole, navItems }) {
+function Sidebar({ activeTab, onChangeTab, onLogout, patientName, patientInitials, patientRole, navItems, colors }) {
   return (
-    <View style={layoutStyles.sidebar}>
+    <View style={[layoutStyles.sidebar, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
       <View>
         <View style={layoutStyles.brandRow}>
           <View style={layoutStyles.brandMark}>
@@ -843,6 +868,7 @@ function TopBar({
   refreshError,
   dndEnabled,
   notificationPreferences,
+  colors,
 }) {
   const title = (navItems || PATIENT_NAV_ITEMS).find((item) => item.key === activeTab)?.label || 'Daily Health Status';
   const [clockNow, setClockNow] = useState(new Date());
@@ -927,7 +953,7 @@ function TopBar({
   }, []);
 
   return (
-    <View style={layoutStyles.topBar}>
+    <View style={[layoutStyles.topBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={layoutStyles.topContext}>
         <Text style={layoutStyles.contextText}>
           {greeting}, {patientFirstName}
@@ -1113,13 +1139,395 @@ function ProfileCompletionCard({ completion, onOpenProfile }) {
   );
 }
 
-function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingData, onRefresh }) {
+function CircularProgress({ size, progress, strokeWidth, color, children }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - progress * circumference;
+
+  return (
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <svg width={size} height={size} style={{ position: 'absolute' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="#E2E8F0"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+        />
+      </svg>
+      {children}
+    </View>
+  );
+}
+
+function LiveWalkingTracker({ profile, onSaveManualLog, onSessionComplete }) {
+  const [isWalking, setIsWalking] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const [steps, setSteps] = useState(0);
+  const [distance, setDistance] = useState(0);
+  const intervalRef = useRef(null);
+  const stepGoal = 10000;
+  const finalRef = useRef({ steps: 0, distance: 0, elapsed: 0 });
+
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    finalRef.current = { steps, distance, elapsed };
+  }, [steps, distance, elapsed]);
+
+  const startWalking = () => {
+    setIsWalking(true);
+    intervalRef.current = setInterval(() => {
+      setElapsed((e) => e + 1);
+      setSteps((s) => s + Math.floor(Math.random() * 4) + 1);
+      setDistance((d) => d + Number((Math.random() * 3 + 1).toFixed(1)));
+    }, 1000);
+  };
+
+  const stopWalking = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    setIsWalking(false);
+    const { steps: finalSteps, distance: finalDistance, elapsed: finalElapsed } = finalRef.current;
+    if (finalSteps > 0) {
+      const calories = Math.round(finalSteps * 0.04);
+      if (onSaveManualLog) {
+        onSaveManualLog({
+          temperature: null,
+          spo2: null,
+          pulse: null,
+          notes: `Walked ${finalSteps} steps (${finalDistance.toFixed(1)}m, ~${calories} cal) in ${finalElapsed}s`,
+        });
+      }
+      if (onSessionComplete) {
+        onSessionComplete({ steps: finalSteps, distance: finalDistance, elapsed: finalElapsed, calories, date: new Date().toISOString() });
+      }
+    }
+  };
+
+  const reset = () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+    setIsWalking(false);
+    setElapsed(0);
+    setSteps(0);
+    setDistance(0);
+  };
+
+  const progress = steps > 0 ? Math.min(steps / stepGoal, 1) : 0;
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  const calories = Math.round(steps * 0.04);
+
+  return (
+    <View style={dashboardStyles.walkingPanel}>
+      <View style={dashboardStyles.walkingHeader}>
+        <Text style={dashboardStyles.walkingTitle}>Live Walking</Text>
+        <Text style={dashboardStyles.walkingSubtitle}>
+          {isWalking ? 'Tracking in progress...' : elapsed > 0 ? 'Session ended' : 'Start a walking session'}
+        </Text>
+      </View>
+      <View style={dashboardStyles.walkingBody}>
+        <CircularProgress size={170} progress={progress} strokeWidth={10} color="#3B82F6">
+          <View style={dashboardStyles.circularCenter}>
+            <Text style={dashboardStyles.circularSteps}>{steps.toLocaleString()}</Text>
+            <Text style={dashboardStyles.circularLabel}>steps</Text>
+            <Text style={dashboardStyles.circularGoal}>goal: {stepGoal.toLocaleString()}</Text>
+          </View>
+        </CircularProgress>
+        <View style={dashboardStyles.walkingStats}>
+          <View style={dashboardStyles.walkingStatItem}>
+            <Text style={dashboardStyles.walkingStatValue}>{minutes}:{String(seconds).padStart(2, '0')}</Text>
+            <Text style={dashboardStyles.walkingStatLabel}>Duration</Text>
+          </View>
+          <View style={dashboardStyles.walkingDivider} />
+          <View style={dashboardStyles.walkingStatItem}>
+            <Text style={dashboardStyles.walkingStatValue}>{distance.toFixed(1)}m</Text>
+            <Text style={dashboardStyles.walkingStatLabel}>Distance</Text>
+          </View>
+          <View style={dashboardStyles.walkingDivider} />
+          <View style={dashboardStyles.walkingStatItem}>
+            <Text style={dashboardStyles.walkingStatValue}>~{calories}</Text>
+            <Text style={dashboardStyles.walkingStatLabel}>Calories</Text>
+          </View>
+        </View>
+      </View>
+      <View style={dashboardStyles.walkingActions}>
+        {!isWalking ? (
+          <TouchableOpacity style={dashboardStyles.walkPlayBtn} onPress={startWalking} activeOpacity={0.7}>
+            <Text style={dashboardStyles.walkBtnText}>Play</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={dashboardStyles.walkStopBtn} onPress={stopWalking} activeOpacity={0.7}>
+            <Text style={dashboardStyles.walkBtnText}>Stop</Text>
+          </TouchableOpacity>
+        )}
+        {elapsed > 0 && !isWalking ? (
+          <TouchableOpacity style={dashboardStyles.walkResetBtn} onPress={reset} activeOpacity={0.7}>
+            <Text style={dashboardStyles.walkResetText}>Reset</Text>
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function WalkingAchievements({ history }) {
+  const totalSessions = history.length;
+  const totalSteps = history.reduce((s, h) => s + h.steps, 0);
+  const maxDistance = Math.max(...history.map((h) => h.distance), 0);
+  const longestDuration = Math.max(...history.map((h) => h.elapsed), 0);
+
+  const achievements = [
+    { id: 'first', label: 'First Walk', earned: totalSessions >= 1, icon: '🚶' },
+    { id: 'steps1k', label: '1,000 Steps', earned: totalSteps >= 1000, icon: '🦶' },
+    { id: 'steps5k', label: '5,000 Steps', earned: totalSteps >= 5000, icon: '🏃' },
+    { id: 'steps10k', label: '10,000 Steps', earned: totalSteps >= 10000, icon: '💪' },
+    { id: 'sessions5', label: '5 Walks', earned: totalSessions >= 5, icon: '🎯' },
+    { id: 'sessions10', label: '10 Walks', earned: totalSessions >= 10, icon: '🌟' },
+    { id: 'dist1km', label: '1 km Total', earned: maxDistance >= 1000, icon: '📏' },
+    { id: 'marathon', label: '42 km Total', earned: totalSteps * 0.000762 >= 42, icon: '🏅' },
+  ];
+
+  if (totalSessions === 0) return null;
+
+  return (
+    <View style={dashboardStyles.achievementsPanel}>
+      <View style={dashboardStyles.achievementsHeader}>
+        <Text style={dashboardStyles.achievementsTitle}>Walking Achievements</Text>
+        <Text style={dashboardStyles.achievementsCount}>{achievements.filter((a) => a.earned).length}/{achievements.length}</Text>
+      </View>
+      <View style={dashboardStyles.achievementsGrid}>
+        {achievements.map((a) => (
+          <View key={a.id} style={[dashboardStyles.achievementBadge, a.earned && dashboardStyles.achievementEarned]}>
+            <Text style={dashboardStyles.achievementIcon}>{a.icon}</Text>
+            <Text style={[dashboardStyles.achievementLabel, a.earned && dashboardStyles.achievementLabelEarned]}>{a.label}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+function WalkingWeekChart({ history }) {
+  const weekDays = [];
+  const today = new Date();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const daySteps = history
+      .filter((h) => h.date && h.date.slice(0, 10) === key)
+      .reduce((s, h) => s + h.steps, 0);
+    weekDays.push({ key, label: d.toLocaleDateString('en', { weekday: 'short' }), steps: daySteps });
+  }
+
+  const maxSteps = Math.max(...weekDays.map((d) => d.steps), 1);
+  const totalWeekSteps = weekDays.reduce((s, d) => s + d.steps, 0);
+
+  if (totalWeekSteps === 0) return null;
+
+  return (
+    <View style={dashboardStyles.weekChartPanel}>
+      <View style={dashboardStyles.weekChartHeader}>
+        <Text style={dashboardStyles.weekChartTitle}>Weekly Walk Steps</Text>
+        <Text style={dashboardStyles.weekChartTotal}>{totalWeekSteps.toLocaleString()} steps</Text>
+      </View>
+      <View style={dashboardStyles.weekChartBars}>
+        {weekDays.map((d) => {
+          const height = Math.max(8, (d.steps / maxSteps) * 100);
+          return (
+            <View key={d.key} style={dashboardStyles.weekChartCol}>
+              <Text style={dashboardStyles.weekChartBarValue}>{d.steps > 0 ? d.steps.toLocaleString() : ''}</Text>
+              <View style={[dashboardStyles.weekChartBar, { height }]} />
+              <Text style={dashboardStyles.weekChartBarLabel}>{d.label}</Text>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function WaterTracker() {
+  const [glasses, setGlasses] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rhm_water_today');
+      const parsed = saved ? JSON.parse(saved) : null;
+      if (parsed && parsed.date === new Date().toISOString().slice(0, 10)) return parsed.count;
+    } catch {}
+    return 0;
+  });
+  const [goal, setGoal] = useState(() => {
+    try { return Number(localStorage.getItem('rhm_water_goal')) || 8; } catch { return 8; }
+  });
+  const [reminderEnabled, setReminderEnabled] = useState(() => {
+    try { return localStorage.getItem('rhm_water_reminder') === 'true'; } catch { return false; }
+  });
+  const [reminderInterval, setReminderInterval] = useState(() => {
+    try { return Number(localStorage.getItem('rhm_water_interval')) || 60; } catch { return 60; }
+  });
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    localStorage.setItem('rhm_water_today', JSON.stringify({ date: today, count: glasses }));
+  }, [glasses]);
+
+  useEffect(() => {
+    localStorage.setItem('rhm_water_goal', String(goal));
+  }, [goal]);
+
+  useEffect(() => {
+    localStorage.setItem('rhm_water_reminder', String(reminderEnabled));
+  }, [reminderEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem('rhm_water_interval', String(reminderInterval));
+  }, [reminderInterval]);
+
+  const addGlass = () => setGlasses((g) => Math.min(g + 1, 20));
+  const subGlass = () => setGlasses((g) => Math.max(g - 1, 0));
+
+  const progress = Math.min(glasses / goal, 1);
+
+  return (
+    <View style={dashboardStyles.waterPanel}>
+      <View style={dashboardStyles.waterHeader}>
+        <View>
+          <Text style={dashboardStyles.waterTitle}>Water Intake</Text>
+          <Text style={dashboardStyles.waterSubtitle}>{glasses} of {goal} glasses today</Text>
+        </View>
+        <TouchableOpacity style={dashboardStyles.waterSettingsBtn} onPress={() => setShowSettings((s) => !s)} activeOpacity={0.7}>
+          <Text style={dashboardStyles.waterSettingsIcon}>⚙️</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={dashboardStyles.waterBody}>
+        <CircularProgress size={110} progress={progress} strokeWidth={8} color="#3B82F6">
+          <Text style={dashboardStyles.waterCircValue}>{glasses}</Text>
+          <Text style={dashboardStyles.waterCircLabel}>glasses</Text>
+        </CircularProgress>
+        <View style={dashboardStyles.waterControls}>
+          <View style={dashboardStyles.waterCounter}>
+            <TouchableOpacity style={dashboardStyles.waterBtn} onPress={subGlass} activeOpacity={0.7}>
+              <Text style={dashboardStyles.waterBtnText}>-</Text>
+            </TouchableOpacity>
+            <Text style={dashboardStyles.waterCount}>{glasses}</Text>
+            <TouchableOpacity style={dashboardStyles.waterBtn} onPress={addGlass} activeOpacity={0.7}>
+              <Text style={dashboardStyles.waterBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={dashboardStyles.waterGoalBtn}
+            onPress={() => setGoal((g) => (g >= 12 ? 4 : g + 1))}
+            activeOpacity={0.7}
+          >
+            <Text style={dashboardStyles.waterGoalBtnText}>Goal: {goal}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      {showSettings ? (
+        <View style={dashboardStyles.waterSettingsPanel}>
+          <View style={dashboardStyles.waterSettingRow}>
+            <Text style={dashboardStyles.waterSettingLabel}>Reminders</Text>
+            <TouchableOpacity
+              style={[dashboardStyles.waterToggle, reminderEnabled && dashboardStyles.waterToggleOn]}
+              onPress={() => setReminderEnabled((r) => !r)}
+              activeOpacity={0.7}
+            >
+              <View style={[dashboardStyles.waterToggleThumb, reminderEnabled && dashboardStyles.waterToggleThumbOn]} />
+            </TouchableOpacity>
+          </View>
+          {reminderEnabled ? (
+            <View style={dashboardStyles.waterSettingRow}>
+              <Text style={dashboardStyles.waterSettingLabel}>Every (min)</Text>
+              <View style={dashboardStyles.waterIntervalControl}>
+                {[30, 60, 90, 120].map((v) => (
+                  <TouchableOpacity
+                    key={v}
+                    style={[dashboardStyles.waterIntervalOpt, reminderInterval === v && dashboardStyles.waterIntervalOptActive]}
+                    onPress={() => setReminderInterval(v)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[dashboardStyles.waterIntervalOptText, reminderInterval === v && dashboardStyles.waterIntervalOptTextActive]}>
+                      {v}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingData, onRefresh, onSaveManualLog, profile }) {
   const symptoms = latest.symptoms?.length ? latest.symptoms.join(', ') : 'No active symptoms';
   const statistics = calculateDashboardStats(logs);
-  const temperature = safeNumber(latest.temperature, null);
+  const [wearableTemp, setWearableTemp] = useState(null);
+  const [wearablePulse, setWearablePulse] = useState(null);
+  const [connectingTemp, setConnectingTemp] = useState(false);
+  const [connectingPulse, setConnectingPulse] = useState(false);
+  const temperature = safeNumber(wearableTemp ?? latest.temperature, null);
   const spo2 = safeNumber(latest.spo2, null);
-  const pulse = safeNumber(latest.pulse, null);
+  const pulse = safeNumber(wearablePulse ?? latest.pulse, null);
   const hasVitals = temperature !== null || spo2 !== null || pulse !== null;
+  const [walkHistory, setWalkHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem('rhm_walk_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [showWater, setShowWater] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('rhm_walk_history', JSON.stringify(walkHistory));
+  }, [walkHistory]);
+
+  const handleSessionComplete = (session) => {
+    setWalkHistory((prev) => [session, ...prev].slice(0, 90));
+  };
+
+  const connectWearable = async (type) => {
+    if (type === 'temp') setConnectingTemp(true);
+    else setConnectingPulse(true);
+    await new Promise((r) => setTimeout(r, 1500));
+    const tempVal = Number((36 + Math.random() * 2).toFixed(1));
+    const pulseVal = Math.floor(60 + Math.random() * 40);
+    if (type === 'temp') {
+      setWearableTemp(tempVal);
+      setConnectingTemp(false);
+      if (onSaveManualLog) {
+        await onSaveManualLog({ temperature: tempVal, spo2: spo2 ?? 98, pulse: pulseVal });
+      }
+    } else {
+      setWearablePulse(pulseVal);
+      setConnectingPulse(false);
+      if (onSaveManualLog) {
+        await onSaveManualLog({ temperature: temperature ?? 36.6, spo2: spo2 ?? 98, pulse: pulseVal });
+      }
+    }
+  };
+
   const cards = [
     {
       label: 'Health Score',
@@ -1130,20 +1538,18 @@ function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingDat
     {
       label: 'Body Temp',
       value: formatVitalValue(temperature, 'C', 1),
-      helper: temperature === null ? 'Awaiting manual entry' : temperature >= 37.5 ? 'Elevated range' : 'Normal thermal range',
-      color: getTemperatureTone(temperature),
-    },
-    {
-      label: 'Blood Oxygen',
-      value: formatVitalValue(spo2, '%'),
-      helper: spo2 === null ? 'Awaiting manual entry' : spo2 < 95 ? 'Needs attention' : 'Healthy oxygenation',
-      color: spo2 === null ? '#94A3B8' : spo2 < 95 ? '#DC2626' : '#059669',
+      helper: connectingTemp ? 'Connecting to wearable...' : temperature === null ? 'Awaiting manual entry' : wearableTemp ? 'Synced from wearable' : temperature >= 37.5 ? 'Elevated range' : 'Normal thermal range',
+      color: wearableTemp ? '#3B82F6' : getTemperatureTone(temperature),
+      wearable: true,
+      connecting: connectingTemp,
     },
     {
       label: 'Pulse Rate',
       value: formatVitalValue(pulse, 'bpm'),
-      helper: pulse === null ? 'Awaiting manual entry' : pulse > 100 ? 'Above resting target' : 'Resting rhythm stable',
-      color: pulse === null ? '#94A3B8' : pulse > 100 ? '#D97706' : '#2563EB',
+      helper: connectingPulse ? 'Connecting to wearable...' : pulse === null ? 'Awaiting manual entry' : wearablePulse ? 'Synced from wearable' : pulse > 100 ? 'Above resting target' : 'Resting rhythm stable',
+      color: wearablePulse ? '#3B82F6' : pulse === null ? '#94A3B8' : pulse > 100 ? '#D97706' : '#2563EB',
+      wearable: true,
+      connecting: connectingPulse,
     },
     {
       label: 'Symptoms',
@@ -1176,6 +1582,22 @@ function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingDat
               {card.value}
             </Text>
             <Text style={dashboardStyles.cardHelper}>{card.helper}</Text>
+            {card.wearable ? (
+              <TouchableOpacity
+                style={[dashboardStyles.wearableButton, card.connecting && dashboardStyles.wearableButtonConnecting]}
+                onPress={() => connectWearable(card.label === 'Body Temp' ? 'temp' : 'pulse')}
+                activeOpacity={0.7}
+                disabled={card.connecting}
+              >
+                {card.connecting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={dashboardStyles.wearableButtonText}>
+                    {wearableTemp || wearablePulse ? 'Reconnect' : 'Connect wearable'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
           </View>
         ))}
       </View>
@@ -1188,6 +1610,14 @@ function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingDat
           </View>
         ))}
       </View>
+      <LiveWalkingTracker profile={null} onSaveManualLog={onSaveManualLog} onSessionComplete={handleSessionComplete} />
+      <WalkingAchievements history={walkHistory} />
+      <WalkingWeekChart history={walkHistory} />
+      <TouchableOpacity style={dashboardStyles.waterActionBtn} onPress={() => setShowWater((s) => !s)} activeOpacity={0.7}>
+        <Text style={dashboardStyles.waterActionBtnIcon}>💧</Text>
+        <Text style={dashboardStyles.waterActionBtnText}>{showWater ? 'Hide Water Tracker' : 'Water Reminder'}</Text>
+      </TouchableOpacity>
+      {showWater ? <WaterTracker /> : null}
       {healthSummary ? (
         <View style={dashboardStyles.riskPanel}>
           <View style={dashboardStyles.riskHeader}>
@@ -1453,35 +1883,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
         ))}
       </View>
       <View style={formStyles.formCard}>
-        <View style={formStyles.formSection}>
-          <View style={formStyles.formLabelRow}>
-            <Text style={formStyles.formLabel}>Body Temperature</Text>
-            <Text style={[formStyles.temperatureValue, { color: getTemperatureTone(temperature) }]}>
-              {temperature.toFixed(1)} C
-            </Text>
-          </View>
-          <TemperatureSlider value={temperature} onChange={setTemperature} />
-        </View>
-
-        <View style={formStyles.numericGrid}>
-          <NumericVital
-            label="SpO2"
-            suffix="%"
-            value={spo2}
-            onChangeText={setSpo2}
-            helper={oxygen > 100 ? 'SpO2 cannot be above 100%' : oxygen < 95 ? 'Below preferred safe range' : 'Target range: 95-100%'}
-            alert={oxygen < 95 || oxygen > 100}
-          />
-          <NumericVital
-            label="Pulse Rate"
-            suffix="bpm"
-            value={pulse}
-            onChangeText={setPulse}
-            helper={pulseRate > 220 ? 'Pulse value is above supported range' : pulseRate > 100 ? 'High resting pulse detected' : 'Target resting range: 60-100 bpm'}
-            alert={pulseRate > 100 || pulseRate < 30 || pulseRate > 220}
-          />
-        </View>
-
         <View style={formStyles.formSection}>
           <Text style={formStyles.formLabel}>Symptoms</Text>
           <View style={formStyles.symptomGrid}>
@@ -2261,13 +2662,10 @@ function ProfileHistoryTab({
 }) {
   const [age, setAge] = useState(profile?.age ? String(profile.age) : '');
   const [weight, setWeight] = useState(profile?.weight ? String(profile.weight) : '');
+  const [gender, setGender] = useState(profile?.gender || '');
   const [bloodGroup, setBloodGroup] = useState(profile?.blood_group || '');
   const [height, setHeight] = useState(profile?.height ? String(profile.height) : '');
   const [conditions, setConditions] = useState(Array.isArray(profile?.diagnosed_conditions) ? profile.diagnosed_conditions.join(', ') : '');
-  const [primaryContact, setPrimaryContact] = useState(profile?.emergency_primary_contact || '');
-  const [secondaryContact, setSecondaryContact] = useState(profile?.emergency_secondary_contact || '');
-  const [waterGoal, setWaterGoal] = useState(profile?.daily_water_goal_ml ? String(profile.daily_water_goal_ml) : '');
-  const [stepGoal, setStepGoal] = useState(profile?.daily_step_goal ? String(profile.daily_step_goal) : '');
   const [saveState, setSaveState] = useState('');
   const [reportState, setReportState] = useState('');
   const [reportPreview, setReportPreview] = useState('');
@@ -2276,13 +2674,10 @@ function ProfileHistoryTab({
   useEffect(() => {
     setAge(profile?.age ? String(profile.age) : '');
     setWeight(profile?.weight ? String(profile.weight) : '');
+    setGender(profile?.gender || '');
     setBloodGroup(profile?.blood_group || '');
     setHeight(profile?.height ? String(profile.height) : '');
     setConditions(Array.isArray(profile?.diagnosed_conditions) ? profile.diagnosed_conditions.join(', ') : '');
-    setPrimaryContact(profile?.emergency_primary_contact || '');
-    setSecondaryContact(profile?.emergency_secondary_contact || '');
-    setWaterGoal(profile?.daily_water_goal_ml ? String(profile.daily_water_goal_ml) : '');
-    setStepGoal(profile?.daily_step_goal ? String(profile.daily_step_goal) : '');
   }, [profile]);
 
   const saveProfile = async () => {
@@ -2304,17 +2699,10 @@ function ProfileHistoryTab({
       const payload = {
         age: safeNumber(age, null),
         weight: safeNumber(weight, null),
+        gender: gender || null,
         blood_group: bloodGroup.trim(),
         height: safeNumber(height, null),
         diagnosed_conditions: conditions.split(',').map((item) => item.trim()).filter(Boolean),
-        emergency_primary_contact: primaryContact.trim(),
-        emergency_secondary_contact: secondaryContact.trim(),
-      };
-      if (waterGoal.trim()) {
-        payload.daily_water_goal_ml = safeNumber(waterGoal, 3000);
-      }
-      if (stepGoal.trim()) {
-        payload.daily_step_goal = safeNumber(stepGoal, 10000);
       }
       const result = await onUpdateProfile?.(payload);
       setSaveState(result?.savedToDatabase ? 'Baseline updated in the database.' : 'Unable to confirm database save.');
@@ -2355,14 +2743,11 @@ function ProfileHistoryTab({
           <Text style={profileStyles.panelTitle}>Baseline Metrics</Text>
           <View style={profileStyles.fieldGrid}>
             <ProfileField label="Age" value={age} onChangeText={setAge} suffix="yrs" />
+            <ProfileField label="Gender" value={gender} onChangeText={setGender} />
             <ProfileField label="Weight" value={weight} onChangeText={setWeight} suffix="kg" />
             <ProfileField label="Blood Group" value={bloodGroup} onChangeText={setBloodGroup} />
             <ProfileField label="Height" value={height} onChangeText={setHeight} suffix="cm" />
             <ProfileField label="Diagnosed Conditions" value={conditions} onChangeText={setConditions} />
-            <ProfileField label="Primary Emergency Contact" value={primaryContact} onChangeText={setPrimaryContact} />
-            <ProfileField label="Secondary Emergency Contact" value={secondaryContact} onChangeText={setSecondaryContact} />
-            <ProfileField label="Water Goal" value={waterGoal} onChangeText={setWaterGoal} suffix="ml" />
-            <ProfileField label="Step Goal" value={stepGoal} onChangeText={setStepGoal} suffix="steps" />
           </View>
           <TouchableOpacity style={[profileStyles.saveButton, isSavingProfile && formStyles.disabledSubmitButton]} activeOpacity={0.85} onPress={saveProfile} disabled={isSavingProfile}>
             <Text style={profileStyles.saveButtonText}>{isSavingProfile ? 'Updating...' : 'Update Baseline'}</Text>
@@ -2500,27 +2885,7 @@ function SettingsTab({
     <View>
       <SectionHeader title="Settings" subtitle="Session, backend status, sync, and notification controls." />
       <View style={settingsStyles.grid}>
-        <View style={settingsStyles.panel}>
-          <Text style={settingsStyles.panelTitle}>Server & Sync</Text>
-          <Text style={settingsStyles.statusLine}>Backend: {connectionStatus || 'unknown'}</Text>
-          <Text style={settingsStyles.statusLine}>Last refresh: {formatDateTime(lastRefreshAt)}</Text>
-          <Text style={settingsStyles.statusLine}>Pending sync: {queueCount || 0}</Text>
-          {refreshError ? <Text style={settingsStyles.errorLine}>{refreshError}</Text> : null}
-          <View style={settingsStyles.actionRow}>
-            <TouchableOpacity style={settingsStyles.primaryButton} onPress={onRefresh} activeOpacity={0.84}>
-              <Text style={settingsStyles.primaryButtonText}>Refresh Backend</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={settingsStyles.secondaryButton} onPress={handleSync} disabled={isSyncing} activeOpacity={0.84}>
-              <Text style={settingsStyles.secondaryButtonText}>{isSyncing ? 'Syncing...' : 'Sync Queue'}</Text>
-            </TouchableOpacity>
-          </View>
-          <SettingsToggleRow
-            title="Manual offline mode"
-            hint="New vitals will queue until this is turned off."
-            value={connectionStatus === 'offline'}
-            onValueChange={(value) => onSetConnectionStatus?.(value ? 'offline' : 'online')}
-          />
-        </View>
+
 
         <View style={settingsStyles.panel}>
           <Text style={settingsStyles.panelTitle}>Display & Notifications</Text>
@@ -3352,17 +3717,17 @@ const layoutStyles = StyleSheet.create({
   },
 });
 
-const styles = (metrics, isDesktop) =>
+const styles = (metrics, isDesktop, colors) =>
   StyleSheet.create({
     app: {
       flex: 1,
-      flexDirection: isDesktop ? 'row' : 'column',
-      backgroundColor: '#F4F7FB',
+      flexDirection: 'row',
+      backgroundColor: colors ? colors.background : '#F4F7FB',
     },
     workspace: {
       flex: 1,
       minWidth: 0,
-      backgroundColor: '#F4F7FB',
+      backgroundColor: colors ? colors.background : '#F4F7FB',
     },
     scroller: {
       flex: 1,
@@ -3786,6 +4151,432 @@ const dashboardStyles = StyleSheet.create({
     width: 22,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
+  },
+  wearableButton: {
+    marginTop: 10,
+    minHeight: 30,
+    backgroundColor: '#3B82F6',
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  wearableButtonConnecting: {
+    backgroundColor: '#94A3B8',
+  },
+  wearableButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  walkingPanel: {
+    marginTop: 18,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 18,
+    ...SHADOWS.premium,
+  },
+  walkingHeader: {
+    marginBottom: 14,
+  },
+  walkingTitle: {
+    color: '#0F172A',
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  walkingSubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  walkingBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  circularCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circularSteps: {
+    color: '#0F172A',
+    fontSize: 26,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  circularLabel: {
+    color: '#64748B',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  circularGoal: {
+    color: '#94A3B8',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  walkingStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  walkingStatItem: {
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  walkingStatValue: {
+    color: '#0F172A',
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  walkingStatLabel: {
+    color: '#64748B',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  walkingDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: '#E2E8F0',
+  },
+  walkingActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
+  walkPlayBtn: {
+    minWidth: 100,
+    minHeight: 40,
+    backgroundColor: '#059669',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  walkStopBtn: {
+    minWidth: 100,
+    minHeight: 40,
+    backgroundColor: '#DC2626',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  walkResetBtn: {
+    minWidth: 100,
+    minHeight: 40,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+  },
+  walkBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  walkResetText: {
+    color: '#475569',
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  achievementsPanel: {
+    marginTop: 14,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    ...SHADOWS.premium,
+  },
+  achievementsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  achievementsTitle: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  achievementsCount: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  achievementsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  achievementBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    opacity: 0.5,
+  },
+  achievementEarned: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+    opacity: 1,
+  },
+  achievementIcon: {
+    fontSize: 14,
+  },
+  achievementLabel: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  achievementLabelEarned: {
+    color: '#047857',
+  },
+  weekChartPanel: {
+    marginTop: 14,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    ...SHADOWS.premium,
+  },
+  weekChartHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  weekChartTitle: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  weekChartTotal: {
+    color: '#3B82F6',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  weekChartBars: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-around',
+    gap: 6,
+  },
+  weekChartCol: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+  },
+  weekChartBarValue: {
+    color: '#64748B',
+    fontSize: 9,
+    minHeight: 12,
+  },
+  weekChartBar: {
+    width: '100%',
+    maxWidth: 32,
+    backgroundColor: '#3B82F6',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    minHeight: 4,
+  },
+  weekChartBarLabel: {
+    color: '#94A3B8',
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  waterActionBtn: {
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  waterActionBtnIcon: {
+    fontSize: 16,
+  },
+  waterActionBtnText: {
+    color: '#2563EB',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  waterPanel: {
+    marginTop: 14,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 14,
+    ...SHADOWS.premium,
+  },
+  waterHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  waterTitle: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  waterSubtitle: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  waterSettingsBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waterSettingsIcon: {
+    fontSize: 16,
+  },
+  waterBody: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  waterCircValue: {
+    color: '#0F172A',
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  waterCircLabel: {
+    color: '#64748B',
+    fontSize: 10,
+  },
+  waterControls: {
+    flex: 1,
+    gap: 10,
+  },
+  waterCounter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 14,
+  },
+  waterBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  waterBtnText: {
+    color: '#2563EB',
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  waterCount: {
+    color: '#0F172A',
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  waterGoalBtn: {
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+  },
+  waterGoalBtnText: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  waterSettingsPanel: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    gap: 10,
+  },
+  waterSettingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  waterSettingLabel: {
+    color: '#475569',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  waterToggle: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#CBD5E1',
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  waterToggleOn: {
+    backgroundColor: '#3B82F6',
+  },
+  waterToggleThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  waterToggleThumbOn: {
+    alignSelf: 'flex-end',
+  },
+  waterIntervalControl: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  waterIntervalOpt: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  waterIntervalOptActive: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#3B82F6',
+  },
+  waterIntervalOptText: {
+    color: '#64748B',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  waterIntervalOptTextActive: {
+    color: '#2563EB',
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
 });
 

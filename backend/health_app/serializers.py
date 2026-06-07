@@ -36,7 +36,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
         fields = [
-            'id', 'user_id', 'username', 'email', 'display_name', 'role', 'age', 'weight',
+            'id', 'user_id', 'username', 'email', 'display_name', 'role', 'gender', 'age', 'weight',
             'height', 'blood_group', 'diagnosed_conditions', 'blood_pressure',
             'blood_glucose', 'respiratory_rate', 'daily_water_goal_ml',
             'daily_step_goal', 'emergency_primary_contact', 'emergency_secondary_contact',

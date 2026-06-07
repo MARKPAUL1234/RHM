@@ -210,6 +210,7 @@ export default function App() {
     age: null,
     weight: null,
     height: null,
+    gender: '',
     blood_group: '',
     diagnosed_conditions: [],
   });
@@ -378,6 +379,7 @@ export default function App() {
       age: profileData.age ?? null,
       weight: profileData.weight ?? null,
       height: profileData.height ?? null,
+      gender: profileData.gender || '',
       blood_group: profileData.blood_group || '',
       diagnosed_conditions: Array.isArray(profileData.diagnosed_conditions)
         ? profileData.diagnosed_conditions

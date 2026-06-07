@@ -107,6 +107,18 @@ python manage.py runserver 8080
 
 The backend runs at `http://localhost:8080`.
 
+#### Quick Start (once venv is set up)
+
+```bash
+cd backend
+# Windows
+venv\Scripts\activate
+# Mac/Linux
+# source venv/bin/activate
+
+python manage.py runserver 8080
+```
+
 Production-sensitive settings are read from environment variables. Copy `.env.example`
 for local reference and set at least `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=False`,
 `DJANGO_ALLOWED_HOSTS`, and the HTTPS cookie/security values before deployment.
