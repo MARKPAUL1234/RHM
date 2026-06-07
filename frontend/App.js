@@ -326,23 +326,39 @@ export default function App() {
     setDndEnabled(false);
   };
 
+  const clearSyncedUserState = useCallback(() => {
+    setVitals(EMPTY_VITALS);
+    setHealthRecords([]);
+    setNutritionLogs([]);
+    setFoodLogs([]);
+    setFitnessLogs([]);
+    setFitnessSummary(EMPTY_FITNESS_SUMMARY);
+    setHealthScores([]);
+    setHealthSummary(null);
+    setMedicationReminders([]);
+    setWeeklyReport(null);
+    setPatientOverview([]);
+    setAlerts([]);
+    setRecommendations([]);
+    setEmergencyEvents([]);
+    setContactInquiries([]);
+    setAppointmentRequests([]);
+    setCareMessages([]);
+    setRefreshError('');
+    setLastRefreshAt(new Date().toISOString());
+  }, []);
+
   const clearSession = useCallback(async () => {
     setUser(null);
     setAuthToken(null);
     setRefreshToken(null);
     setProfile(null);
-    setHealthRecords([]);
-    setHealthScores([]);
-    setHealthSummary(null);
-    setAlerts([]);
-    setRecommendations([]);
-    setAppointmentRequests([]);
-    setCareMessages([]);
+    clearSyncedUserState();
     setRefreshError('');
     await AsyncStorage.removeItem('@rhmt_user_session');
     await AsyncStorage.removeItem('@rhmt_auth_token');
     await AsyncStorage.removeItem('@rhmt_refresh_token');
-  }, []);
+  }, [clearSyncedUserState]);
 
   const isAuthError = (error) => {
     const message = String(error?.message || '').toLowerCase();
@@ -504,6 +520,17 @@ export default function App() {
     const savedLog = await djangoApi.createFitnessLog(payload);
     await refreshSyncStats();
     return savedLog;
+  };
+
+  const resetUserData = async () => {
+    const result = await djangoApi.resetMyData();
+    await clearLocalCache();
+    clearSyncedUserState();
+    if (result?.profile) {
+      applyProfile(result.profile);
+    }
+    await refreshQueueCount();
+    return result;
   };
 
   const createEmergencyEvent = async (payload) => {
@@ -785,6 +812,7 @@ export default function App() {
           handleSyncQueue,
           handleClearLogs,
           clearLocalCache,
+          resetUserData,
           updateProfileBaseline,
           logNutritionEntry,
           logFoodEntry,

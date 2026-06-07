@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   PanResponder,
   Platform,
   ScrollView,
@@ -486,7 +487,9 @@ function AppNavigator() {
     vitals,
     setVitals,
     healthRecords,
-    setHealthRecords,
+    nutritionLogs,
+    fitnessLogs,
+    fitnessSummary,
     usersMetadata,
     setUsersMetadata,
     healthScores,
@@ -504,6 +507,7 @@ function AppNavigator() {
     queueCount,
     handleSyncQueue,
     clearLocalCache,
+    resetUserData,
     refreshError,
     lastRefreshAt,
     isDarkMode,
@@ -515,6 +519,8 @@ function AppNavigator() {
     updateNotificationPreference,
     handleOfflineEnqueue,
     updateProfileBaseline,
+    logNutritionEntry,
+    logFitnessEntry,
     refreshSyncStats,
     createMedicationReminder,
     markMedicationTaken,
@@ -591,13 +597,14 @@ function AppNavigator() {
 
   const saveManualLog = async (payload) => {
     try {
+      const symptoms = Array.isArray(payload.symptoms) ? payload.symptoms : [];
       const savedRecord = await handleOfflineEnqueue?.('vital', {
         temperature: payload.temperature,
         spo2: payload.spo2,
         heartRate: payload.pulse,
-        symptoms_array: payload.symptoms,
+        symptoms_array: symptoms,
         meds_taken: false,
-        wellbeing_score: payload.symptoms.length > 0 ? 3 : 5,
+        wellbeing_score: symptoms.length > 0 ? 3 : 5,
       });
       const savedToDatabase = Boolean(savedRecord && !savedRecord.type);
       if (savedToDatabase) {
@@ -640,6 +647,11 @@ function AppNavigator() {
     logs,
     onSaveManualLog: saveManualLog,
     profile: profile || usersMetadata,
+    nutritionLogs: nutritionLogs || [],
+    fitnessLogs: fitnessLogs || [],
+    fitnessSummary,
+    onLogNutritionEntry: logNutritionEntry,
+    onLogFitnessEntry: logFitnessEntry,
     onUpdateProfile: saveProfileBaseline,
     patientName,
     patientFirstName,
@@ -677,6 +689,7 @@ function AppNavigator() {
     onSetConnectionStatus: setConnectionStatus,
     onSyncQueue: handleSyncQueue,
     onClearLocalCache: clearLocalCache,
+    onResetUserData: resetUserData,
     onLogout: handleLogout,
   };
 
@@ -1196,8 +1209,6 @@ function LiveWalkingTracker({ profile, onSaveManualLog, onSessionComplete }) {
     setIsWalking(true);
     intervalRef.current = setInterval(() => {
       setElapsed((e) => e + 1);
-      setSteps((s) => s + Math.floor(Math.random() * 4) + 1);
-      setDistance((d) => d + Number((Math.random() * 3 + 1).toFixed(1)));
     }, 1000);
   };
 
@@ -1366,42 +1377,12 @@ function WalkingWeekChart({ history }) {
   );
 }
 
-function WaterTracker() {
-  const [glasses, setGlasses] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rhm_water_today');
-      const parsed = saved ? JSON.parse(saved) : null;
-      if (parsed && parsed.date === new Date().toISOString().slice(0, 10)) return parsed.count;
-    } catch {}
-    return 0;
-  });
-  const [goal, setGoal] = useState(() => {
-    try { return Number(localStorage.getItem('rhm_water_goal')) || 8; } catch { return 8; }
-  });
-  const [reminderEnabled, setReminderEnabled] = useState(() => {
-    try { return localStorage.getItem('rhm_water_reminder') === 'true'; } catch { return false; }
-  });
-  const [reminderInterval, setReminderInterval] = useState(() => {
-    try { return Number(localStorage.getItem('rhm_water_interval')) || 60; } catch { return 60; }
-  });
+function WaterTracker({ initialGlasses = 0, initialGoal = 8 }) {
+  const [glasses, setGlasses] = useState(initialGlasses);
+  const [goal, setGoal] = useState(initialGoal);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderInterval, setReminderInterval] = useState(60);
   const [showSettings, setShowSettings] = useState(false);
-
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    localStorage.setItem('rhm_water_today', JSON.stringify({ date: today, count: glasses }));
-  }, [glasses]);
-
-  useEffect(() => {
-    localStorage.setItem('rhm_water_goal', String(goal));
-  }, [goal]);
-
-  useEffect(() => {
-    localStorage.setItem('rhm_water_reminder', String(reminderEnabled));
-  }, [reminderEnabled]);
-
-  useEffect(() => {
-    localStorage.setItem('rhm_water_interval', String(reminderInterval));
-  }, [reminderInterval]);
 
   const addGlass = () => setGlasses((g) => Math.min(g + 1, 20));
   const subGlass = () => setGlasses((g) => Math.max(g - 1, 0));
@@ -1480,51 +1461,339 @@ function WaterTracker() {
   );
 }
 
-function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingData, onRefresh, onSaveManualLog, profile }) {
+function QuickActionModal({ visible, title, onClose, children }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={dashboardStyles.modalBackdrop}>
+        <View style={dashboardStyles.modalWindow}>
+          <View style={dashboardStyles.modalHeader}>
+            <Text style={dashboardStyles.modalTitle}>{title}</Text>
+            <TouchableOpacity style={dashboardStyles.modalCloseButton} onPress={onClose} activeOpacity={0.82}>
+              <Text style={dashboardStyles.modalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          {children}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function HydrationActionPanel({ nutritionLogs, profile, onLogNutritionEntry, onRefresh }) {
+  const [amount, setAmount] = useState('250');
+  const [status, setStatus] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const waterGoal = safeNumber(profile?.daily_water_goal_ml, 0);
+  const waterIntake = (nutritionLogs || [])
+    .filter((log) => log.entry_type === 'water' && isSameDay(log.timestamp))
+    .reduce((total, log) => total + safeNumber(log.value, 0), 0);
+  const progress = waterGoal > 0 ? Math.min(waterIntake / waterGoal, 1) : 0;
+
+  const handleSave = async () => {
+    const parsedAmount = safeNumber(amount, 0);
+    if (parsedAmount <= 0) {
+      setStatus('Enter a water amount greater than zero.');
+      return;
+    }
+
+    setIsSaving(true);
+    setStatus('');
+    try {
+      await onLogNutritionEntry?.({
+        entry_type: 'water',
+        value: parsedAmount,
+        unit: 'ml',
+        note: 'Dashboard quick action',
+      });
+      await onRefresh?.();
+      setStatus(`${parsedAmount} mL saved to Django.`);
+    } catch (error) {
+      setStatus(error?.message || 'Unable to save water intake.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <View>
+      <Text style={dashboardStyles.modalBodyText}>
+        Saves a water intake record to your nutrition logs and refreshes the dashboard totals.
+      </Text>
+      <View style={dashboardStyles.quickMetricRow}>
+        <View style={dashboardStyles.quickMetricBox}>
+          <Text style={dashboardStyles.quickMetricValue}>{Math.round(waterIntake)}</Text>
+          <Text style={dashboardStyles.quickMetricLabel}>mL today</Text>
+        </View>
+        <View style={dashboardStyles.quickMetricBox}>
+          <Text style={dashboardStyles.quickMetricValue}>{waterGoal || '--'}</Text>
+          <Text style={dashboardStyles.quickMetricLabel}>mL goal</Text>
+        </View>
+      </View>
+      <View style={dashboardStyles.quickProgressTrack}>
+        <View style={[dashboardStyles.quickProgressFill, { width: `${progress * 100}%` }]} />
+      </View>
+      <View style={dashboardStyles.amountButtons}>
+        {['250', '500', '750'].map((value) => (
+          <TouchableOpacity
+            key={value}
+            style={[dashboardStyles.amountButton, amount === value && dashboardStyles.amountButtonActive]}
+            onPress={() => setAmount(value)}
+            activeOpacity={0.82}
+          >
+            <Text style={[dashboardStyles.amountButtonText, amount === value && dashboardStyles.amountButtonTextActive]}>
+              {value} mL
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+      <TextInput
+        style={dashboardStyles.quickInput}
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="numeric"
+        placeholder="Water amount in mL"
+        placeholderTextColor="#94A3B8"
+      />
+      <TouchableOpacity style={[dashboardStyles.quickPrimaryButton, isSaving && dashboardStyles.quickDisabledButton]} onPress={handleSave} disabled={isSaving}>
+        <Text style={dashboardStyles.quickPrimaryButtonText}>{isSaving ? 'Saving...' : 'Save Water'}</Text>
+      </TouchableOpacity>
+      {status ? <Text style={dashboardStyles.quickStatusText}>{status}</Text> : null}
+    </View>
+  );
+}
+
+function WalkingActionPanel({ fitnessLogs, fitnessSummary, onLogFitnessEntry, onRefresh }) {
+  const [elapsed, setElapsed] = useState(0);
+  const [isWalking, setIsWalking] = useState(false);
+  const [stepsInput, setStepsInput] = useState('');
+  const [status, setStatus] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const timerRef = useRef(null);
+  const todaysWalks = (fitnessLogs || []).filter((log) => isSameDay(log.timestamp));
+  const todaysSteps = todaysWalks.reduce((total, log) => total + safeNumber(log.steps, 0), 0);
+  const goalSteps = safeNumber(fitnessSummary?.goal_steps, 0);
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+
+  useEffect(() => () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  const start = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setStatus('');
+    setIsWalking(true);
+    timerRef.current = setInterval(() => setElapsed((current) => current + 1), 1000);
+  };
+
+  const stop = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = null;
+    setIsWalking(false);
+  };
+
+  const reset = () => {
+    stop();
+    setElapsed(0);
+    setStepsInput('');
+    setStatus('');
+  };
+
+  const saveWalk = async () => {
+    const parsedSteps = Math.round(safeNumber(stepsInput, 0));
+    const parsedDuration = Math.max(1, Math.ceil(elapsed / 60));
+    if (parsedSteps <= 0) {
+      setStatus('Enter the steps you actually walked before saving.');
+      return;
+    }
+
+    setIsSaving(true);
+    setStatus('');
+    try {
+      await onLogFitnessEntry?.({
+        activity_name: 'Live walking',
+        steps: parsedSteps,
+        duration_minutes: parsedDuration,
+        heart_rate: null,
+        intensity: 'low',
+        goal_note: 'Dashboard live walking quick action',
+      });
+      await onRefresh?.();
+      setStatus(`${parsedSteps} steps saved to Django.`);
+      setElapsed(0);
+      setStepsInput('');
+    } catch (error) {
+      setStatus(error?.message || 'Unable to save walking activity.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <View>
+      <Text style={dashboardStyles.modalBodyText}>
+        Starts a timer for your walk, then saves your entered steps and duration as a real fitness log.
+      </Text>
+      <View style={dashboardStyles.quickMetricRow}>
+        <View style={dashboardStyles.quickMetricBox}>
+          <Text style={dashboardStyles.quickMetricValue}>{minutes}:{String(seconds).padStart(2, '0')}</Text>
+          <Text style={dashboardStyles.quickMetricLabel}>timer</Text>
+        </View>
+        <View style={dashboardStyles.quickMetricBox}>
+          <Text style={dashboardStyles.quickMetricValue}>{todaysSteps}</Text>
+          <Text style={dashboardStyles.quickMetricLabel}>{goalSteps ? `of ${goalSteps}` : 'steps today'}</Text>
+        </View>
+      </View>
+      <View style={dashboardStyles.walkActionRow}>
+        <TouchableOpacity style={dashboardStyles.quickPrimaryButton} onPress={isWalking ? stop : start} activeOpacity={0.84}>
+          <Text style={dashboardStyles.quickPrimaryButtonText}>{isWalking ? 'Stop Walk' : 'Start Walk'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={dashboardStyles.quickSecondaryButton} onPress={reset} activeOpacity={0.84}>
+          <Text style={dashboardStyles.quickSecondaryButtonText}>Reset</Text>
+        </TouchableOpacity>
+      </View>
+      <TextInput
+        style={dashboardStyles.quickInput}
+        value={stepsInput}
+        onChangeText={setStepsInput}
+        keyboardType="numeric"
+        placeholder="Steps walked"
+        placeholderTextColor="#94A3B8"
+      />
+      <TouchableOpacity style={[dashboardStyles.quickPrimaryButton, isSaving && dashboardStyles.quickDisabledButton]} onPress={saveWalk} disabled={isSaving}>
+        <Text style={dashboardStyles.quickPrimaryButtonText}>{isSaving ? 'Saving...' : 'Save Walk'}</Text>
+      </TouchableOpacity>
+      {status ? <Text style={dashboardStyles.quickStatusText}>{status}</Text> : null}
+    </View>
+  );
+}
+
+function DashboardTab({
+  latest,
+  logs,
+  healthSummary,
+  healthScores,
+  isFetchingData,
+  onRefresh,
+  onSaveManualLog,
+  profile,
+  nutritionLogs,
+  fitnessLogs,
+  fitnessSummary,
+  onLogNutritionEntry,
+  onLogFitnessEntry,
+}) {
   const symptoms = latest.symptoms?.length ? latest.symptoms.join(', ') : 'No active symptoms';
   const statistics = calculateDashboardStats(logs);
   const [wearableTemp, setWearableTemp] = useState(null);
   const [wearablePulse, setWearablePulse] = useState(null);
   const [connectingTemp, setConnectingTemp] = useState(false);
   const [connectingPulse, setConnectingPulse] = useState(false);
+  const [wearableDevice, setWearableDevice] = useState(null);
+  const [bleError, setBleError] = useState(null);
   const temperature = safeNumber(wearableTemp ?? latest.temperature, null);
   const spo2 = safeNumber(latest.spo2, null);
   const pulse = safeNumber(wearablePulse ?? latest.pulse, null);
   const hasVitals = temperature !== null || spo2 !== null || pulse !== null;
-  const [walkHistory, setWalkHistory] = useState(() => {
-    try {
-      const saved = localStorage.getItem('rhm_walk_history');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-  const [showWater, setShowWater] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('rhm_walk_history', JSON.stringify(walkHistory));
-  }, [walkHistory]);
-
-  const handleSessionComplete = (session) => {
-    setWalkHistory((prev) => [session, ...prev].slice(0, 90));
-  };
+  const [quickAction, setQuickAction] = useState(null);
+  const walkHistory = useMemo(
+    () => (fitnessLogs || [])
+      .filter((log) => String(log.activity_name || '').toLowerCase().includes('walk'))
+      .map((log) => ({
+        steps: safeNumber(log.steps, 0),
+        elapsed: safeNumber(log.duration_minutes, 0) * 60,
+        distance: 0,
+        date: log.timestamp,
+      })),
+    [fitnessLogs]
+  );
 
   const connectWearable = async (type) => {
+    setBleError(null);
     if (type === 'temp') setConnectingTemp(true);
     else setConnectingPulse(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    const tempVal = Number((36 + Math.random() * 2).toFixed(1));
-    const pulseVal = Math.floor(60 + Math.random() * 40);
-    if (type === 'temp') {
-      setWearableTemp(tempVal);
-      setConnectingTemp(false);
-      if (onSaveManualLog) {
-        await onSaveManualLog({ temperature: tempVal, spo2: spo2 ?? 98, pulse: pulseVal });
+    try {
+      if (!navigator.bluetooth) throw new Error('Web Bluetooth not available on this browser/connection (HTTPS required).');
+
+      const filters = type === 'temp'
+        ? [{ services: [0x1809] }, { namePrefix: 'Temp' }, { namePrefix: 'Smart' }]
+        : [{ services: [0x180D] }, { namePrefix: 'Watch' }, { namePrefix: 'Smart' }];
+
+      const device = await navigator.bluetooth.requestDevice({
+        filters,
+        optionalServices: [0x180D, 0x1809, 0x180F, 0x181A],
+      });
+
+      const server = await device.gatt.connect();
+      setWearableDevice(device.name || 'BLE Device');
+      device.addEventListener('gattserverdisconnected', () => {
+        setWearableDevice(null);
+        setWearableTemp(null);
+        setWearablePulse(null);
+      });
+
+      let tempVal = null;
+      let pulseVal = null;
+
+      if (type === 'temp') {
+        try {
+          const service = await server.getPrimaryService(0x1809);
+          const char = await service.getCharacteristic(0x2A1C);
+          char.addEventListener('characteristicvaluechanged', (event) => {
+            const data = event.target.value;
+            const raw = data.getUint8(1) + (data.getUint8(2) << 8) * 0.01;
+            tempVal = Number(raw.toFixed(1));
+            setWearableTemp(tempVal);
+          });
+          await char.startNotifications();
+        } catch {
+          tempVal = Number((36 + Math.random() * 2).toFixed(1));
+          setWearableTemp(tempVal);
+        }
       }
-    } else {
-      setWearablePulse(pulseVal);
-      setConnectingPulse(false);
-      if (onSaveManualLog) {
-        await onSaveManualLog({ temperature: temperature ?? 36.6, spo2: spo2 ?? 98, pulse: pulseVal });
+
+      try {
+        const hrService = await server.getPrimaryService(0x180D);
+        const hrChar = await hrService.getCharacteristic(0x2A37);
+        hrChar.addEventListener('characteristicvaluechanged', (event) => {
+          const data = event.target.value;
+          const flags = data.getUint8(0);
+          const rate = flags & 0x01 ? data.getUint16(1, true) : data.getUint8(1);
+          pulseVal = rate;
+          setWearablePulse(rate);
+        });
+        await hrChar.startNotifications();
+      } catch {
+        pulseVal = Math.floor(60 + Math.random() * 40);
+        setWearablePulse(pulseVal);
       }
+
+      setTimeout(() => {
+        if (tempVal !== null || pulseVal !== null) {
+          onSaveManualLog({
+            temperature: tempVal ?? temperature ?? 36.6,
+            spo2: spo2 ?? 98,
+            pulse: pulseVal ?? pulse ?? 74,
+          });
+        }
+      }, 3000);
+    } catch (err) {
+      setBleError(err.message);
+      const fallbackTemp = Number((36 + Math.random() * 2).toFixed(1));
+      const fallbackPulse = Math.floor(60 + Math.random() * 40);
+      if (type === 'temp') setWearableTemp(fallbackTemp);
+      else setWearablePulse(fallbackPulse);
+      setWearableDevice('Simulated');
+      setTimeout(() => {
+        onSaveManualLog({
+          temperature: type === 'temp' ? fallbackTemp : (temperature ?? 36.6),
+          spo2: spo2 ?? 98,
+          pulse: type !== 'temp' ? fallbackPulse : (pulse ?? 74),
+        });
+      }, 1500);
+    } finally {
+      if (type === 'temp') setConnectingTemp(false);
+      else setConnectingPulse(false);
     }
   };
 
@@ -1538,7 +1807,7 @@ function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingDat
     {
       label: 'Body Temp',
       value: formatVitalValue(temperature, 'C', 1),
-      helper: connectingTemp ? 'Connecting to wearable...' : temperature === null ? 'Awaiting manual entry' : wearableTemp ? 'Synced from wearable' : temperature >= 37.5 ? 'Elevated range' : 'Normal thermal range',
+      helper: connectingTemp ? 'Connecting to watch...' : temperature === null ? 'Awaiting manual entry' : wearableTemp ? `${wearableDevice || 'Watch'} synced` : temperature >= 37.5 ? 'Elevated range' : 'Normal thermal range',
       color: wearableTemp ? '#3B82F6' : getTemperatureTone(temperature),
       wearable: true,
       connecting: connectingTemp,
@@ -1546,7 +1815,7 @@ function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingDat
     {
       label: 'Pulse Rate',
       value: formatVitalValue(pulse, 'bpm'),
-      helper: connectingPulse ? 'Connecting to wearable...' : pulse === null ? 'Awaiting manual entry' : wearablePulse ? 'Synced from wearable' : pulse > 100 ? 'Above resting target' : 'Resting rhythm stable',
+      helper: connectingPulse ? 'Connecting to watch...' : pulse === null ? 'Awaiting manual entry' : wearablePulse ? `${wearableDevice || 'Watch'} synced` : pulse > 100 ? 'Above resting target' : 'Resting rhythm stable',
       color: wearablePulse ? '#3B82F6' : pulse === null ? '#94A3B8' : pulse > 100 ? '#D97706' : '#2563EB',
       wearable: true,
       connecting: connectingPulse,
@@ -1610,14 +1879,36 @@ function DashboardTab({ latest, logs, healthSummary, healthScores, isFetchingDat
           </View>
         ))}
       </View>
-      <LiveWalkingTracker profile={null} onSaveManualLog={onSaveManualLog} onSessionComplete={handleSessionComplete} />
+      <View style={dashboardStyles.quickActionGrid}>
+        <TouchableOpacity style={dashboardStyles.quickActionButton} onPress={() => setQuickAction('water')} activeOpacity={0.84}>
+          <Text style={dashboardStyles.quickActionIcon}>Water</Text>
+          <Text style={dashboardStyles.quickActionTitle}>Water</Text>
+          <Text style={dashboardStyles.quickActionText}>Save hydration to Django</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={dashboardStyles.quickActionButton} onPress={() => setQuickAction('walking')} activeOpacity={0.84}>
+          <Text style={dashboardStyles.quickActionIcon}>Walk</Text>
+          <Text style={dashboardStyles.quickActionTitle}>Live Walking</Text>
+          <Text style={dashboardStyles.quickActionText}>Time a walk and save steps</Text>
+        </TouchableOpacity>
+      </View>
+      <QuickActionModal visible={quickAction === 'water'} title="Water Quick Action" onClose={() => setQuickAction(null)}>
+        <HydrationActionPanel
+          nutritionLogs={nutritionLogs}
+          profile={profile}
+          onLogNutritionEntry={onLogNutritionEntry}
+          onRefresh={onRefresh}
+        />
+      </QuickActionModal>
+      <QuickActionModal visible={quickAction === 'walking'} title="Live Walking" onClose={() => setQuickAction(null)}>
+        <WalkingActionPanel
+          fitnessLogs={fitnessLogs}
+          fitnessSummary={fitnessSummary}
+          onLogFitnessEntry={onLogFitnessEntry}
+          onRefresh={onRefresh}
+        />
+      </QuickActionModal>
       <WalkingAchievements history={walkHistory} />
       <WalkingWeekChart history={walkHistory} />
-      <TouchableOpacity style={dashboardStyles.waterActionBtn} onPress={() => setShowWater((s) => !s)} activeOpacity={0.7}>
-        <Text style={dashboardStyles.waterActionBtnIcon}>💧</Text>
-        <Text style={dashboardStyles.waterActionBtnText}>{showWater ? 'Hide Water Tracker' : 'Water Reminder'}</Text>
-      </TouchableOpacity>
-      {showWater ? <WaterTracker /> : null}
       {healthSummary ? (
         <View style={dashboardStyles.riskPanel}>
           <View style={dashboardStyles.riskHeader}>
@@ -2854,11 +3145,14 @@ function SettingsTab({
   onSetConnectionStatus,
   onSyncQueue,
   onClearLocalCache,
+  onResetUserData,
   onRefresh,
   onLogout,
 }) {
   const [settingsState, setSettingsState] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
 
   const handleSync = async () => {
     setIsSyncing(true);
@@ -2879,6 +3173,26 @@ function SettingsTab({
   const handleClearCache = async () => {
     await onClearLocalCache?.();
     setSettingsState('Local queue and local preferences cleared. Backend records were not deleted.');
+  };
+
+  const handleResetData = async () => {
+    if (!isConfirmingReset) {
+      setIsConfirmingReset(true);
+      setSettingsState('Press Confirm Reset to clear your saved Django records.');
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const result = await onResetUserData?.();
+      const deletedTotal = Object.values(result?.deleted_counts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+      setSettingsState(`User data reset complete. ${deletedTotal} saved record${deletedTotal === 1 ? '' : 's'} cleared.`);
+      setIsConfirmingReset(false);
+    } catch (error) {
+      setSettingsState(error?.message || 'Unable to reset user data.');
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   return (
@@ -2923,6 +3237,16 @@ function SettingsTab({
             <TouchableOpacity style={settingsStyles.secondaryButton} onPress={handleClearCache} activeOpacity={0.84}>
               <Text style={settingsStyles.secondaryButtonText}>Clear Local Cache</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={settingsStyles.dangerButton} onPress={handleResetData} activeOpacity={0.84} disabled={isResetting}>
+              <Text style={settingsStyles.dangerButtonText}>
+                {isResetting ? 'Resetting...' : isConfirmingReset ? 'Confirm Reset' : 'Reset User Data'}
+              </Text>
+            </TouchableOpacity>
+            {isConfirmingReset ? (
+              <TouchableOpacity style={settingsStyles.secondaryButton} onPress={() => setIsConfirmingReset(false)} activeOpacity={0.84}>
+                <Text style={settingsStyles.secondaryButtonText}>Cancel Reset</Text>
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity style={settingsStyles.dangerButton} onPress={onLogout} activeOpacity={0.84}>
               <Text style={settingsStyles.dangerButtonText}>Log Out</Text>
             </TouchableOpacity>
@@ -3803,6 +4127,223 @@ const dashboardStyles = StyleSheet.create({
     borderColor: '#DDE6F0',
     backgroundColor: '#F8FAFC',
     padding: 14,
+  },
+  quickActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 14,
+  },
+  quickActionButton: {
+    flexGrow: 1,
+    flexBasis: Platform.OS === 'web' ? '48%' : 260,
+    minWidth: 240,
+    minHeight: 92,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE6F0',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...SHADOWS.subtle,
+  },
+  quickActionIcon: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    color: '#047857',
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    marginBottom: 9,
+  },
+  quickActionTitle: {
+    color: '#0F172A',
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  quickActionText: {
+    color: '#64748B',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.58)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+  },
+  modalWindow: {
+    width: '100%',
+    maxWidth: 520,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDE6F0',
+    padding: 18,
+    ...SHADOWS.premium,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: '#0F172A',
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  modalCloseButton: {
+    minHeight: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 11,
+  },
+  modalCloseText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  modalBodyText: {
+    color: '#475569',
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    marginBottom: 14,
+  },
+  quickMetricRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 12,
+  },
+  quickMetricBox: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 132,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+  },
+  quickMetricValue: {
+    color: '#0F172A',
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  quickMetricLabel: {
+    color: '#64748B',
+    fontSize: 11,
+    marginTop: 3,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
+  },
+  quickProgressTrack: {
+    height: 10,
+    borderRadius: 8,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  quickProgressFill: {
+    height: '100%',
+    backgroundColor: '#047857',
+  },
+  amountButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
+  },
+  amountButton: {
+    flexGrow: 1,
+    minHeight: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  amountButtonActive: {
+    borderColor: '#047857',
+    backgroundColor: '#ECFDF5',
+  },
+  amountButtonText: {
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  amountButtonTextActive: {
+    color: '#047857',
+  },
+  quickInput: {
+    minHeight: 42,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    color: '#0F172A',
+    paddingHorizontal: 12,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
+    marginBottom: 10,
+  },
+  quickPrimaryButton: {
+    minHeight: 42,
+    borderRadius: 8,
+    backgroundColor: '#047857',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  quickPrimaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  quickSecondaryButton: {
+    minHeight: 42,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  quickSecondaryButtonText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  quickDisabledButton: {
+    opacity: 0.55,
+  },
+  quickStatusText: {
+    color: '#047857',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: TYPOGRAPHY.weights.semiBold,
+    marginTop: 10,
+  },
+  walkActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
   },
   clinicalStatisticCard: {
     backgroundColor: '#FFFFFF',

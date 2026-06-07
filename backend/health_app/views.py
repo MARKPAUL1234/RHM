@@ -256,6 +256,59 @@ class UserViewSet(viewsets.ModelViewSet):
             'rows': [self._patient_row(user) for user in users],
         })
 
+    @action(detail=False, methods=['post'])
+    def reset_my_data(self, request):
+        user = request.user
+        deleted_counts = {}
+
+        for label, queryset in [
+            ('health_records', HealthRecord.objects.filter(user=user)),
+            ('health_scores', HealthScoreSnapshot.objects.filter(user=user)),
+            ('medication_reminders', MedicationReminder.objects.filter(user=user)),
+            ('nutrition_logs', NutritionLog.objects.filter(user=user)),
+            ('food_logs', FoodLog.objects.filter(user=user)),
+            ('fitness_logs', FitnessLog.objects.filter(user=user)),
+            ('alerts', Alert.objects.filter(user=user)),
+            ('emergency_events', EmergencyEvent.objects.filter(user=user)),
+            ('contact_inquiries', ContactInquiry.objects.filter(user=user)),
+            ('appointment_requests', AppointmentRequest.objects.filter(user=user)),
+            ('care_messages', CareMessage.objects.filter(Q(sender=user) | Q(recipient=user))),
+            ('recommendations', Recommendation.objects.filter(user=user)),
+        ]:
+            deleted_counts[label] = queryset.delete()[0]
+
+        profile = get_user_profile(user)
+        profile.display_name = ''
+        profile.gender = None
+        profile.age = None
+        profile.weight = None
+        profile.height = None
+        profile.blood_group = ''
+        profile.diagnosed_conditions = []
+        profile.blood_pressure = ''
+        profile.blood_glucose = ''
+        profile.respiratory_rate = 0
+        profile.daily_water_goal_ml = 0
+        profile.daily_step_goal = 0
+        profile.emergency_primary_contact = ''
+        profile.emergency_secondary_contact = ''
+        profile.medical_notes = ''
+        profile.save(update_fields=[
+            'display_name', 'gender', 'age', 'weight', 'height', 'blood_group',
+            'diagnosed_conditions', 'blood_pressure', 'blood_glucose',
+            'respiratory_rate', 'daily_water_goal_ml', 'daily_step_goal',
+            'emergency_primary_contact', 'emergency_secondary_contact',
+            'medical_notes', 'updated_at',
+        ])
+
+        SystemLog.objects.create(level='WARN', message=f'User {user.id} reset their patient data')
+
+        return Response({
+            'detail': 'User data reset complete.',
+            'deleted_counts': deleted_counts,
+            'profile': UserProfileSerializer(profile).data,
+        })
+
 class UserProfileViewSet(viewsets.ModelViewSet):
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
