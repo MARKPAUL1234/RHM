@@ -6,6 +6,7 @@
     "android": "expo start --android --port 8081",
     "ios": "expo start --ios --port 8081",
     "web": "expo start --web --port 8081",
+    "export": "expo export --platform web",
     "check": "node scripts/check-js.js",
     "ts.check": "npm run check"
   },
