@@ -34,8 +34,6 @@ const STEPS = [
   {
     key: 'height',
     question: 'What is your height?',
-    suffix: 'cm',
-    placeholder: 'e.g. 170',
     optional: false,
   },
   {
@@ -55,8 +53,6 @@ const STEPS = [
 const GENDER_OPTIONS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
-  { value: 'other', label: 'Other' },
-  { value: 'prefer_not', label: 'Prefer not to say' },
 ];
 
 const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -68,7 +64,8 @@ export default function OnboardingScreen({ onComplete }) {
   const [gender, setGender] = useState('');
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
-  const [height, setHeight] = useState('');
+  const [heightFeet, setHeightFeet] = useState('');
+  const [heightInches, setHeightInches] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
   const [conditions, setConditions] = useState('');
   const [saving, setSaving] = useState(false);
@@ -86,7 +83,7 @@ export default function OnboardingScreen({ onComplete }) {
       case 'weight':
         return weight.trim() !== '' && Number(weight) > 0 && Number(weight) < 500;
       case 'height':
-        return height.trim() !== '' && Number(height) > 0 && Number(height) < 300;
+        return heightFeet.trim() !== '' && Number(heightFeet) > 0 && Number(heightFeet) < 9;
       case 'blood_group':
         return true;
       case 'diagnosed_conditions':
@@ -117,7 +114,7 @@ export default function OnboardingScreen({ onComplete }) {
         gender: gender || null,
         age: age ? Number(age) : null,
         weight: weight ? Number(weight) : null,
-        height: height ? Number(height) : null,
+        height: heightFeet || heightInches ? Math.round(Number(heightFeet || 0) * 30.48 + Number(heightInches || 0) * 2.54) : null,
         blood_group: bloodGroup || '',
         diagnosed_conditions: conditions
           ? conditions.split(',').map((item) => item.trim()).filter(Boolean)
@@ -211,6 +208,33 @@ export default function OnboardingScreen({ onComplete }) {
             />
             {current.hint ? <Text style={s.hint}>{current.hint}</Text> : null}
           </View>
+        ) : current.key === 'height' ? (
+          <View style={s.heightRow}>
+            <View style={s.heightInputGroup}>
+              <TextInput
+                style={s.textInput}
+                placeholder="5"
+                placeholderTextColor={colors.textMuted}
+                value={heightFeet}
+                onChangeText={setHeightFeet}
+                keyboardType="numeric"
+                maxLength={1}
+              />
+              <Text style={s.suffix}>ft</Text>
+            </View>
+            <View style={s.heightInputGroup}>
+              <TextInput
+                style={s.textInput}
+                placeholder="9"
+                placeholderTextColor={colors.textMuted}
+                value={heightInches}
+                onChangeText={setHeightInches}
+                keyboardType="numeric"
+                maxLength={2}
+              />
+              <Text style={s.suffix}>in</Text>
+            </View>
+          </View>
         ) : (
           <View style={s.inputRow}>
             <TextInput
@@ -220,13 +244,11 @@ export default function OnboardingScreen({ onComplete }) {
               value={
                 current.key === 'age' ? age :
                 current.key === 'weight' ? weight :
-                current.key === 'height' ? height :
                 ''
               }
               onChangeText={
                 current.key === 'age' ? setAge :
                 current.key === 'weight' ? setWeight :
-                current.key === 'height' ? setHeight :
                 () => {}
               }
               keyboardType="numeric"
@@ -359,6 +381,18 @@ const styles = (colors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+  },
+  heightRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  heightInputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 0,
+    minWidth: 100,
   },
   textInput: {
     flex: 1,

@@ -1,7 +1,17 @@
 from django.contrib.auth.models import User
 from django.test import Client, TestCase
 
-from .models import Alert, AppointmentRequest, CareMessage, HealthRecord, UserProfile
+from .models import (
+    Alert,
+    AppointmentRequest,
+    CareMessage,
+    FitnessLog,
+    FoodLog,
+    HealthRecord,
+    NutritionLog,
+    Recommendation,
+    UserProfile,
+)
 
 
 class AuthCorsTests(TestCase):
@@ -260,3 +270,36 @@ class HealthWorkflowTests(TestCase):
         clinician_overview = self.client.get("/api/users/patient_overview/", **self.auth(clinician_token))
         self.assertTrue(clinician_overview.json()["clinical_access"])
         self.assertGreaterEqual(len(clinician_overview.json()["rows"]), 2)
+
+    def test_reset_my_data_clears_patient_records_but_keeps_account(self):
+        profile = UserProfile.objects.get(user=self.patient)
+        profile.age = 33
+        profile.weight = 76
+        profile.daily_water_goal_ml = 2200
+        profile.save()
+        HealthRecord.objects.create(user=self.patient, temperature=37.1, heart_rate=82, spo2=97)
+        NutritionLog.objects.create(user=self.patient, entry_type="water", value=250, unit="ml")
+        FoodLog.objects.create(user=self.patient, meal_type="lunch", food_name="Rice", calories=450)
+        FitnessLog.objects.create(user=self.patient, activity_name="Walking", steps=1200, duration_minutes=12)
+        Alert.objects.create(user=self.patient, severity="info", alert_message="Test alert")
+        Recommendation.objects.create(
+            user=self.patient,
+            meal_plan="Hydrate",
+            fluid_target="2L",
+            lifestyle_guideline="Rest",
+        )
+
+        response = self.client.post("/api/users/reset_my_data/", content_type="application/json", **self.auth())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(username="patient").exists())
+        self.assertEqual(HealthRecord.objects.filter(user=self.patient).count(), 0)
+        self.assertEqual(NutritionLog.objects.filter(user=self.patient).count(), 0)
+        self.assertEqual(FoodLog.objects.filter(user=self.patient).count(), 0)
+        self.assertEqual(FitnessLog.objects.filter(user=self.patient).count(), 0)
+        self.assertEqual(Alert.objects.filter(user=self.patient).count(), 0)
+        self.assertEqual(Recommendation.objects.filter(user=self.patient).count(), 0)
+        profile.refresh_from_db()
+        self.assertIsNone(profile.age)
+        self.assertIsNone(profile.weight)
+        self.assertEqual(profile.daily_water_goal_ml, 0)

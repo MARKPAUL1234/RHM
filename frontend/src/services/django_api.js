@@ -246,6 +246,13 @@ export const djangoApi = {
     return apiRequest('/users/patient_overview/');
   },
 
+  async resetMyData() {
+    return apiRequest('/users/reset_my_data/', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    });
+  },
+
   async getProfile() {
     return apiRequest('/profiles/my_profile/');
   },
