@@ -1,0 +1,27 @@
+{
+  "name": "remote-health-monitoring-tool",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "expo start --port 8081",
+    "android": "expo start --android --port 8081",
+    "ios": "expo start --ios --port 8081",
+    "web": "expo start --web --port 8081",
+    "check": "node scripts/check-js.js",
+    "ts.check": "npm run check"
+  },
+  "dependencies": {
+    "expo": "~51.0.0",
+    "expo-status-bar": "~1.12.1",
+    "react": "18.2.0",
+    "react-native": "0.74.1",
+    "appwrite": "^14.0.1",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "react-native-web": "~0.19.10",
+    "react-dom": "18.2.0",
+    "@expo/metro-runtime": "~3.2.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
+  },
+  "private": true
+}
