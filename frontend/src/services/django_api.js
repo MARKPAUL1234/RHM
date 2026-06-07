@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8000/api';
 const AUTH_TOKEN_KEY = '@rhmt_auth_token';
 const REFRESH_TOKEN_KEY = '@rhmt_refresh_token';
 
@@ -206,37 +206,42 @@ export const djangoApi = {
   },
 
   async register(username, email, password) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/users/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, email, password }),
-      });
-
-      if (!response.ok) {
-        let detail = 'Registration failed';
         try {
-          const errorData = await response.json();
-          if (errorData.password && Array.isArray(errorData.password)) {
-            detail = errorData.password.join(', ');
-          } else if (errorData.username && Array.isArray(errorData.username)) {
-            detail = errorData.username.join(', ');
-          } else if (errorData.email && Array.isArray(errorData.email)) {
-            detail = errorData.email.join(', ');
-          } else {
-            detail = JSON.stringify(errorData);
-          }
-        } catch (e) {
-          detail = response.statusText || detail;
-        }
-        throw new Error(detail);
-      }
+            const response = await fetch(`${API_BASE_URL}/users/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+            });
 
-      return response.json();
-    } catch (error) {
-      throw explainNetworkError(error);
-    }
-  },
+            if (!response.ok) {
+                let detail = 'Registration failed';
+                try {
+                    const errorData = await response.json();
+                    // Collect all error messages from all fields
+                    const errorMessages = [];
+                    for (const [field, errors] of Object.entries(errorData)) {
+                        if (Array.isArray(errors)) {
+                            errorMessages.push(...errors);
+                        } else if (typeof errors === 'string') {
+                            errorMessages.push(errors);
+                        }
+                    }
+                    if (errorMessages.length > 0) {
+                        detail = errorMessages.join(' ');
+                    } else {
+                        detail = JSON.stringify(errorData);
+                    }
+                } catch (e) {
+                    detail = response.statusText || detail;
+                }
+                throw new Error(detail);
+            }
+
+            return response.json();
+        } catch (error) {
+            throw explainNetworkError(error);
+        }
+    },
 
   async getCurrentUser() {
     return apiRequest('/users/me/');
