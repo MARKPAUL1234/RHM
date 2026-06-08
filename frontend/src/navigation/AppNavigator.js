@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
-import { SHADOWS, TYPOGRAPHY, getResponsiveMetrics } from '../styles/theme';
+import { SHADOWS, TYPOGRAPHY, LIGHT_COLORS, getResponsiveMetrics } from '../styles/theme';
 import djangoApi, { setAuthToken } from '../services/django_api';
 import HomeScreen from '../screens/HomeScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -412,65 +412,119 @@ const formatDateTime = (value) => {
 };
 
 const IconGlyph = ({ name, active, size = 22 }) => {
-  const lineColor = active ? '#047857' : '#4F6B8A';
-  const softColor = active ? '#A7F3D0' : '#DDE6F0';
-  const fillColor = active ? '#10B981' : '#94A3B8';
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const is = getIconStyles(colors);
+
+  const lineColor = active ? colors.primary : (colors.textMuted || '#94A3B8');
+  const softColor = active ? (colors.surfaceLight || '#EEF3F8') : (colors.border || '#D8E0EA');
+  const fillColor = active ? colors.secondary : (colors.textMuted || '#94A3B8');
   const stroke = Math.max(2, Math.round(size / 10));
+
+  if (name === 'sun') {
+    return (
+      <View style={[is.box, { width: size, height: size, alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={{
+          width: size * 0.44,
+          height: size * 0.44,
+          borderRadius: (size * 0.44) / 2,
+          borderWidth: stroke,
+          borderColor: colors.accent || '#F59E0B',
+          backgroundColor: colors.surfaceLight || '#EEF3F8',
+        }} />
+        {[0, 45, 90, 135, 180, 225, 270, 315].map((angle) => (
+          <View
+            key={angle}
+            style={{
+              position: 'absolute',
+              width: stroke,
+              height: size * 0.12,
+              backgroundColor: colors.accent || '#F59E0B',
+              borderRadius: stroke / 2,
+              transform: [
+                { rotate: `${angle}deg` },
+                { translateY: -size * 0.35 }
+              ],
+            }}
+          />
+        ))}
+      </View>
+    );
+  }
+
+  if (name === 'moon') {
+    return (
+      <View style={[is.box, { width: size, height: size, alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={{
+          width: size * 0.65,
+          height: size * 0.65,
+          borderRadius: (size * 0.65) / 2,
+          borderWidth: 0,
+          borderLeftWidth: size * 0.18,
+          borderBottomWidth: size * 0.18,
+          borderLeftColor: colors.accent || '#D97706',
+          borderBottomColor: colors.accent || '#D97706',
+          backgroundColor: 'transparent',
+          transform: [{ rotate: '-25deg' }],
+        }} />
+      </View>
+    );
+  }
 
   if (name === 'plus') {
     return (
-      <View style={[iconStyles.box, { width: size, height: size }]}>
-        <View style={[iconStyles.medicalRing, { borderColor: softColor, width: size * 0.9, height: size * 0.9, borderRadius: size * 0.45 }]} />
-        <View style={[iconStyles.medicalVLine, { backgroundColor: lineColor, width: stroke + 1, height: size * 0.58 }]} />
-        <View style={[iconStyles.medicalHLine, { backgroundColor: lineColor, height: stroke + 1, width: size * 0.58 }]} />
+      <View style={[is.box, { width: size, height: size }]}>
+        <View style={[is.medicalRing, { borderColor: softColor, width: size * 0.9, height: size * 0.9, borderRadius: size * 0.45 }]} />
+        <View style={[is.medicalVLine, { backgroundColor: lineColor, width: stroke + 1, height: size * 0.58 }]} />
+        <View style={[is.medicalHLine, { backgroundColor: lineColor, height: stroke + 1, width: size * 0.58 }]} />
       </View>
     );
   }
 
   if (name === 'spark') {
     return (
-      <View style={[iconStyles.box, { width: size, height: size }]}>
-        <View style={[iconStyles.heartBeatBase, { backgroundColor: softColor, height: stroke }]} />
-        <View style={[iconStyles.heartBeatLeft, { backgroundColor: lineColor, height: stroke, width: size * 0.35 }]} />
-        <View style={[iconStyles.heartBeatPeak, { backgroundColor: lineColor, width: stroke, height: size * 0.5 }]} />
-        <View style={[iconStyles.heartBeatRight, { backgroundColor: lineColor, height: stroke, width: size * 0.37 }]} />
-        <View style={[iconStyles.chartNode, { backgroundColor: fillColor, left: size * 0.08, top: size * 0.58 }]} />
-        <View style={[iconStyles.chartNode, { backgroundColor: fillColor, right: size * 0.05, top: size * 0.24 }]} />
+      <View style={[is.box, { width: size, height: size }]}>
+        <View style={[is.heartBeatBase, { backgroundColor: softColor, height: stroke }]} />
+        <View style={[is.heartBeatLeft, { backgroundColor: lineColor, height: stroke, width: size * 0.35 }]} />
+        <View style={[is.heartBeatPeak, { backgroundColor: lineColor, width: stroke, height: size * 0.5 }]} />
+        <View style={[is.heartBeatRight, { backgroundColor: lineColor, height: stroke, width: size * 0.37 }]} />
+        <View style={[is.chartNode, { backgroundColor: fillColor, left: size * 0.08, top: size * 0.58 }]} />
+        <View style={[is.chartNode, { backgroundColor: fillColor, right: size * 0.05, top: size * 0.24 }]} />
       </View>
     );
   }
 
   if (name === 'user') {
     return (
-      <View style={[iconStyles.box, { width: size, height: size }]}>
-        <View style={[iconStyles.idCard, { borderColor: softColor, width: size * 0.9, height: size * 0.76 }]} />
-        <View style={[iconStyles.userHead, { borderColor: lineColor, borderWidth: stroke, width: size * 0.28, height: size * 0.28 }]} />
-        <View style={[iconStyles.userBody, { borderColor: lineColor, borderWidth: stroke, width: size * 0.54, height: size * 0.28 }]} />
+      <View style={[is.box, { width: size, height: size }]}>
+        <View style={[is.idCard, { borderColor: softColor, width: size * 0.9, height: size * 0.76 }]} />
+        <View style={[is.userHead, { borderColor: lineColor, borderWidth: stroke, width: size * 0.28, height: size * 0.28 }]} />
+        <View style={[is.userBody, { borderColor: lineColor, borderWidth: stroke, width: size * 0.54, height: size * 0.28 }]} />
       </View>
     );
   }
 
   if (name === 'bell') {
     return (
-      <View style={[iconStyles.box, { width: size, height: size }]}>
-        <View style={[iconStyles.bellDome, { borderColor: lineColor, borderWidth: stroke, width: size * 0.62, height: size * 0.55 }]} />
-        <View style={[iconStyles.bellCap, { backgroundColor: fillColor, width: size * 0.2, height: stroke }]} />
-        <View style={[iconStyles.bellBase, { backgroundColor: lineColor, height: stroke + 1, width: size * 0.76 }]} />
-        <View style={[iconStyles.bellClapper, { backgroundColor: fillColor, width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
+      <View style={[is.box, { width: size, height: size }]}>
+        <View style={[is.bellDome, { borderColor: lineColor, borderWidth: stroke, width: size * 0.62, height: size * 0.55 }]} />
+        <View style={[is.bellCap, { backgroundColor: fillColor, width: size * 0.2, height: stroke }]} />
+        <View style={[is.bellBase, { backgroundColor: lineColor, height: stroke + 1, width: size * 0.76 }]} />
+        <View style={[is.bellClapper, { backgroundColor: fillColor, width: size * 0.2, height: size * 0.2, borderRadius: size * 0.1 }]} />
       </View>
     );
   }
 
   return (
-    <View style={[iconStyles.dashboardGrid, { width: size, height: size }]}>
+    <View style={[is.dashboardGrid, { width: size, height: size }]}>
       {[0, 1, 2, 3].map((item) => (
         <View
           key={item}
           style={[
-            iconStyles.dashboardTile,
+            is.dashboardTile,
             {
               backgroundColor: item === 0 || item === 3 ? lineColor : softColor,
-              borderColor: item === 0 || item === 3 ? lineColor : '#CBD5E1',
+              borderColor: item === 0 || item === 3 ? lineColor : (colors.border || '#CBD5E1'),
             },
           ]}
         />
@@ -528,6 +582,8 @@ function AppNavigator() {
     markAlertRead,
     createAppointmentRequest,
     createCareMessage,
+    isDarkMode,
+    toggleTheme,
   } = useContext(HealthContext);
   const { width } = useWindowDimensions();
   const metrics = getResponsiveMetrics(width);
@@ -721,6 +777,8 @@ function AppNavigator() {
           refreshError={refreshError}
           dndEnabled={dndEnabled}
           notificationPreferences={notificationPreferences}
+          isDarkMode={isDarkMode}
+          onToggleTheme={toggleTheme}
           colors={colors}
         />
         <ScrollView style={s.scroller} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
@@ -778,6 +836,7 @@ function AppNavigator() {
 }
 
 function Sidebar({ activeTab, onChangeTab, onLogout, patientName, patientInitials, patientRole, navItems, colors }) {
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={[layoutStyles.sidebar, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
       <View>
@@ -833,6 +892,9 @@ function Sidebar({ activeTab, onChangeTab, onLogout, patientName, patientInitial
 }
 
 function MobileNav({ activeTab, onChangeTab, navItems }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={layoutStyles.mobileNav}>
       <View style={layoutStyles.mobileBrand}>
@@ -877,8 +939,11 @@ function TopBar({
   refreshError,
   dndEnabled,
   notificationPreferences,
+  isDarkMode,
+  onToggleTheme,
   colors,
 }) {
+  const layoutStyles = getLayoutStyles(colors);
   const title = (navItems || PATIENT_NAV_ITEMS).find((item) => item.key === activeTab)?.label || 'Daily Health Status';
   const [clockNow, setClockNow] = useState(new Date());
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -979,6 +1044,15 @@ function TopBar({
           <Text style={layoutStyles.connectionText}>{refreshError ? 'Needs retry' : connectionStatus}</Text>
         </View>
         <TouchableOpacity
+          style={layoutStyles.themeToggleButton}
+          activeOpacity={0.75}
+          onPress={() => onToggleTheme?.()}
+          accessibilityLabel={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          accessibilityRole="button"
+        >
+          <IconGlyph name={isDarkMode ? 'sun' : 'moon'} active={false} size={21} />
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[layoutStyles.bellButton, isNotificationsOpen && layoutStyles.activeBellButton]}
           activeOpacity={0.75}
           onPress={() => setIsNotificationsOpen((current) => !current)}
@@ -1007,6 +1081,9 @@ function TopBar({
 }
 
 function NotificationPanel({ items, panelWidth, onClose, onMarkAlertRead }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={[layoutStyles.notificationPanel, { width: panelWidth }]}>
       <View style={layoutStyles.notificationHeader}>
@@ -1048,6 +1125,9 @@ function NotificationPanel({ items, panelWidth, onClose, onMarkAlertRead }) {
 }
 
 function TypewriterText({ text, messages, style }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   const [visibleText, setVisibleText] = useState('');
   const [messageIndex, setMessageIndex] = useState(0);
   const [isCursorVisible, setIsCursorVisible] = useState(true);
@@ -1092,6 +1172,9 @@ function TypewriterText({ text, messages, style }) {
 }
 
 function AlertBanner({ patientFirstName, onDismiss, onLogNow }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={layoutStyles.alertBanner}>
       <Text style={layoutStyles.alertText}>
@@ -1111,6 +1194,9 @@ function AlertBanner({ patientFirstName, onDismiss, onLogNow }) {
 }
 
 function DataStatePanel({ tone = 'info', title, message, actionLabel, onAction, loading }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={[layoutStyles.statePanel, tone === 'warning' && layoutStyles.warningStatePanel]}>
       <View style={layoutStyles.stateBody}>
@@ -1127,6 +1213,9 @@ function DataStatePanel({ tone = 'info', title, message, actionLabel, onAction, 
 }
 
 function ProfileCompletionCard({ completion, onOpenProfile }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={layoutStyles.completionCard}>
       <View style={layoutStyles.completionHeader}>
@@ -3282,6 +3371,9 @@ function SettingsToggleRow({ title, hint, value, onValueChange }) {
 }
 
 function SectionHeader({ title, subtitle }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const layoutStyles = getLayoutStyles(colors);
   return (
     <View style={layoutStyles.sectionHeader}>
       <Text style={layoutStyles.sectionTitle}>{title}</Text>
@@ -3290,7 +3382,7 @@ function SectionHeader({ title, subtitle }) {
   );
 }
 
-const iconStyles = StyleSheet.create({
+const getIconStyles = (colors) => StyleSheet.create({
   box: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -3312,7 +3404,7 @@ const iconStyles = StyleSheet.create({
   medicalRing: {
     position: 'absolute',
     borderWidth: 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface || '#FFFFFF',
   },
   medicalVLine: {
     borderRadius: 4,
@@ -3360,7 +3452,7 @@ const iconStyles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 1.5,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface || '#FFFFFF',
   },
   userHead: {
     borderRadius: 20,
@@ -3390,12 +3482,12 @@ const iconStyles = StyleSheet.create({
   },
 });
 
-const layoutStyles = StyleSheet.create({
+const getLayoutStyles = (colors) => StyleSheet.create({
   sidebar: {
     width: 292,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface || '#FFFFFF',
     borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
+    borderRightColor: colors.border || '#E2E8F0',
     padding: 24,
     justifyContent: 'space-between',
     ...SHADOWS.subtle,
@@ -3409,7 +3501,7 @@ const layoutStyles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#064E3B',
+    backgroundColor: colors.primary || '#064E3B',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -3418,16 +3510,11 @@ const layoutStyles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 8,
-    backgroundColor: '#064E3B',
+    backgroundColor: colors.primary || '#064E3B',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
     flexShrink: 0,
-  },
-  brandText: {
-    color: '#FFFFFF',
-    fontWeight: TYPOGRAPHY.weights.bold,
-    fontSize: 16,
   },
   pulseDot: {
     position: 'absolute',
@@ -3436,17 +3523,17 @@ const layoutStyles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#22C55E',
+    backgroundColor: colors.success || '#22C55E',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.surface || '#FFFFFF',
   },
   brandTitle: {
     fontSize: 21,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
   },
   brandSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     marginTop: 2,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -3465,37 +3552,37 @@ const layoutStyles = StyleSheet.create({
     borderColor: 'transparent',
   },
   activeNavButton: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#BBF7D0',
+    backgroundColor: colors.surfaceLight || '#ECFDF5',
+    borderColor: colors.border || '#BBF7D0',
   },
   navIconBox: {
     width: 42,
     height: 42,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight || '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#EDF2F7',
+    borderColor: colors.border || '#EDF2F7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeNavIconBox: {
-    backgroundColor: '#D1FAE5',
-    borderColor: '#A7F3D0',
+    backgroundColor: colors.surfaceLight || '#D1FAE5',
+    borderColor: colors.primary || '#A7F3D0',
   },
   navText: {
-    color: '#334155',
+    color: colors.textSecondary || '#334155',
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     flex: 1,
   },
   activeNavText: {
-    color: '#047857',
+    color: colors.primary || '#047857',
   },
   profileBadge: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surfaceLight || '#F8FAFC',
     padding: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -3505,12 +3592,12 @@ const layoutStyles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 8,
-    backgroundColor: '#DCFCE7',
+    backgroundColor: colors.surfaceLight || '#DCFCE7',
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
-    color: '#047857',
+    color: colors.primary || '#047857',
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   profileTextBlock: {
@@ -3518,12 +3605,12 @@ const layoutStyles = StyleSheet.create({
     minWidth: 0,
   },
   profileName: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontWeight: TYPOGRAPHY.weights.bold,
     fontSize: 13,
   },
   profileRole: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     fontSize: 12,
     marginTop: 2,
   },
@@ -3545,10 +3632,27 @@ const layoutStyles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
+  sidebarThemeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 40,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border || '#D8E0EA',
+    backgroundColor: colors.surfaceLight || '#EEF3F8',
+    paddingHorizontal: 12,
+    gap: 8,
+    marginBottom: 8,
+  },
+  sidebarThemeText: {
+    color: colors.textSecondary || '#334155',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
   mobileNav: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface || '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: colors.border || '#E2E8F0',
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 12,
@@ -3566,28 +3670,28 @@ const layoutStyles = StyleSheet.create({
     minWidth: 104,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surface || '#FFFFFF',
     paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
   },
   activeMobileNavButton: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#BBF7D0',
+    backgroundColor: colors.surfaceLight || '#ECFDF5',
+    borderColor: colors.border || '#BBF7D0',
   },
   mobileNavText: {
     fontSize: 11,
-    color: '#475569',
+    color: colors.textSecondary || '#475569',
     fontWeight: TYPOGRAPHY.weights.semiBold,
     maxWidth: 86,
   },
   topBar: {
     minHeight: 76,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surface || '#FFFFFF',
     paddingHorizontal: 24,
     paddingVertical: 14,
     flexDirection: 'row',
@@ -3603,18 +3707,18 @@ const layoutStyles = StyleSheet.create({
     minWidth: 240,
   },
   contextText: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   clockText: {
-    color: '#047857',
+    color: colors.primary || '#047857',
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginTop: 2,
   },
   contextSubtext: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     marginTop: 3,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -3625,8 +3729,8 @@ const layoutStyles = StyleSheet.create({
     minHeight: 36,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.border || '#BBF7D0',
+    backgroundColor: colors.surfaceLight || '#ECFDF5',
     paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -3640,19 +3744,19 @@ const layoutStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#047857',
+    backgroundColor: colors.success || '#047857',
   },
   offlineDot: {
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.critical || '#DC2626',
   },
   connectionText: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
     textTransform: 'capitalize',
   },
   typeCursor: {
-    color: '#047857',
+    color: colors.primary || '#047857',
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   typeCursorHidden: {
@@ -3687,12 +3791,12 @@ const layoutStyles = StyleSheet.create({
     minWidth: 0,
   },
   stateTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   stateText: {
-    color: '#475569',
+    color: colors.textSecondary || '#475569',
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
@@ -3701,7 +3805,7 @@ const layoutStyles = StyleSheet.create({
   stateButton: {
     minHeight: 38,
     borderRadius: 8,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary || '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -3725,17 +3829,21 @@ const layoutStyles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 12,
   },
+  completionBody: {
+    flex: 1,
+    minWidth: 0,
+  },
   completionTitle: {
-    color: '#064E3B',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   completionText: {
-    color: '#047857',
+    color: colors.textSecondary || '#475569',
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
-    fontWeight: TYPOGRAPHY.weights.semiBold,
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
   completionPercent: {
     color: '#064E3B',
@@ -3755,10 +3863,9 @@ const layoutStyles = StyleSheet.create({
     backgroundColor: '#047857',
   },
   completionButton: {
-    alignSelf: 'flex-start',
-    minHeight: 36,
+    minHeight: 38,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary || '#047857',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -3774,41 +3881,51 @@ const layoutStyles = StyleSheet.create({
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surfaceLight || '#F8FAFC',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
   activeBellButton: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: colors.surfaceLight || '#ECFDF5',
+    borderColor: colors.primary || '#A7F3D0',
   },
   topLogoutButton: {
     height: 44,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surface || '#FFFFFF',
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   topLogoutText: {
-    color: '#334155',
+    color: colors.textSecondary || '#334155',
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  themeToggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surfaceLight || '#EEF3F8',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   bellBadge: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#EF4444',
+    backgroundColor: colors.critical || '#EF4444',
     position: 'absolute',
     top: 5,
     right: 4,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: colors.surface || '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
@@ -3825,8 +3942,8 @@ const layoutStyles = StyleSheet.create({
     maxHeight: 540,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border || '#DDE6F0',
+    backgroundColor: colors.surface || '#FFFFFF',
     zIndex: 60,
     overflow: 'hidden',
     ...SHADOWS.premium,
@@ -3839,16 +3956,16 @@ const layoutStyles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderBottomColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surfaceLight || '#F8FAFC',
   },
   notificationPanelTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 17,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   notificationPanelSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     fontSize: 12,
     marginTop: 3,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -3856,15 +3973,15 @@ const layoutStyles = StyleSheet.create({
   notificationCloseButton: {
     minHeight: 34,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight || '#F8FAFC',
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border || '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 11,
   },
   notificationCloseText: {
-    color: '#334155',
+    color: colors.textSecondary || '#334155',
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -3879,12 +3996,12 @@ const layoutStyles = StyleSheet.create({
     padding: 16,
   },
   notificationEmptyTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   notificationEmptyText: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
@@ -3894,8 +4011,8 @@ const layoutStyles = StyleSheet.create({
   notificationCard: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border || '#E2E8F0',
+    backgroundColor: colors.surfaceLight || '#F8FAFC',
     padding: 12,
     marginBottom: 10,
     flexDirection: 'row',
@@ -3906,41 +4023,41 @@ const layoutStyles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary || '#2563EB',
     marginTop: 5,
   },
   criticalDot: {
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.critical || '#DC2626',
   },
   warningDot: {
-    backgroundColor: '#D97706',
+    backgroundColor: colors.warning || '#D97706',
   },
   notificationCardBody: {
     flex: 1,
     minWidth: 0,
   },
   notificationType: {
-    color: '#047857',
+    color: colors.primary || '#047857',
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
   notificationCardTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginTop: 3,
   },
   notificationCardText: {
-    color: '#475569',
+    color: colors.textSecondary || '#475569',
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   notificationStatus: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     fontSize: 10,
     marginTop: 6,
     fontWeight: TYPOGRAPHY.weights.bold,
@@ -3949,7 +4066,7 @@ const layoutStyles = StyleSheet.create({
   notificationReadButton: {
     minHeight: 32,
     borderRadius: 8,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary || '#0F172A',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
@@ -3989,7 +4106,7 @@ const layoutStyles = StyleSheet.create({
   alertButton: {
     height: 38,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary || '#047857',
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
@@ -4015,13 +4132,13 @@ const layoutStyles = StyleSheet.create({
     marginBottom: 18,
   },
   sectionTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary || '#0F172A',
     fontSize: 28,
     lineHeight: 34,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   sectionSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted || '#64748B',
     fontSize: 14,
     lineHeight: 20,
     marginTop: 5,
