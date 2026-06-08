@@ -510,9 +510,7 @@ function AppNavigator() {
     resetUserData,
     refreshError,
     lastRefreshAt,
-    isDarkMode,
     colors,
-    toggleTheme,
     dndEnabled,
     setDndEnabled,
     notificationPreferences,
@@ -584,9 +582,9 @@ function AppNavigator() {
 
   if (!profile) {
     return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: isDarkMode ? '#0F172A' : '#F8FAFC'}}>
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC'}}>
         <ActivityIndicator size="large" color="#047857" />
-        <Text style={{color: isDarkMode ? '#94A3B8' : '#64748B', marginTop: 12, fontSize: 13}}>Loading your profile...</Text>
+        <Text style={{color: '#64748B', marginTop: 12, fontSize: 13}}>Loading your profile...</Text>
       </View>
     );
   }
@@ -680,8 +678,6 @@ function AppNavigator() {
     onCreateAppointmentRequest: createAppointmentRequest,
     onCreateCareMessage: createCareMessage,
     onRefresh: refreshSyncStats,
-    isDarkMode,
-    onToggleTheme: toggleTheme,
     dndEnabled,
     onToggleDnd: setDndEnabled,
     notificationPreferences: notificationPreferences || {},
@@ -3136,8 +3132,6 @@ function SettingsTab({
   queueCount,
   refreshError,
   lastRefreshAt,
-  isDarkMode,
-  onToggleTheme,
   dndEnabled,
   onToggleDnd,
   notificationPreferences,
@@ -3202,13 +3196,7 @@ function SettingsTab({
 
 
         <View style={settingsStyles.panel}>
-          <Text style={settingsStyles.panelTitle}>Display & Notifications</Text>
-          <SettingsToggleRow
-            title="Dark mode"
-            hint="Applies immediately and stays on this device."
-            value={!!isDarkMode}
-            onValueChange={onToggleTheme}
-          />
+          <Text style={settingsStyles.panelTitle}>Notifications</Text>
           <SettingsToggleRow
             title="Do not disturb"
             hint="Keeps alerts in-app without attention badges."

@@ -140,12 +140,6 @@ export default function HomeScreen() {
 
             <View style={[s.authCard, SHADOWS.premium]}>
               <Text style={s.authTitle}>{isRegistering ? 'Create account' : 'Access dashboard'}</Text>
-              {isRegistering ? (
-                <Text style={s.authDescription}>
-                  Register a patient account and initialize a Django profile.
-                </Text>
-              ) : null}
-
               {authError ? (
                 <View style={s.errorBox}>
                   <Text style={s.errorText}>{authError}</Text>

@@ -3,7 +3,7 @@ import { SafeAreaView, StyleSheet, StatusBar, View, ActivityIndicator, Text, Ani
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import djangoApi, { setAuthToken, setRefreshToken } from './src/services/django_api';
-import { DARK_COLORS, LIGHT_COLORS } from './src/styles/theme';
+import { LIGHT_COLORS } from './src/styles/theme';
 import { HealthContext } from './src/context/HealthContext';
 
 const OFFLINE_QUEUE_KEY = '@rhmt_offline_queue';
@@ -202,7 +202,6 @@ export default function App() {
   const [isSessionReady, setIsSessionReady] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('online');
   const [isAutomaticMode, setIsAutomaticMode] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [vitals, setVitals] = useState(EMPTY_VITALS);
 
   const [usersMetadata, setUsersMetadata] = useState({
@@ -256,20 +255,6 @@ export default function App() {
   const [logs, setLogs] = useState([]);
 
   useEffect(() => {
-    const loadThemePreference = async () => {
-      try {
-        const savedTheme = await AsyncStorage.getItem('@rhmt_theme_mode');
-        if (savedTheme !== null) {
-          setIsDarkMode(savedTheme === 'dark');
-        }
-      } catch (e) {
-        console.log('Failed to load theme preference:', e);
-      }
-    };
-    loadThemePreference();
-  }, []);
-
-  useEffect(() => {
     const loadNotificationPreferences = async () => {
       try {
         const raw = await AsyncStorage.getItem('@rhmt_notification_preferences');
@@ -286,16 +271,6 @@ export default function App() {
     };
     loadNotificationPreferences();
   }, []);
-
-  const toggleTheme = async (value) => {
-    try {
-      const nextMode = typeof value === 'boolean' ? value : !isDarkMode;
-      setIsDarkMode(nextMode);
-      await AsyncStorage.setItem('@rhmt_theme_mode', nextMode ? 'dark' : 'light');
-    } catch (e) {
-      console.log('Failed to save theme preference:', e);
-    }
-  };
 
   const updateNotificationPreference = async (key, value) => {
     setNotificationPreferences((current) => {
@@ -370,7 +345,7 @@ export default function App() {
     );
   };
 
-  const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
+  const colors = LIGHT_COLORS;
 
   const refreshQueueCount = useCallback(async () => {
     try {
@@ -747,7 +722,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.container}>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
       <HealthContext.Provider
         value={{
           user,
@@ -828,9 +803,7 @@ export default function App() {
           createCareMessage,
           markAlertRead,
           refreshSyncStats,
-          isDarkMode,
           colors,
-          toggleTheme,
         }}
       >
         <AppNavigator />

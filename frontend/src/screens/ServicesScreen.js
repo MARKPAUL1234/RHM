@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
 } from 'react-native';
-import { TYPOGRAPHY, SPACING, getResponsiveMetrics, DARK_COLORS } from '../styles/theme';
+import { TYPOGRAPHY, SPACING, getResponsiveMetrics, LIGHT_COLORS } from '../styles/theme';
 import { HealthContext } from '../context/HealthContext';
 import PatientMonitoringScreen from './PatientMonitoringScreen';
 import NutritionHubScreen from './NutritionHubScreen';
@@ -25,7 +25,7 @@ export default function ServicesScreen() {
 
   return (
     <HealthContext.Consumer>
-      {({ colors = DARK_COLORS }) => {
+      {({ colors = LIGHT_COLORS }) => {
         const ActiveComponent = modules.find((module) => module.key === activeModule)?.component || PatientMonitoringScreen;
         const s = styles(colors, metrics);
 

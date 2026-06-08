@@ -48,7 +48,7 @@ export const LIGHT_COLORS = {
   glassBorder: 'rgba(37, 99, 235, 0.12)',
 };
 
-export const COLORS = DARK_COLORS;
+export const COLORS = LIGHT_COLORS;
 
 export const TYPOGRAPHY = {
   fontFamily: 'System',
