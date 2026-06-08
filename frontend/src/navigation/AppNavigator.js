@@ -18,11 +18,13 @@ import { SHADOWS, TYPOGRAPHY, LIGHT_COLORS, getResponsiveMetrics } from '../styl
 import djangoApi, { setAuthToken } from '../services/django_api';
 import HomeScreen from '../screens/HomeScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
+import MedicationRemindersScreen from '../screens/MedicationRemindersScreen';
 
 const PATIENT_NAV_ITEMS = [
   { key: 'dashboard', label: 'Dashboard Overview', icon: 'grid' },
   { key: 'log', label: 'Log Daily Vitals', icon: 'plus' },
   { key: 'insights', label: 'Medical & Lifestyle Insights', icon: 'spark' },
+  { key: 'medications', label: 'Medication Reminders', icon: 'pill' },
   { key: 'profile', label: 'Profile & History Ledger', icon: 'user' },
   { key: 'settings', label: 'Settings', icon: 'bell' },
 ];
@@ -31,6 +33,7 @@ const CLINICAL_NAV_ITEMS = [
   { key: 'dashboard', label: 'Clinical Overview', icon: 'grid' },
   { key: 'log', label: 'Patient Reviews', icon: 'plus' },
   { key: 'insights', label: 'Appointments & Alerts', icon: 'spark' },
+  { key: 'medications', label: 'Medication Reminders', icon: 'pill' },
   { key: 'profile', label: 'Patients & Reports', icon: 'user' },
   { key: 'settings', label: 'Settings', icon: 'bell' },
 ];
@@ -515,6 +518,39 @@ const IconGlyph = ({ name, active, size = 22 }) => {
     );
   }
 
+  if (name === 'pill') {
+    return (
+      <View style={[is.box, { width: size, height: size, alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={{
+          flexDirection: 'row',
+          width: size * 0.7,
+          height: size * 0.32,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <View style={{
+            width: size * 0.32,
+            height: size * 0.32,
+            borderTopLeftRadius: size * 0.16,
+            borderBottomLeftRadius: size * 0.16,
+            backgroundColor: softColor,
+            borderWidth: stroke,
+            borderColor: lineColor,
+          }} />
+          <View style={{
+            width: size * 0.32,
+            height: size * 0.32,
+            borderTopRightRadius: size * 0.16,
+            borderBottomRightRadius: size * 0.16,
+            backgroundColor: lineColor,
+            borderWidth: stroke,
+            borderColor: lineColor,
+          }} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={[is.dashboardGrid, { width: size, height: size }]}>
       {[0, 1, 2, 3].map((item) => (
@@ -743,6 +779,7 @@ function AppNavigator() {
     onClearLocalCache: clearLocalCache,
     onResetUserData: resetUserData,
     onLogout: handleLogout,
+    setActiveTab,
   };
 
   return (
@@ -823,6 +860,9 @@ function AppNavigator() {
           ) : null}
           {activeTab === 'insights' ? (
             isClinicalUser ? <ClinicalInsightsTab {...contentProps} /> : <InsightsTab {...contentProps} />
+          ) : null}
+          {activeTab === 'medications' ? (
+            <MedicationRemindersScreen />
           ) : null}
           {activeTab === 'profile' ? (
             isClinicalUser ? <ClinicalPatientsTab {...contentProps} /> : <ProfileHistoryTab {...contentProps} />
@@ -1767,6 +1807,9 @@ function DashboardTab({
   fitnessSummary,
   onLogNutritionEntry,
   onLogFitnessEntry,
+  medicationReminders,
+  alerts,
+  setActiveTab,
 }) {
   const symptoms = latest.symptoms?.length ? latest.symptoms.join(', ') : 'No active symptoms';
   const statistics = calculateDashboardStats(logs);
@@ -1964,6 +2007,44 @@ function DashboardTab({
           </View>
         ))}
       </View>
+      <SectionHeader title="Today's Reminders & Alerts" subtitle="Active medications, upcoming doses, and important health alerts." />
+      <View style={dashboardStyles.remindersAlertsGrid}>
+        {/* Medication Reminders */}
+        <View style={dashboardStyles.reminderCard}>
+          <View style={dashboardStyles.reminderIconBox}>
+            <IconGlyph name="pill" active={false} size={28} />
+          </View>
+          <View style={dashboardStyles.reminderContent}>
+            <Text style={dashboardStyles.reminderTitle}>Medication Reminders</Text>
+            <Text style={dashboardStyles.reminderSubtitle}>{(medicationReminders || []).length} medications tracked today</Text>
+          </View>
+          <TouchableOpacity 
+            style={dashboardStyles.reminderActionButton} 
+            onPress={() => setActiveTab('medications')}
+          >
+            <Text style={dashboardStyles.reminderActionText}>Manage</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Alerts */}
+        <View style={dashboardStyles.reminderCard}>
+          <View style={[dashboardStyles.reminderIconBox, { backgroundColor: '#FEE2E2' }]}>
+            <IconGlyph name="bell" active={false} size={28} />
+          </View>
+          <View style={dashboardStyles.reminderContent}>
+            <Text style={dashboardStyles.reminderTitle}>Health Alerts</Text>
+            <Text style={dashboardStyles.reminderSubtitle}>{(alerts || []).length} active alerts</Text>
+          </View>
+          <TouchableOpacity 
+            style={dashboardStyles.reminderActionButton} 
+            onPress={() => setActiveTab('settings')}
+          >
+            <Text style={dashboardStyles.reminderActionText}>View</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Quick Actions */}
       <View style={dashboardStyles.quickActionGrid}>
         <TouchableOpacity style={dashboardStyles.quickActionButton} onPress={() => setQuickAction('water')} activeOpacity={0.84}>
           <Text style={dashboardStyles.quickActionIcon}>Water</Text>
@@ -2354,14 +2435,10 @@ function InsightsTab({
   logs,
   profile,
   patientFirstName,
-  medicationReminders,
   recommendations,
   alerts,
   appointmentRequests,
   careMessages,
-  onCreateMedicationReminder,
-  onMarkMedicationTaken,
-  onMarkMedicationMissed,
   onMarkAlertRead,
   onCreateAppointmentRequest,
   onCreateCareMessage,
@@ -2371,10 +2448,6 @@ function InsightsTab({
   const fitnessTasks = useMemo(() => buildFitnessTasks(latest, logs), [latest, logs]);
   const careInsights = useMemo(() => buildCareInsights(latest, logs), [latest, logs]);
   const [checkedTasks, setCheckedTasks] = useState([]);
-  const [medicineName, setMedicineName] = useState('');
-  const [medicineTime, setMedicineTime] = useState('08:00');
-  const [medicineDose, setMedicineDose] = useState('');
-  const [medicineMessage, setMedicineMessage] = useState('');
   const [appointmentMessage, setAppointmentMessage] = useState('');
   const [patientLocation, setPatientLocation] = useState(profile?.patient_location || '');
   const [appointmentReason, setAppointmentReason] = useState('');
@@ -2403,27 +2476,6 @@ function InsightsTab({
 
   const toggleTask = (task) => {
     setCheckedTasks((current) => (current.includes(task) ? current.filter((item) => item !== task) : [...current, task]));
-  };
-
-  const handleAddMedicine = async () => {
-    if (!medicineName.trim()) {
-      setMedicineMessage('Enter a medicine name first.');
-      return;
-    }
-    try {
-      await onCreateMedicationReminder?.({
-        medicine_name: medicineName.trim(),
-        dosage: medicineDose.trim(),
-        scheduled_time: medicineTime,
-        frequency: 'Daily',
-        status: 'active',
-      });
-      setMedicineName('');
-      setMedicineDose('');
-      setMedicineMessage('Medication reminder saved.');
-    } catch (error) {
-      setMedicineMessage(error?.message || 'Unable to save medication reminder.');
-    }
   };
 
   const handleBookUrgentAppointment = async () => {
@@ -2581,54 +2633,6 @@ function InsightsTab({
             <View key={item} style={insightStyles.readinessRow}>
               <View style={insightStyles.readinessDot} />
               <Text style={insightStyles.readinessText}>{item}</Text>
-            </View>
-          ))}
-        </View>
-
-        <View style={insightStyles.insightPanel}>
-          <Text style={insightStyles.panelTitle}>Medication Reminders</Text>
-          <Text style={insightStyles.panelSubtitle}>Manual medicine tracking with taken/missed status.</Text>
-          <View style={insightStyles.medFormGrid}>
-            <TextInput
-              style={insightStyles.medInput}
-              placeholder="Medicine name"
-              placeholderTextColor="#94A3B8"
-              value={medicineName}
-              onChangeText={setMedicineName}
-            />
-            <TextInput
-              style={insightStyles.medInput}
-              placeholder="Dose"
-              placeholderTextColor="#94A3B8"
-              value={medicineDose}
-              onChangeText={setMedicineDose}
-            />
-            <TextInput
-              style={insightStyles.medInput}
-              placeholder="08:00"
-              placeholderTextColor="#94A3B8"
-              value={medicineTime}
-              onChangeText={setMedicineTime}
-            />
-          </View>
-          <TouchableOpacity style={insightStyles.medButton} activeOpacity={0.85} onPress={handleAddMedicine}>
-            <Text style={insightStyles.medButtonText}>Add Reminder</Text>
-          </TouchableOpacity>
-          {medicineMessage ? <Text style={insightStyles.medMessage}>{medicineMessage}</Text> : null}
-          {(medicationReminders || []).slice(0, 4).map((reminder) => (
-            <View key={reminder.id} style={insightStyles.medRow}>
-              <View style={insightStyles.medInfo}>
-                <Text style={insightStyles.medName}>{reminder.medicine_name}</Text>
-                <Text style={insightStyles.medMeta}>{reminder.dosage || 'No dose'} | {reminder.scheduled_time} | {reminder.status}</Text>
-              </View>
-              <View style={insightStyles.medActions}>
-                <TouchableOpacity style={insightStyles.medTinyButton} onPress={() => onMarkMedicationTaken?.(reminder.id)}>
-                  <Text style={insightStyles.medTinyText}>Taken</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[insightStyles.medTinyButton, insightStyles.medMissedButton]} onPress={() => onMarkMedicationMissed?.(reminder.id)}>
-                  <Text style={insightStyles.medMissedText}>Missed</Text>
-                </TouchableOpacity>
-              </View>
             </View>
           ))}
         </View>
@@ -4276,6 +4280,62 @@ const dashboardStyles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 4,
     fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  remindersAlertsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 14,
+  },
+  reminderCard: {
+    flexGrow: 1,
+    flexBasis: Platform.OS === 'web' ? '48%' : 260,
+    minWidth: 240,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE6F0',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    ...SHADOWS.subtle,
+  },
+  reminderIconBox: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#ECFDF5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  reminderContent: {
+    flex: 1,
+  },
+  reminderTitle: {
+    color: '#0F172A',
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  reminderSubtitle: {
+    color: '#64748B',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  reminderActionButton: {
+    backgroundColor: '#047857',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  reminderActionText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   modalBackdrop: {
     flex: 1,

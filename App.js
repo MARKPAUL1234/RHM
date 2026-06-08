@@ -3,7 +3,7 @@ import { SafeAreaView, StyleSheet, StatusBar, View, ActivityIndicator, Text, Ani
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import { HealthSyncManager, appwriteAccount } from './src/services/appwrite';
-import { COLORS, SHADOWS } from './src/styles/theme';
+import { DARK_COLORS, LIGHT_COLORS, SHADOWS } from './src/styles/theme';
 import { HealthContext } from './src/context/HealthContext';
 
 // Splash Screen Component with pulse animation
@@ -81,6 +81,17 @@ export default function App() {
   const [isFetchingData, setIsFetchingData] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState('online'); // 'online' or 'offline'
   const [isAutomaticMode, setIsAutomaticMode] = useState(false); // Default to false for manual self-reporting focus
+  const [isDarkMode, setIsDarkMode] = useState(true); // Default to dark mode
+  
+  const toggleTheme = async (value) => {
+    try {
+      const nextMode = typeof value === 'boolean' ? value : !isDarkMode;
+      setIsDarkMode(nextMode);
+      await AsyncStorage.setItem('@rhmt_theme_mode', nextMode ? 'dark' : 'light');
+    } catch (e) {
+      console.log('Failed to save theme preference:', e);
+    }
+  };
   
   // Real-time journal reporting vitals state
   const [vitals, setVitals] = useState({
@@ -127,6 +138,12 @@ export default function App() {
   useEffect(() => {
     const verifySession = async () => {
       try {
+        // Load saved theme preference
+        const savedTheme = await AsyncStorage.getItem('@rhmt_theme_mode');
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        }
+
         // 1. Attempt checking real Appwrite Auth
         const sessionUser = await appwriteAccount.get();
         setUser({
@@ -303,9 +320,11 @@ export default function App() {
     return <SplashScreen />;
   }
 
+  const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
       <HealthContext.Provider
         value={{
           user,
@@ -338,6 +357,8 @@ export default function App() {
           handleSyncQueue,
           handleClearLogs,
           refreshSyncStats,
+          isDarkMode,
+          toggleTheme,
         }}
       >
         <AppNavigator />
@@ -349,6 +370,5 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
 });

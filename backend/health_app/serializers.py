@@ -86,8 +86,12 @@ class MedicationReminderSerializer(serializers.ModelSerializer):
     class Meta:
         model = MedicationReminder
         fields = [
-            'id', 'user', 'medicine_name', 'dosage', 'scheduled_time', 'frequency',
-            'status', 'notes', 'last_taken_at', 'created_at', 'updated_at',
+            'id', 'user', 'medicine_name', 'dosage', 'scheduled_time',
+            'scheduled_time_2', 'scheduled_time_3', 'frequency',
+            'status', 'notes', 'doctor_instructions',
+            'start_date', 'end_date', 'duration_days',
+            'doses_taken_today', 'dose_reset_date',
+            'last_taken_at', 'created_at', 'updated_at',
         ]
         read_only_fields = ['user', 'last_taken_at', 'created_at', 'updated_at']
 

@@ -40,6 +40,7 @@ from .serializers import (
     UserProfileSerializer,
     UserSerializer,
 )
+from .notifications import send_admin_notification
 
 
 CLINICAL_ROLES = {'doctor', 'clinician', 'caregiver', 'admin'}
@@ -707,21 +708,56 @@ class MedicationReminderViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def mark_taken(self, request, pk=None):
         reminder = self.get_object()
+        today = timezone.now().date()
+        if reminder.dose_reset_date != today:
+            reminder.doses_taken_today = 0
+            reminder.dose_reset_date = today
+        reminder.doses_taken_today += 1
         reminder.status = 'taken'
         reminder.last_taken_at = timezone.now()
-        reminder.save(update_fields=['status', 'last_taken_at', 'updated_at'])
+        reminder.save(update_fields=['status', 'last_taken_at', 'doses_taken_today', 'dose_reset_date', 'updated_at'])
+        # Send notification
+        subject = f"MEDICATION TAKEN: {reminder.medicine_name}"
+        message = (
+            f"Medication marked as taken:\n"
+            f"User: {reminder.user.username}\n"
+            f"Medicine: {reminder.medicine_name}\n"
+            f"Dosage: {reminder.dosage}\n"
+            f"Doses taken today: {reminder.doses_taken_today}\n"
+            f"Time: {timezone.now()}"
+        )
+        send_admin_notification(subject, message)
         return Response(self.get_serializer(reminder).data)
 
     @action(detail=True, methods=['post'])
     def mark_missed(self, request, pk=None):
         reminder = self.get_object()
+        today = timezone.now().date()
+        if reminder.dose_reset_date != today:
+            reminder.doses_taken_today = 0
+            reminder.dose_reset_date = today
         reminder.status = 'missed'
-        reminder.save(update_fields=['status', 'updated_at'])
+        reminder.save(update_fields=['status', 'doses_taken_today', 'dose_reset_date', 'updated_at'])
+        times = [str(reminder.scheduled_time)]
+        if reminder.scheduled_time_2:
+            times.append(str(reminder.scheduled_time_2))
+        if reminder.scheduled_time_3:
+            times.append(str(reminder.scheduled_time_3))
         Alert.objects.create(
             user=request.user,
             severity='warning',
-            alert_message=f'Medication reminder missed: {reminder.medicine_name} at {reminder.scheduled_time}.',
+            alert_message=f'Medication reminder missed: {reminder.medicine_name} at {", ".join(times)}.',
         )
+        # Send notification
+        subject = f"⚠️ MEDICATION MISSED: {reminder.medicine_name}"
+        message = (
+            f"Medication marked as missed:\n"
+            f"User: {reminder.user.username}\n"
+            f"Medicine: {reminder.medicine_name}\n"
+            f"Scheduled times: {', '.join(times)}\n"
+            f"Time: {timezone.now()}"
+        )
+        send_admin_notification(subject, message)
         return Response(self.get_serializer(reminder).data)
 
 

@@ -34,6 +34,8 @@ const STEPS = [
   {
     key: 'height',
     question: 'What is your height?',
+    suffix: 'cm',
+    placeholder: 'e.g. 175',
     optional: false,
   },
   {
@@ -64,8 +66,7 @@ export default function OnboardingScreen({ onComplete }) {
   const [gender, setGender] = useState('');
   const [age, setAge] = useState('');
   const [weight, setWeight] = useState('');
-  const [heightFeet, setHeightFeet] = useState('');
-  const [heightInches, setHeightInches] = useState('');
+  const [height, setHeight] = useState('');
   const [bloodGroup, setBloodGroup] = useState('');
   const [conditions, setConditions] = useState('');
   const [saving, setSaving] = useState(false);
@@ -83,7 +84,7 @@ export default function OnboardingScreen({ onComplete }) {
       case 'weight':
         return weight.trim() !== '' && Number(weight) > 0 && Number(weight) < 500;
       case 'height':
-        return heightFeet.trim() !== '' && Number(heightFeet) > 0 && Number(heightFeet) < 9;
+        return height.trim() !== '' && Number(height) > 0 && Number(height) < 300;
       case 'blood_group':
         return true;
       case 'diagnosed_conditions':
@@ -114,7 +115,7 @@ export default function OnboardingScreen({ onComplete }) {
         gender: gender || null,
         age: age ? Number(age) : null,
         weight: weight ? Number(weight) : null,
-        height: heightFeet || heightInches ? Math.round(Number(heightFeet || 0) * 30.48 + Number(heightInches || 0) * 2.54) : null,
+        height: height ? Number(height) : null,
         blood_group: bloodGroup || '',
         diagnosed_conditions: conditions
           ? conditions.split(',').map((item) => item.trim()).filter(Boolean)
@@ -166,32 +167,26 @@ export default function OnboardingScreen({ onComplete }) {
             ))}
           </View>
         ) : current.key === 'blood_group' ? (
-          <View style={s.radioGroup}>
+          <View style={s.bloodGroupGrid}>
             {BLOOD_GROUP_OPTIONS.map((opt) => (
               <TouchableOpacity
                 key={opt}
-                style={[s.radioRow, bloodGroup === opt && s.radioRowActive]}
+                style={[s.bloodGroupButton, bloodGroup === opt && s.bloodGroupButtonActive]}
                 onPress={() => setBloodGroup(opt === bloodGroup ? '' : opt)}
                 activeOpacity={0.7}
               >
-                <View style={s.radioOuter}>
-                  {bloodGroup === opt ? <View style={s.radioInner} /> : null}
-                </View>
-                <Text style={[s.radioLabel, bloodGroup === opt && s.radioLabelActive]}>
+                <Text style={[s.bloodGroupButtonText, bloodGroup === opt && s.bloodGroupButtonTextActive]}>
                   {opt}
                 </Text>
               </TouchableOpacity>
             ))}
             <TouchableOpacity
-              style={[s.radioRow, bloodGroup === '' && !bloodGroup && s.radioRowActive]}
+              style={[s.bloodGroupButton, bloodGroup === '' && s.bloodGroupButtonActive, s.skipButton]}
               onPress={() => setBloodGroup('')}
               activeOpacity={0.7}
             >
-              <View style={s.radioOuter}>
-                {bloodGroup === '' ? <View style={s.radioInner} /> : null}
-              </View>
-              <Text style={[s.radioLabel, bloodGroup === '' && s.radioLabelActive]}>
-                Skip this question
+              <Text style={[s.bloodGroupButtonText, bloodGroup === '' && s.bloodGroupButtonTextActive]}>
+                Skip
               </Text>
             </TouchableOpacity>
           </View>
@@ -208,33 +203,6 @@ export default function OnboardingScreen({ onComplete }) {
             />
             {current.hint ? <Text style={s.hint}>{current.hint}</Text> : null}
           </View>
-        ) : current.key === 'height' ? (
-          <View style={s.heightRow}>
-            <View style={s.heightInputGroup}>
-              <TextInput
-                style={s.textInput}
-                placeholder="5"
-                placeholderTextColor={colors.textMuted}
-                value={heightFeet}
-                onChangeText={setHeightFeet}
-                keyboardType="numeric"
-                maxLength={1}
-              />
-              <Text style={s.suffix}>ft</Text>
-            </View>
-            <View style={s.heightInputGroup}>
-              <TextInput
-                style={s.textInput}
-                placeholder="9"
-                placeholderTextColor={colors.textMuted}
-                value={heightInches}
-                onChangeText={setHeightInches}
-                keyboardType="numeric"
-                maxLength={2}
-              />
-              <Text style={s.suffix}>in</Text>
-            </View>
-          </View>
         ) : (
           <View style={s.inputRow}>
             <TextInput
@@ -244,11 +212,13 @@ export default function OnboardingScreen({ onComplete }) {
               value={
                 current.key === 'age' ? age :
                 current.key === 'weight' ? weight :
+                current.key === 'height' ? height :
                 ''
               }
               onChangeText={
                 current.key === 'age' ? setAge :
                 current.key === 'weight' ? setWeight :
+                current.key === 'height' ? setHeight :
                 () => {}
               }
               keyboardType="numeric"
@@ -377,22 +347,43 @@ const styles = (colors) => StyleSheet.create({
     color: colors.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
+  bloodGroupGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  bloodGroupButton: {
+    flex: 1,
+    minWidth: 80,
+    maxWidth: 120,
+    minHeight: 56,
+    backgroundColor: colors.elevated,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bloodGroupButtonActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '15',
+  },
+  bloodGroupButtonText: {
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: colors.textPrimary,
+  },
+  bloodGroupButtonTextActive: {
+    color: colors.primary,
+  },
+  skipButton: {
+    flex: 2,
+    maxWidth: '100%',
+  },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  heightRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-  },
-  heightInputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flex: 0,
-    minWidth: 100,
   },
   textInput: {
     flex: 1,

@@ -1,6 +1,9 @@
+import { useContext } from 'react';
+import { HealthContext } from '../context/HealthContext';
+
 // Custom Design System Tokens for the Remote Health Monitoring Tool (RHMT)
 
-export const COLORS = {
+export const DARK_COLORS = {
   // Base Clinical / Hospital Dark-mode backgrounds
   background: '#121212',    // Premium Charcoal Black background
   surface: '#1E1E1E',       // Dark Charcoal grey cards/surfaces
@@ -30,6 +33,39 @@ export const COLORS = {
   border: '#2E2E2E',        // Dark grey borders for cards & dividers
   shadow: 'rgba(0, 0, 0, 0.5)', // Dark shadow depth
 };
+
+export const LIGHT_COLORS = {
+  // Base Clinical / Hospital Light-mode backgrounds
+  background: '#F8F9FA',      // Premium Soft White/Light Grey background
+  surface: '#FFFFFF',         // Pure White cards/surfaces
+  surfaceLight: '#E9ECEF',    // Soft light grey for input boxes, pills, and headers
+  
+  // Glassmorphic translucent overlays (light mode)
+  glassBackground: 'rgba(255, 255, 255, 0.85)',
+  glassBorder: 'rgba(225, 173, 1, 0.2)',
+  
+  // Accent & Health Status colors (vibrant, clinical gold)
+  primary: '#E1AD01',         // Mustard Yellow / Dull Gold
+  primaryLight: '#B88E00',    // Slightly darker gold for light mode text readability
+  secondary: '#121212',       // Dark grey/black for data trends
+  accent: '#E1AD01',          // Gold accent for fitness metrics
+  
+  // Connection / Alert levels
+  online: '#E1AD01',          // Gold
+  offline: '#888888',         // Muted grey
+  critical: '#E1AD01',        // Gold
+  
+  // Typography Neutral Scale (High-contrast)
+  textPrimary: '#121212',     // Dark charcoal/black
+  textSecondary: '#495057',   // Slate grey for body text
+  textMuted: '#868E96',       // Muted grey for timestamps
+  
+  // Interactive / State colors
+  border: '#DEE2E6',          // Light grey borders
+  shadow: 'rgba(0, 0, 0, 0.08)', // Soft shadow
+};
+
+export const COLORS = DARK_COLORS;
 
 export const TYPOGRAPHY = {
   fontFamily: 'System',
@@ -67,14 +103,14 @@ export const SHADOWS = {
     elevation: 4,
   },
   neonGreen: {
-    shadowColor: COLORS.primary,
+    shadowColor: DARK_COLORS.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 6,
     elevation: 2,
   },
   neonRed: {
-    shadowColor: COLORS.primary,
+    shadowColor: DARK_COLORS.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 8,
@@ -82,10 +118,21 @@ export const SHADOWS = {
   }
 };
 
+export function useTheme() {
+  const context = useContext(HealthContext);
+  const isDarkMode = context ? context.isDarkMode : true;
+  const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
+  const toggleTheme = context ? context.toggleTheme : () => {};
+  return { colors, isDarkMode, toggleTheme };
+}
+
 export default {
   COLORS,
+  DARK_COLORS,
+  LIGHT_COLORS,
   TYPOGRAPHY,
   SPACING,
   SHADOWS,
+  useTheme,
 };
 

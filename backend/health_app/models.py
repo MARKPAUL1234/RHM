@@ -97,14 +97,29 @@ class MedicationReminder(models.Model):
         ('taken', 'Taken'),
         ('missed', 'Missed'),
         ('paused', 'Paused'),
+        ('completed', 'Completed'),
+    ]
+    FREQUENCY_CHOICES = [
+        ('once', 'Once daily'),
+        ('twice', 'Twice daily'),
+        ('thrice', 'Three times daily'),
+        ('custom', 'Custom'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='medication_reminders')
     medicine_name = models.CharField(max_length=120)
     dosage = models.CharField(max_length=80, blank=True)
     scheduled_time = models.TimeField()
-    frequency = models.CharField(max_length=80, default='Daily')
+    scheduled_time_2 = models.TimeField(blank=True, null=True)
+    scheduled_time_3 = models.TimeField(blank=True, null=True)
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default='once')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     notes = models.CharField(max_length=255, blank=True)
+    doctor_instructions = models.TextField(blank=True, help_text='Instructions written by the prescribing doctor')
+    start_date = models.DateField(blank=True, null=True)
+    end_date = models.DateField(blank=True, null=True)
+    duration_days = models.PositiveIntegerField(blank=True, null=True, help_text='How many days to take the medicine')
+    doses_taken_today = models.PositiveIntegerField(default=0)
+    dose_reset_date = models.DateField(blank=True, null=True)
     last_taken_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -113,7 +128,12 @@ class MedicationReminder(models.Model):
         ordering = ['scheduled_time', 'medicine_name']
 
     def __str__(self):
-        return f"{self.user.username} - {self.medicine_name} at {self.scheduled_time}"
+        times = [str(self.scheduled_time)]
+        if self.scheduled_time_2:
+            times.append(str(self.scheduled_time_2))
+        if self.scheduled_time_3:
+            times.append(str(self.scheduled_time_3))
+        return f"{self.user.username} - {self.medicine_name} at {', '.join(times)}"
 
 class NutritionLog(models.Model):
     ENTRY_CHOICES = [

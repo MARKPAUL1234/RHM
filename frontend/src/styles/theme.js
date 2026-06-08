@@ -102,6 +102,18 @@ export const SHADOWS = {
       elevation: 2,
     },
   }),
+  large: Platform.select({
+    web: {
+      boxShadow: '0 20px 60px rgba(15, 23, 42, 0.25)',
+    },
+    default: {
+      shadowColor: '#0F172A',
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.25,
+      shadowRadius: 30,
+      elevation: 8,
+    },
+  }),
 };
 
 export const getResponsiveMetrics = (width = 390) => {

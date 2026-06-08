@@ -15,6 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
 import { TYPOGRAPHY, SPACING, SHADOWS, getResponsiveMetrics } from '../styles/theme';
 import djangoApi, { setAuthToken } from '../services/django_api';
+import { useToast } from '../context/ToastContext';
+import { ToastTypes } from '../components/Toast';
 
 export default function HomeScreen() {
   const { user, setUser, colors } = useContext(HealthContext);
@@ -26,6 +28,7 @@ export default function HomeScreen() {
   const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
   const [authError, setAuthError] = useState('');
+  const { showToast } = useToast();
 
   const handleAuth = async () => {
     const normalizedUsername = username.trim();
@@ -46,6 +49,7 @@ export default function HomeScreen() {
           normalizedEmail || `${normalizedUsername}@rhmt.app`,
           password
         );
+        showToast('Account created successfully!', ToastTypes.SUCCESS);
       }
 
       await djangoApi.login(normalizedUsername, password);
@@ -59,8 +63,10 @@ export default function HomeScreen() {
 
       setUser(userObj);
       await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(userObj));
+      showToast('Logged in successfully!', ToastTypes.SUCCESS);
     } catch (e) {
       setAuthError(e.message || 'Authentication failed. Check your credentials and backend server.');
+      showToast(e.message || 'Authentication failed', ToastTypes.ERROR);
     } finally {
       setLoading(false);
     }
@@ -75,6 +81,7 @@ export default function HomeScreen() {
       await AsyncStorage.removeItem('@rhmt_user_session');
       await AsyncStorage.removeItem('@rhmt_auth_token');
       await AsyncStorage.removeItem('@rhmt_refresh_token');
+      showToast('Signed out successfully', ToastTypes.INFO);
     } finally {
       setLoading(false);
     }

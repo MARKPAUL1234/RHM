@@ -3,8 +3,9 @@ import { SafeAreaView, StyleSheet, StatusBar, View, ActivityIndicator, Text, Ani
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
 import djangoApi, { setAuthToken, setRefreshToken } from './src/services/django_api';
-import { LIGHT_COLORS } from './src/styles/theme';
+import { LIGHT_COLORS, DARK_COLORS } from './src/styles/theme';
 import { HealthContext } from './src/context/HealthContext';
+import { ToastProvider } from './src/context/ToastContext';
 
 const OFFLINE_QUEUE_KEY = '@rhmt_offline_queue';
 const EMPTY_VITALS = {
@@ -203,6 +204,17 @@ export default function App() {
   const [connectionStatus, setConnectionStatus] = useState('online');
   const [isAutomaticMode, setIsAutomaticMode] = useState(false);
   const [vitals, setVitals] = useState(EMPTY_VITALS);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  const toggleTheme = async (value) => {
+    try {
+      const nextMode = typeof value === 'boolean' ? value : !isDarkMode;
+      setIsDarkMode(nextMode);
+      await AsyncStorage.setItem('@rhmt_theme_mode', nextMode ? 'dark' : 'light');
+    } catch (e) {
+      console.log('Failed to save theme preference:', e);
+    }
+  };
 
   const [usersMetadata, setUsersMetadata] = useState({
     user_id: null,
@@ -345,7 +357,7 @@ export default function App() {
     );
   };
 
-  const colors = LIGHT_COLORS;
+  const colors = isDarkMode ? DARK_COLORS : LIGHT_COLORS;
 
   const refreshQueueCount = useCallback(async () => {
     try {
@@ -572,6 +584,15 @@ export default function App() {
   useEffect(() => {
     const verifySession = async () => {
       try {
+        const savedTheme = await AsyncStorage.getItem('@rhmt_theme_mode');
+        if (savedTheme !== null) {
+          setIsDarkMode(savedTheme === 'dark');
+        }
+      } catch (themeErr) {
+        console.log('Failed to load theme preference:', themeErr);
+      }
+
+      try {
         const savedToken = await AsyncStorage.getItem('@rhmt_auth_token');
         const savedRefreshToken = await AsyncStorage.getItem('@rhmt_refresh_token');
         const savedUser = await AsyncStorage.getItem('@rhmt_user_session');
@@ -722,92 +743,96 @@ export default function App() {
 
   return (
     <SafeAreaView style={s.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <HealthContext.Provider
-        value={{
-          user,
-          setUser,
-          isFetchingData,
-          setIsFetchingData,
-          connectionStatus,
-          setConnectionStatus,
-          isAutomaticMode,
-          setIsAutomaticMode,
-          vitals,
-          setVitals,
-          profile,
-          setProfile,
-          usersMetadata,
-          setUsersMetadata,
-          patientDetails,
-          setPatientDetails,
-          nutrition,
-          setNutrition,
-          healthRecords,
-          setHealthRecords,
-          nutritionLogs,
-          setNutritionLogs,
-          foodLogs,
-          setFoodLogs,
-          fitnessLogs,
-          setFitnessLogs,
-          fitnessSummary,
-          setFitnessSummary,
-          healthScores,
-          setHealthScores,
-          healthSummary,
-          setHealthSummary,
-          medicationReminders,
-          setMedicationReminders,
-          weeklyReport,
-          setWeeklyReport,
-          patientOverview,
-          setPatientOverview,
-          alerts,
-          setAlerts,
-          recommendations,
-          setRecommendations,
-          emergencyEvents,
-          setEmergencyEvents,
-          contactInquiries,
-          setContactInquiries,
-          appointmentRequests,
-          setAppointmentRequests,
-          careMessages,
-          setCareMessages,
-          dndEnabled,
-          setDndEnabled: updateDndEnabled,
-          notificationPreferences,
-          updateNotificationPreference,
-          refreshError,
-          lastRefreshAt,
-          queueCount,
-          logs,
-          handleOfflineEnqueue,
-          handleSyncQueue,
-          handleClearLogs,
-          clearLocalCache,
-          resetUserData,
-          updateProfileBaseline,
-          logNutritionEntry,
-          logFoodEntry,
-          logFitnessEntry,
-          createMedicationReminder,
-          markMedicationTaken,
-          markMedicationMissed,
-          exportWeeklyReport,
-          reviewHealthRecord,
-          createEmergencyEvent,
-          createContactInquiry,
-          createAppointmentRequest,
-          createCareMessage,
-          markAlertRead,
-          refreshSyncStats,
-          colors,
-        }}
-      >
-        <AppNavigator />
-      </HealthContext.Provider>
+      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} backgroundColor={colors.background} />
+      <ToastProvider>
+        <HealthContext.Provider
+          value={{
+            user,
+            setUser,
+            isFetchingData,
+            setIsFetchingData,
+            connectionStatus,
+            setConnectionStatus,
+            isAutomaticMode,
+            setIsAutomaticMode,
+            vitals,
+            setVitals,
+            profile,
+            setProfile,
+            usersMetadata,
+            setUsersMetadata,
+            patientDetails,
+            setPatientDetails,
+            nutrition,
+            setNutrition,
+            healthRecords,
+            setHealthRecords,
+            nutritionLogs,
+            setNutritionLogs,
+            foodLogs,
+            setFoodLogs,
+            fitnessLogs,
+            setFitnessLogs,
+            fitnessSummary,
+            setFitnessSummary,
+            healthScores,
+            setHealthScores,
+            healthSummary,
+            setHealthSummary,
+            medicationReminders,
+            setMedicationReminders,
+            weeklyReport,
+            setWeeklyReport,
+            patientOverview,
+            setPatientOverview,
+            alerts,
+            setAlerts,
+            recommendations,
+            setRecommendations,
+            emergencyEvents,
+            setEmergencyEvents,
+            contactInquiries,
+            setContactInquiries,
+            appointmentRequests,
+            setAppointmentRequests,
+            careMessages,
+            setCareMessages,
+            dndEnabled,
+            setDndEnabled: updateDndEnabled,
+            notificationPreferences,
+            updateNotificationPreference,
+            refreshError,
+            lastRefreshAt,
+            queueCount,
+            logs,
+            handleOfflineEnqueue,
+            handleSyncQueue,
+            handleClearLogs,
+            clearLocalCache,
+            resetUserData,
+            updateProfileBaseline,
+            logNutritionEntry,
+            logFoodEntry,
+            logFitnessEntry,
+            createMedicationReminder,
+            markMedicationTaken,
+            markMedicationMissed,
+            exportWeeklyReport,
+            reviewHealthRecord,
+            createEmergencyEvent,
+            createContactInquiry,
+            createAppointmentRequest,
+            createCareMessage,
+            markAlertRead,
+            refreshSyncStats,
+            colors,
+            isDarkMode,
+            toggleTheme,
+          }}
+        >
+          <AppNavigator />
+        </HealthContext.Provider>
+      </ToastProvider>
     </SafeAreaView>
   );
 }
