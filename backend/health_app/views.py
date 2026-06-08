@@ -135,6 +135,164 @@ def build_appointment_triage(urgency, reason):
     }
 
 
+def get_blood_group_nutrition_plan(blood_group, diagnosed_conditions=None):
+    """
+    Generate personalized nutrition plan based on blood group and diagnosed conditions.
+    """
+    blood_group = (blood_group or '').strip().upper()
+    conditions = diagnosed_conditions or []
+    condition_adjustments = []
+
+    # Base plans by blood group
+    plans = {
+        'O': {
+            'meal_plan': 'High protein with lean meats, fish, and vegetables. Limit grains, dairy, and legumes.',
+            'recommended_foods': ['Lean beef, lamb, chicken', 'Fish (salmon, cod)', 'Leafy greens (spinach, kale)', 'Broccoli, cauliflower', 'Berries', 'Olive oil'],
+            'restricted_foods': ['Wheat products', 'Dairy (milk, cheese)', 'Corn', 'Lentils, chickpeas', 'Cabbage, Brussels sprouts'],
+            'fluid_target': '2.5-3.0 Liters',
+            'lifestyle_guideline': 'Engage in vigorous exercise (running, cycling, HIIT) 3-4 times weekly. Focus on high-protein meals for sustained energy.'
+        },
+        'O+': {
+            'meal_plan': 'High protein with lean meats, fish, and vegetables. Limit grains, dairy, and legumes.',
+            'recommended_foods': ['Lean beef, lamb, chicken', 'Fish (salmon, cod)', 'Leafy greens (spinach, kale)', 'Broccoli, cauliflower', 'Berries', 'Olive oil'],
+            'restricted_foods': ['Wheat products', 'Dairy (milk, cheese)', 'Corn', 'Lentils, chickpeas', 'Cabbage, Brussels sprouts'],
+            'fluid_target': '2.5-3.0 Liters',
+            'lifestyle_guideline': 'Engage in vigorous exercise (running, cycling, HIIT) 3-4 times weekly. Focus on high-protein meals for sustained energy.'
+        },
+        'O-': {
+            'meal_plan': 'High protein with lean meats, fish, and vegetables. Limit grains, dairy, and legumes.',
+            'recommended_foods': ['Lean beef, lamb, chicken', 'Fish (salmon, cod)', 'Leafy greens (spinach, kale)', 'Broccoli, cauliflower', 'Berries', 'Olive oil'],
+            'restricted_foods': ['Wheat products', 'Dairy (milk, cheese)', 'Corn', 'Lentils, chickpeas', 'Cabbage, Brussels sprouts'],
+            'fluid_target': '2.5-3.0 Liters',
+            'lifestyle_guideline': 'Engage in vigorous exercise (running, cycling, HIIT) 3-4 times weekly. Focus on high-protein meals for sustained energy.'
+        },
+        'A': {
+            'meal_plan': 'Plant-based diet rich in vegetables, fruits, whole grains, legumes, and tofu. Limit red meat.',
+            'recommended_foods': ['Leafy greens (spinach, kale)', 'Broccoli, carrots', 'Berries, cherries', 'Whole grains (oats, quinoa)', 'Legumes (lentils, chickpeas)', 'Tofu, tempeh'],
+            'restricted_foods': ['Red meat (beef, lamb)', 'Dairy (milk, cheese)', 'Processed foods', 'Excess sugar'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Practice calming exercise (yoga, tai chi, walking) daily. Focus on fresh, organic, plant-based meals.'
+        },
+        'A+': {
+            'meal_plan': 'Plant-based diet rich in vegetables, fruits, whole grains, legumes, and tofu. Limit red meat.',
+            'recommended_foods': ['Leafy greens (spinach, kale)', 'Broccoli, carrots', 'Berries, cherries', 'Whole grains (oats, quinoa)', 'Legumes (lentils, chickpeas)', 'Tofu, tempeh'],
+            'restricted_foods': ['Red meat (beef, lamb)', 'Dairy (milk, cheese)', 'Processed foods', 'Excess sugar'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Practice calming exercise (yoga, tai chi, walking) daily. Focus on fresh, organic, plant-based meals.'
+        },
+        'A-': {
+            'meal_plan': 'Plant-based diet rich in vegetables, fruits, whole grains, legumes, and tofu. Limit red meat.',
+            'recommended_foods': ['Leafy greens (spinach, kale)', 'Broccoli, carrots', 'Berries, cherries', 'Whole grains (oats, quinoa)', 'Legumes (lentils, chickpeas)', 'Tofu, tempeh'],
+            'restricted_foods': ['Red meat (beef, lamb)', 'Dairy (milk, cheese)', 'Processed foods', 'Excess sugar'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Practice calming exercise (yoga, tai chi, walking) daily. Focus on fresh, organic, plant-based meals.'
+        },
+        'B': {
+            'meal_plan': 'Balanced omnivore diet with meat, dairy, grains, and vegetables. Limit chicken, corn, and wheat.',
+            'recommended_foods': ['Lamb, venison', 'Eggs', 'Dairy (milk, cheese, yogurt)', 'Leafy greens', 'Oats, rice', 'Fish (salmon, cod)'],
+            'restricted_foods': ['Chicken', 'Corn', 'Wheat', 'Tomatoes', 'Sesame seeds'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Engage in moderate exercise (hiking, cycling, swimming) 3-4 times weekly. Maintain balanced, varied meals.'
+        },
+        'B+': {
+            'meal_plan': 'Balanced omnivore diet with meat, dairy, grains, and vegetables. Limit chicken, corn, and wheat.',
+            'recommended_foods': ['Lamb, venison', 'Eggs', 'Dairy (milk, cheese, yogurt)', 'Leafy greens', 'Oats, rice', 'Fish (salmon, cod)'],
+            'restricted_foods': ['Chicken', 'Corn', 'Wheat', 'Tomatoes', 'Sesame seeds'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Engage in moderate exercise (hiking, cycling, swimming) 3-4 times weekly. Maintain balanced, varied meals.'
+        },
+        'B-': {
+            'meal_plan': 'Balanced omnivore diet with meat, dairy, grains, and vegetables. Limit chicken, corn, and wheat.',
+            'recommended_foods': ['Lamb, venison', 'Eggs', 'Dairy (milk, cheese, yogurt)', 'Leafy greens', 'Oats, rice', 'Fish (salmon, cod)'],
+            'restricted_foods': ['Chicken', 'Corn', 'Wheat', 'Tomatoes', 'Sesame seeds'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Engage in moderate exercise (hiking, cycling, swimming) 3-4 times weekly. Maintain balanced, varied meals.'
+        },
+        'AB': {
+            'meal_plan': 'Combination of Type A and Type B diets. Focus on seafood, tofu, dairy, and green vegetables.',
+            'recommended_foods': ['Fish (salmon, tuna, mackerel)', 'Tofu, tempeh', 'Dairy (yogurt, kefir)', 'Leafy greens', 'Berries', 'Olive oil'],
+            'restricted_foods': ['Red meat', 'Chicken', 'Corn', 'Buckwheat', 'Excess caffeine'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Combine calming and moderate exercise (yoga + brisk walking). Focus on fresh, balanced meals.'
+        },
+        'AB+': {
+            'meal_plan': 'Combination of Type A and Type B diets. Focus on seafood, tofu, dairy, and green vegetables.',
+            'recommended_foods': ['Fish (salmon, tuna, mackerel)', 'Tofu, tempeh', 'Dairy (yogurt, kefir)', 'Leafy greens', 'Berries', 'Olive oil'],
+            'restricted_foods': ['Red meat', 'Chicken', 'Corn', 'Buckwheat', 'Excess caffeine'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Combine calming and moderate exercise (yoga + brisk walking). Focus on fresh, balanced meals.'
+        },
+        'AB-': {
+            'meal_plan': 'Combination of Type A and Type B diets. Focus on seafood, tofu, dairy, and green vegetables.',
+            'recommended_foods': ['Fish (salmon, tuna, mackerel)', 'Tofu, tempeh', 'Dairy (yogurt, kefir)', 'Leafy greens', 'Berries', 'Olive oil'],
+            'restricted_foods': ['Red meat', 'Chicken', 'Corn', 'Buckwheat', 'Excess caffeine'],
+            'fluid_target': '2.0-2.5 Liters',
+            'lifestyle_guideline': 'Combine calming and moderate exercise (yoga + brisk walking). Focus on fresh, balanced meals.'
+        }
+    }
+
+    # Get base plan or default
+    base_plan = plans.get(blood_group, {
+        'meal_plan': 'Balanced diet with lean proteins, whole grains, fruits, and vegetables.',
+        'recommended_foods': ['Lean proteins', 'Whole grains', 'Fruits', 'Vegetables', 'Healthy fats'],
+        'restricted_foods': ['Excess sugar', 'Deep fried foods', 'High sodium snacks'],
+        'fluid_target': '2.0-2.5 Liters',
+        'lifestyle_guideline': 'Maintain regular physical activity and balanced nutrition.'
+    })
+
+    # Adjust for diagnosed conditions
+    if 'Diabetes' in conditions:
+        base_plan['meal_plan'] = 'Low glycemic index diet with portion control. Limit carbohydrates and added sugars.'
+        base_plan['recommended_foods'] = ['Leafy greens', 'Non-starchy vegetables', 'Lean proteins (chicken, fish)', 'Healthy fats (avocado, nuts)', 'Berries']
+        base_plan['restricted_foods'] = ['Sugary drinks', 'White bread, rice', 'Pastries, sweets', 'Processed foods']
+        condition_adjustments.append('Monitor blood glucose levels regularly and avoid refined carbohydrates.')
+
+    if 'Hypertension' in conditions or 'High Blood Pressure' in conditions:
+        base_plan['meal_plan'] = 'DASH diet: Low sodium, high in potassium, magnesium, and calcium.'
+        base_plan['recommended_foods'] = ['Leafy greens', 'Bananas, oranges', 'Sweet potatoes', 'Berries', 'Oats', 'Fat-free dairy']
+        base_plan['restricted_foods'] = ['High sodium foods', 'Processed meats', 'Canned soups', 'Salty snacks']
+        base_plan['fluid_target'] = '2.0 Liters'
+        condition_adjustments.append('Limit sodium intake to less than 2,300 mg daily.')
+
+    if 'Malaria' in conditions:
+        base_plan['meal_plan'] = 'Calorie-dense nutrient-rich diet with vitamins and minerals to support recovery.'
+        base_plan['recommended_foods'] = ['Steamed salmon', 'Leafy greens', 'Citrus fruits', 'Bananas', 'Ginger tea', 'Oatmeal']
+        base_plan['restricted_foods'] = ['Spicy foods', 'Alcohol', 'Caffeine']
+        base_plan['fluid_target'] = '3.0 Liters'
+        condition_adjustments.append('Stay hydrated and rest during recovery.')
+
+    if 'Typhoid' in conditions:
+        base_plan['meal_plan'] = 'Non-spicy soft diet for easy digestion during treatment.'
+        base_plan['recommended_foods'] = ['Barley water', 'Vegetable broth', 'Oatmeal', 'Pureed apples', 'Bananas', 'Boiled rice']
+        base_plan['restricted_foods'] = ['Spicy foods', 'High fiber foods', 'Raw vegetables', 'Deep fried foods']
+        base_plan['fluid_target'] = '2.5 Liters'
+        condition_adjustments.append('Drink only boiled or purified water and eat soft, easily digestible meals.')
+
+    if 'Obesity' in conditions:
+        base_plan['meal_plan'] = 'Calorie-controlled, high-fiber, high-protein diet for gradual weight loss.'
+        base_plan['recommended_foods'] = ['Leafy greens', 'Lean proteins', 'Whole grains', 'Legumes', 'Berries']
+        base_plan['restricted_foods'] = ['Sugary drinks', 'Fast food', 'Processed snacks', 'High-fat dairy']
+        condition_adjustments.append('Focus on portion control and regular physical activity.')
+
+    # Format the meal plan with recommended and restricted foods
+    formatted_meal_plan = (
+        f"{base_plan['meal_plan']}\n\n"
+        f"Recommended: {', '.join(base_plan['recommended_foods'])}\n\n"
+        f"Restricted: {', '.join(base_plan['restricted_foods'])}"
+    )
+
+    # Add condition adjustments to lifestyle guideline
+    full_lifestyle = base_plan['lifestyle_guideline']
+    if condition_adjustments:
+        full_lifestyle += ' ' + ' '.join(condition_adjustments)
+
+    return {
+        'meal_plan': formatted_meal_plan,
+        'fluid_target': base_plan['fluid_target'],
+        'lifestyle_guideline': full_lifestyle
+    }
+
+
 def calculate_health_score(record, recent_count=1):
     score = 100
     reasons = []
@@ -394,13 +552,14 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
             reasons=score_payload['reasons'],
             next_actions=score_payload['next_actions'],
         )
-        if score_payload['risk_level'] in ['watch', 'urgent']:
-            Recommendation.objects.create(
-                user=record.user,
-                meal_plan='Personalized hydration-first meal plan based on latest vitals.',
-                fluid_target='2.5-3.0 Liters',
-                lifestyle_guideline='; '.join(score_payload['next_actions']),
-            )
+        profile, created = UserProfile.objects.get_or_create(user=record.user)
+        nutrition_plan = get_blood_group_nutrition_plan(profile.blood_group, profile.diagnosed_conditions)
+        Recommendation.objects.create(
+            user=record.user,
+            meal_plan=nutrition_plan['meal_plan'],
+            fluid_target=nutrition_plan['fluid_target'],
+            lifestyle_guideline=nutrition_plan['lifestyle_guideline'],
+        )
 
     def _generate_alerts_and_recommendations(self, record):
         profile, created = UserProfile.objects.get_or_create(user=record.user)
@@ -933,6 +1092,27 @@ class RecommendationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['post'])
+    def generate(self, request):
+        """Generate personalized nutrition recommendations based on user profile"""
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        nutrition_plan = get_blood_group_nutrition_plan(profile.blood_group, profile.diagnosed_conditions)
+        
+        # Create the recommendation
+        recommendation = Recommendation.objects.create(
+            user=request.user,
+            meal_plan=nutrition_plan['meal_plan'],
+            fluid_target=nutrition_plan['fluid_target'],
+            lifestyle_guideline=nutrition_plan['lifestyle_guideline'],
+        )
+        
+        SystemLog.objects.create(
+            level='INFO', 
+            message=f'Personalized nutrition plan generated on demand for blood group {profile.blood_group or "Not set"}.'
+        )
+        
+        return Response(self.get_serializer(recommendation).data)
 
 
 class SystemLogViewSet(viewsets.ModelViewSet):

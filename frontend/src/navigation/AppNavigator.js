@@ -179,7 +179,7 @@ const calculateDashboardStats = (logs) => {
   if (logs.length === 0) {
     return [
       { label: 'Avg Temp', value: '--', detail: 'No manual entries yet' },
-      { label: 'Avg SpO2', value: '--', detail: 'No oxygen history yet' },
+      { label: 'Avg SpO2', value: '--', detail: '' },
       { label: 'Avg Pulse', value: '--', detail: 'No pulse history yet' },
       { label: 'Stable Logs', value: '--', detail: 'Start with today\'s vitals' },
     ];
