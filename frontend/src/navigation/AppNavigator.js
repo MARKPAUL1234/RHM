@@ -1802,6 +1802,7 @@ function DashboardTab({
   const pulse = safeNumber(wearablePulse ?? latest.pulse, null);
   const hasVitals = temperature !== null || pulse !== null;
   const [quickAction, setQuickAction] = useState(null);
+  const [isRiskModalVisible, setIsRiskModalVisible] = useState(false);
 
   const [isWaterLogging, setIsWaterLogging] = useState(false);
   const [isWalkLogging, setIsWalkLogging] = useState(false);
@@ -1966,6 +1967,7 @@ function DashboardTab({
       value: healthSummary ? `${healthSummary.score}/100` : '--',
       helper: healthSummary ? `${String(healthSummary.risk_level || 'stable').toUpperCase()} risk level` : 'Log vitals to activate scoring',
       color: getRiskColor(healthSummary?.risk_level),
+      onClick: () => healthSummary && setIsRiskModalVisible(true),
     },
     {
       label: 'Body Temp',
@@ -2006,32 +2008,40 @@ function DashboardTab({
         />
       ) : null}
       <View style={dashboardStyles.cardGrid}>
-        {cards.map((card) => (
-          <View key={card.label} style={dashboardStyles.summaryCard}>
-            <View style={[dashboardStyles.statusDot, { backgroundColor: card.color }]} />
-            <Text style={dashboardStyles.cardLabel}>{card.label}</Text>
-            <Text style={dashboardStyles.cardValue} numberOfLines={card.label === 'Symptoms' ? 2 : 1}>
-              {card.value}
-            </Text>
-            <Text style={dashboardStyles.cardHelper}>{card.helper}</Text>
-            {card.wearable ? (
-              <TouchableOpacity
-                style={[dashboardStyles.wearableButton, card.connecting && dashboardStyles.wearableButtonConnecting]}
-                onPress={() => connectWearable(card.label === 'Body Temp' ? 'temp' : 'pulse')}
-                activeOpacity={0.7}
-                disabled={card.connecting}
-              >
-                {card.connecting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={dashboardStyles.wearableButtonText}>
-                    {wearableTemp || wearablePulse ? 'Reconnect' : 'Connect wearable'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        ))}
+        {cards.map((card) => {
+          const CardWrapper = card.onClick ? TouchableOpacity : View;
+          return (
+            <CardWrapper
+              key={card.label}
+              style={dashboardStyles.summaryCard}
+              onPress={card.onClick}
+              activeOpacity={0.8}
+            >
+              <View style={[dashboardStyles.statusDot, { backgroundColor: card.color }]} />
+              <Text style={dashboardStyles.cardLabel}>{card.label}</Text>
+              <Text style={dashboardStyles.cardValue} numberOfLines={card.label === 'Symptoms' ? 2 : 1}>
+                {card.value}
+              </Text>
+              <Text style={dashboardStyles.cardHelper}>{card.helper}</Text>
+              {card.wearable ? (
+                <TouchableOpacity
+                  style={[dashboardStyles.wearableButton, card.connecting && dashboardStyles.wearableButtonConnecting]}
+                  onPress={() => connectWearable(card.label === 'Body Temp' ? 'temp' : 'pulse')}
+                  activeOpacity={0.7}
+                  disabled={card.connecting}
+                >
+                  {card.connecting ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={dashboardStyles.wearableButtonText}>
+                      {wearableTemp || wearablePulse ? 'Reconnect' : 'Connect wearable'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              ) : null}
+            </CardWrapper>
+          );
+        })}
       </View>
       <View style={dashboardStyles.statisticsGrid}>
         {statistics.map((stat) => (
@@ -2166,30 +2176,32 @@ function DashboardTab({
       </QuickActionModal>
       <WalkingAchievements history={walkHistory} />
       <WalkingWeekChart history={walkHistory} />
-      {healthSummary ? (
-        <View style={dashboardStyles.riskPanel}>
-          <View style={dashboardStyles.riskHeader}>
-            <Text style={dashboardStyles.riskTitle}>Risk Engine</Text>
-            <Text style={[dashboardStyles.riskBadge, { color: getRiskColor(healthSummary.risk_level) }]}>
-              {String(healthSummary.risk_level || 'stable').toUpperCase()}
-            </Text>
-          </View>
-          <View style={dashboardStyles.riskColumns}>
-            <View style={dashboardStyles.riskColumn}>
-              <Text style={dashboardStyles.riskColumnTitle}>Reasons</Text>
-              {(healthSummary.reasons || []).slice(0, 3).map((reason) => (
-                <Text key={reason} style={dashboardStyles.riskText}>- {reason}</Text>
-              ))}
+      <QuickActionModal visible={isRiskModalVisible} title="Risk Engine" onClose={() => setIsRiskModalVisible(false)}>
+        {healthSummary ? (
+          <View style={dashboardStyles.riskPanel}>
+            <View style={dashboardStyles.riskHeader}>
+              <Text style={dashboardStyles.riskTitle}>Risk Engine</Text>
+              <Text style={[dashboardStyles.riskBadge, { color: getRiskColor(healthSummary.risk_level) }]}>
+                {String(healthSummary.risk_level || 'stable').toUpperCase()}
+              </Text>
             </View>
-            <View style={dashboardStyles.riskColumn}>
-              <Text style={dashboardStyles.riskColumnTitle}>Next Actions</Text>
-              {(healthSummary.next_actions || []).slice(0, 3).map((action) => (
-                <Text key={action} style={dashboardStyles.riskText}>- {action}</Text>
-              ))}
+            <View style={dashboardStyles.riskColumns}>
+              <View style={dashboardStyles.riskColumn}>
+                <Text style={dashboardStyles.riskColumnTitle}>Reasons</Text>
+                {(healthSummary.reasons || []).map((reason) => (
+                  <Text key={reason} style={dashboardStyles.riskText}>- {reason}</Text>
+                ))}
+              </View>
+              <View style={dashboardStyles.riskColumn}>
+                <Text style={dashboardStyles.riskColumnTitle}>Next Actions</Text>
+                {(healthSummary.next_actions || []).map((action) => (
+                  <Text key={action} style={dashboardStyles.riskText}>- {action}</Text>
+                ))}
+              </View>
             </View>
           </View>
-        </View>
-      ) : null}
+        ) : null}
+      </QuickActionModal>
       <View style={dashboardStyles.chartBlock}>
         <View style={dashboardStyles.chartHeader}>
           <View>
