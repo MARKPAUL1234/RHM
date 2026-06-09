@@ -22,7 +22,6 @@ from .models import (
     Recommendation,
     SystemLog,
     UserProfile,
-    WearableDevice,
 )
 from .serializers import (
     AlertSerializer,
@@ -40,7 +39,6 @@ from .serializers import (
     SystemLogSerializer,
     UserProfileSerializer,
     UserSerializer,
-    WearableDeviceSerializer,
 )
 from .notifications import send_admin_notification
 
@@ -308,27 +306,23 @@ def calculate_health_score(record, recent_count=1):
             'next_actions': ['Log temperature and pulse to activate scoring.'],
         }
 
-    has_high_fever = False
-    if record.temperature is not None:
-        if record.temperature >= 38.5:
-            score -= 25
-            reasons.append(f'High fever detected at {record.temperature} C.')
-            next_actions.append('Hydrate, rest, and consider clinician review if fever persists.')
-            has_high_fever = True
-        elif record.temperature >= 37.5:
-            score -= 12
-            reasons.append(f'Temperature is elevated at {record.temperature} C.')
-            next_actions.append('Monitor temperature again this evening.')
+    if record.temperature >= 38.5:
+        score -= 25
+        reasons.append(f'High fever detected at {record.temperature} C.')
+        next_actions.append('Hydrate, rest, and consider clinician review if fever persists.')
+    elif record.temperature >= 37.5:
+        score -= 12
+        reasons.append(f'Temperature is elevated at {record.temperature} C.')
+        next_actions.append('Monitor temperature again this evening.')
 
-    if record.heart_rate is not None:
-        if record.heart_rate > 120 or record.heart_rate < 45:
-            score -= 25
-            reasons.append(f'Pulse rate is outside safe range at {record.heart_rate} bpm.')
-            next_actions.append('Avoid intense activity and recheck pulse after rest.')
-        elif record.heart_rate > 100:
-            score -= 12
-            reasons.append(f'Resting pulse is elevated at {record.heart_rate} bpm.')
-            next_actions.append('Try guided breathing and avoid caffeine today.')
+    if record.heart_rate > 120 or record.heart_rate < 45:
+        score -= 25
+        reasons.append(f'Pulse rate is outside safe range at {record.heart_rate} bpm.')
+        next_actions.append('Avoid intense activity and recheck pulse after rest.')
+    elif record.heart_rate > 100:
+        score -= 12
+        reasons.append(f'Resting pulse is elevated at {record.heart_rate} bpm.')
+        next_actions.append('Try guided breathing and avoid caffeine today.')
 
     symptoms = record.symptoms_array or []
     if len(symptoms) >= 3:
@@ -345,7 +339,7 @@ def calculate_health_score(record, recent_count=1):
         next_actions.append('Log daily for at least three days to improve trend accuracy.')
 
     score = max(0, min(100, score))
-    if score < 55 or has_high_fever:
+    if score < 55 or record.temperature >= 38.5:
         risk_level = 'urgent'
     elif score < 78:
         risk_level = 'watch'
@@ -1101,83 +1095,6 @@ class RecommendationViewSet(viewsets.ModelViewSet):
         )
         
         return Response(self.get_serializer(recommendation).data)
-
-
-class WearableDeviceViewSet(viewsets.ModelViewSet):
-    queryset = WearableDevice.objects.all()
-    serializer_class = WearableDeviceSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return WearableDevice.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
-
-    @action(detail=True, methods=['post'])
-    def sync_vitals(self, request, pk=None):
-        device = self.get_object()
-        temperature = request.data.get('temperature')
-        heart_rate = request.data.get('heart_rate')
-        
-        record = HealthRecord.objects.create(
-            user=request.user,
-            temperature=temperature,
-            heart_rate=heart_rate,
-            source='wearable',
-            wearable_device=device,
-        )
-        
-        device.last_sync_at = timezone.now()
-        device.save(update_fields=['last_sync_at'])
-        
-        self._generate_alerts_and_recommendations(record)
-        self._create_health_score(record)
-        SystemLog.objects.create(level='SYNC', message=f'Synced wearable record {record.id} from {device.name}')
-        
-        return Response(HealthRecordSerializer(record).data)
-    
-    def _generate_alerts_and_recommendations(self, record):
-        profile, created = UserProfile.objects.get_or_create(user=record.user)
-        diagnosed_conditions = profile.diagnosed_conditions or []
-        symptoms = record.symptoms_array or []
-        
-        if record.temperature is not None and 'Malaria' in diagnosed_conditions and record.temperature > 38.0:
-            Recommendation.objects.create(
-                user=record.user,
-                meal_plan='Calorie-dense baseline with vitamins (Steamed salmon, leafy greens, citrus fruits).',
-                fluid_target='3.0 Liters',
-                lifestyle_guideline='Fever flare-up and chills detected during active Malaria treatment. Minimize physical strain, set a strict 3L fluid intake goal for today.'
-            )
-            SystemLog.objects.create(level='INFO', message='Malaria Fever Guideline generated.')
-        
-        if record.temperature is not None and record.temperature > 38.5:
-            Alert.objects.create(
-                user=record.user,
-                severity='critical',
-                alert_message=f'Elevated fever baseline detected ({record.temperature} C) from wearable device. Rest, maintain hydration, and verify medication schedule.'
-            )
-            SystemLog.objects.create(level='WARN', message=f'High Fever Alert fired for user {record.user.id}')
-    
-    def _create_health_score(self, record):
-        recent_count = HealthRecord.objects.filter(user=record.user).count()
-        score_payload = calculate_health_score(record, recent_count=recent_count)
-        HealthScoreSnapshot.objects.create(
-            user=record.user,
-            record=record,
-            score=score_payload['score'],
-            risk_level=score_payload['risk_level'],
-            reasons=score_payload['reasons'],
-            next_actions=score_payload['next_actions'],
-        )
-        profile, created = UserProfile.objects.get_or_create(user=record.user)
-        nutrition_plan = get_blood_group_nutrition_plan(profile.blood_group, profile.diagnosed_conditions)
-        Recommendation.objects.create(
-            user=record.user,
-            meal_plan=nutrition_plan['meal_plan'],
-            fluid_target=nutrition_plan['fluid_target'],
-            lifestyle_guideline=nutrition_plan['lifestyle_guideline'],
-        )
 
 
 class SystemLogViewSet(viewsets.ModelViewSet):

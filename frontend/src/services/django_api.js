@@ -434,24 +434,6 @@ export const djangoApi = {
       body: JSON.stringify(data),
     });
   },
-
-  async getWearableDevices() {
-    return apiRequest('/wearable-devices/');
-  },
-
-  async createWearableDevice(data) {
-    return apiRequest('/wearable-devices/', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  async syncWearableVitals(deviceId, data) {
-    return apiRequest(`/wearable-devices/${deviceId}/sync_vitals/`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
 };
 
 export default djangoApi;

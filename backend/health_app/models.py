@@ -38,28 +38,6 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.user.username}'s Profile"
 
-class WearableDevice(models.Model):
-    DEVICE_TYPE_CHOICES = [
-        ('smartwatch', 'Smartwatch'),
-        ('fitness_tracker', 'Fitness Tracker'),
-        ('thermometer', 'Smart Thermometer'),
-        ('other', 'Other'),
-    ]
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='wearable_devices')
-    name = models.CharField(max_length=150)
-    device_type = models.CharField(max_length=30, choices=DEVICE_TYPE_CHOICES, default='smartwatch')
-    ble_uuid = models.CharField(max_length=100, blank=True)
-    is_paired = models.BooleanField(default=False)
-    last_sync_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['-created_at']
-
-    def __str__(self):
-        return f"{self.user.username} - {self.name}"
-
 class HealthRecord(models.Model):
     REVIEW_CHOICES = [
         ('pending', 'Pending Review'),
@@ -67,13 +45,9 @@ class HealthRecord(models.Model):
         ('follow_up', 'Needs Follow Up'),
         ('escalated', 'Escalated'),
     ]
-    SOURCE_CHOICES = [
-        ('manual', 'Manual Entry'),
-        ('wearable', 'Wearable Device'),
-    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='health_records')
-    temperature = models.FloatField(null=True, blank=True)
-    heart_rate = models.IntegerField(null=True, blank=True)
+    temperature = models.FloatField()
+    heart_rate = models.IntegerField()
     symptoms_array = models.JSONField(default=list, blank=True)
     meds_taken = models.BooleanField(default=False)
     wellbeing_score = models.IntegerField(default=3)
@@ -89,14 +63,6 @@ class HealthRecord(models.Model):
     )
     timestamp = models.DateTimeField(auto_now_add=True)
     is_synced = models.BooleanField(default=True)
-    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
-    wearable_device = models.ForeignKey(
-        WearableDevice,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='health_records'
-    )
 
     class Meta:
         ordering = ['-timestamp']

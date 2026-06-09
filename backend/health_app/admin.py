@@ -9,7 +9,6 @@ from .models import (
     Recommendation,
     SystemLog,
     UserProfile,
-    WearableDevice,
 )
 
 admin.site.register(UserProfile)
@@ -21,4 +20,3 @@ admin.site.register(Alert)
 admin.site.register(EmergencyEvent)
 admin.site.register(Recommendation)
 admin.site.register(SystemLog)
-admin.site.register(WearableDevice)

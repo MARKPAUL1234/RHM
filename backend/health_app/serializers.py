@@ -15,7 +15,6 @@ from .models import (
     Recommendation,
     SystemLog,
     UserProfile,
-    WearableDevice,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -44,23 +43,15 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'medical_notes', 'created_at', 'updated_at',
         ]
 
-class WearableDeviceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = WearableDevice
-        fields = ['id', 'user', 'name', 'device_type', 'ble_uuid', 'is_paired', 'last_sync_at', 'created_at', 'updated_at']
-        read_only_fields = ['user', 'last_sync_at', 'created_at', 'updated_at']
-
 class HealthRecordSerializer(serializers.ModelSerializer):
     reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True)
-    wearable_device_name = serializers.CharField(source='wearable_device.name', read_only=True)
 
     class Meta:
         model = HealthRecord
         fields = ['id', 'user', 'temperature', 'heart_rate', 
                   'symptoms_array', 'meds_taken', 'wellbeing_score', 
                   'review_status', 'clinician_note', 'reviewed_at',
-                  'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced',
-                  'source', 'wearable_device', 'wearable_device_name']
+                  'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced']
         read_only_fields = [
             'user', 'review_status', 'clinician_note', 'reviewed_at',
             'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced',
@@ -72,9 +63,13 @@ class HealthRecordSerializer(serializers.ModelSerializer):
         wellbeing_score = attrs.get('wellbeing_score', 3)
 
         errors = {}
-        if temperature is not None and not 34 <= temperature <= 42:
+        if temperature is None:
+            errors['temperature'] = 'Temperature is required.'
+        elif not 34 <= temperature <= 42:
             errors['temperature'] = 'Temperature must be between 34 C and 42 C.'
-        if heart_rate is not None and not 30 <= heart_rate <= 220:
+        if heart_rate is None:
+            errors['heart_rate'] = 'Heart rate is required.'
+        elif not 30 <= heart_rate <= 220:
             errors['heart_rate'] = 'Pulse rate must be between 30 and 220 bpm.'
         if wellbeing_score is not None and not 1 <= wellbeing_score <= 5:
             errors['wellbeing_score'] = 'Wellbeing score must be between 1 and 5.'
