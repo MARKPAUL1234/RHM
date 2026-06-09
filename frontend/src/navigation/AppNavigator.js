@@ -3008,6 +3008,9 @@ function InsightsTab({
 }
 
 function AppointmentDetail({ appointment, messages }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const insightStyles = getInsightStyles(colors);
   if (!appointment) {
     return (
       <View style={insightStyles.detailPanel}>
@@ -3100,6 +3103,9 @@ function ClinicalDashboardTab({ patientOverview, appointmentRequests, alerts, on
 }
 
 function ClinicalInsightsTab({ appointmentRequests, alerts, careMessages, onMarkAlertRead, onCreateCareMessage }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const insightStyles = getInsightStyles(colors);
   const [replyText, setReplyText] = useState('');
   const [replyState, setReplyState] = useState('');
 
