@@ -308,23 +308,27 @@ def calculate_health_score(record, recent_count=1):
             'next_actions': ['Log temperature and pulse to activate scoring.'],
         }
 
-    if record.temperature >= 38.5:
-        score -= 25
-        reasons.append(f'High fever detected at {record.temperature} C.')
-        next_actions.append('Hydrate, rest, and consider clinician review if fever persists.')
-    elif record.temperature >= 37.5:
-        score -= 12
-        reasons.append(f'Temperature is elevated at {record.temperature} C.')
-        next_actions.append('Monitor temperature again this evening.')
+    has_high_fever = False
+    if record.temperature is not None:
+        if record.temperature >= 38.5:
+            score -= 25
+            reasons.append(f'High fever detected at {record.temperature} C.')
+            next_actions.append('Hydrate, rest, and consider clinician review if fever persists.')
+            has_high_fever = True
+        elif record.temperature >= 37.5:
+            score -= 12
+            reasons.append(f'Temperature is elevated at {record.temperature} C.')
+            next_actions.append('Monitor temperature again this evening.')
 
-    if record.heart_rate > 120 or record.heart_rate < 45:
-        score -= 25
-        reasons.append(f'Pulse rate is outside safe range at {record.heart_rate} bpm.')
-        next_actions.append('Avoid intense activity and recheck pulse after rest.')
-    elif record.heart_rate > 100:
-        score -= 12
-        reasons.append(f'Resting pulse is elevated at {record.heart_rate} bpm.')
-        next_actions.append('Try guided breathing and avoid caffeine today.')
+    if record.heart_rate is not None:
+        if record.heart_rate > 120 or record.heart_rate < 45:
+            score -= 25
+            reasons.append(f'Pulse rate is outside safe range at {record.heart_rate} bpm.')
+            next_actions.append('Avoid intense activity and recheck pulse after rest.')
+        elif record.heart_rate > 100:
+            score -= 12
+            reasons.append(f'Resting pulse is elevated at {record.heart_rate} bpm.')
+            next_actions.append('Try guided breathing and avoid caffeine today.')
 
     symptoms = record.symptoms_array or []
     if len(symptoms) >= 3:
@@ -341,7 +345,7 @@ def calculate_health_score(record, recent_count=1):
         next_actions.append('Log daily for at least three days to improve trend accuracy.')
 
     score = max(0, min(100, score))
-    if score < 55 or record.temperature >= 38.5:
+    if score < 55 or has_high_fever:
         risk_level = 'urgent'
     elif score < 78:
         risk_level = 'watch'
@@ -1138,7 +1142,7 @@ class WearableDeviceViewSet(viewsets.ModelViewSet):
         diagnosed_conditions = profile.diagnosed_conditions or []
         symptoms = record.symptoms_array or []
         
-        if record.temperature and 'Malaria' in diagnosed_conditions and record.temperature > 38.0:
+        if record.temperature is not None and 'Malaria' in diagnosed_conditions and record.temperature > 38.0:
             Recommendation.objects.create(
                 user=record.user,
                 meal_plan='Calorie-dense baseline with vitamins (Steamed salmon, leafy greens, citrus fruits).',
@@ -1147,7 +1151,7 @@ class WearableDeviceViewSet(viewsets.ModelViewSet):
             )
             SystemLog.objects.create(level='INFO', message='Malaria Fever Guideline generated.')
         
-        if record.temperature and record.temperature > 38.5:
+        if record.temperature is not None and record.temperature > 38.5:
             Alert.objects.create(
                 user=record.user,
                 severity='critical',
