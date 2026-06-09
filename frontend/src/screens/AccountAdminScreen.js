@@ -144,7 +144,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
         await AsyncStorage.setItem('@rhmt_user_session', JSON.stringify(updatedUser));
       }
 
-      Alert.alert('Profile saved', 'Patient baseline was synced to Django.');
+      Alert.alert('Profile saved', 'Patient baseline was synced to the backend.');
     } catch (error) {
       Alert.alert('Save failed', error.message || 'Unable to sync the profile baseline.');
     } finally {
@@ -162,7 +162,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
   const handlePurgeLocalSession = () => {
     Alert.alert(
       'Clear local cache?',
-      'This clears local auth, the offline queue, and the in-memory log display. Django records are retained.',
+      'This clears local auth, the offline queue, and the in-memory log display. Backend records are retained.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -184,7 +184,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
 
   const refreshBackend = async () => {
     await refreshSyncStats();
-    Alert.alert('Backend refreshed', 'Latest Django collections were loaded.');
+    Alert.alert('Backend refreshed', 'Latest backend collections were loaded.');
   };
 
   const collectionCards = [
@@ -307,7 +307,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
 
               <View style={[s.card, SHADOWS.subtle]}>
                 <Text style={s.cardTitle}>Clinical baseline</Text>
-                <Text style={s.cardDesc}>These fields are saved to the Django profile and used by recommendation rules.</Text>
+                <Text style={s.cardDesc}>These fields are saved to the backend profile and used by recommendation rules.</Text>
 
                 <View style={s.formGroup}>
                   <Text style={s.label}>Patient identifier</Text>
@@ -381,7 +381,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
                   <View style={s.prefRow}>
                     <View style={s.prefLeft}>
                       <Text style={s.prefTitle}>Automatic refresh</Text>
-                      <Text style={s.prefDesc}>Poll Django endpoints while signed in.</Text>
+                      <Text style={s.prefDesc}>Poll backend endpoints while signed in.</Text>
                     </View>
                     <Switch
                       value={isAutomaticMode}
@@ -422,7 +422,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
               <View style={s.pageHeader}>
                 <View>
                   <Text style={s.eyebrow}>Backend console</Text>
-                  <Text style={s.pageTitle}>Django collections</Text>
+                  <Text style={s.pageTitle}>Backend collections</Text>
                 </View>
                 <View style={s.consoleActions}>
                   <TouchableOpacity style={s.saveBtn} onPress={refreshBackend}>

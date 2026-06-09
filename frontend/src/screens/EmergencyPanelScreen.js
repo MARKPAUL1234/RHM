@@ -85,7 +85,7 @@ export default function EmergencyPanelScreen() {
         status: connectionStatus === 'online' ? 'dispatched' : 'queued',
       });
 
-      const statusLabel = event.status === 'queued' ? 'Queued in Django' : 'Recorded as dispatched';
+      const statusLabel = event.status === 'queued' ? 'Queued in the backend' : 'Recorded as dispatched';
       setDispatchStatus(`${statusLabel}: ${smsContent}`);
       Alert.alert('Emergency event saved', `${statusLabel}. A critical alert was created in the backend.`);
     } catch (error) {
@@ -192,7 +192,7 @@ export default function EmergencyPanelScreen() {
 
             <View style={[s.card, s.sideCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>Recent emergency events</Text>
-              <Text style={s.cardDesc}>Events are read from the Django emergency-events endpoint.</Text>
+              <Text style={s.cardDesc}>Events are read from the backend emergency-events endpoint.</Text>
 
               {emergencyEvents.length === 0 ? (
                 <View style={s.emptyBox}>

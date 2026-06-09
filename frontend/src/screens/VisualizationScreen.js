@@ -60,10 +60,10 @@ export default function VisualizationScreen() {
     : null;
 
   const insightText = (() => {
-    if (!hasRecords) return 'No manual health records have been saved yet. Submit a monitoring entry to generate charts from Django health records.';
+    if (!hasRecords) return 'No manual health records have been saved yet. Submit a monitoring entry to generate charts from backend health records.';
     if (latestTemp > 38.5) return 'Fever threshold is active in the latest record. Hydration and medication adherence should be checked.';
     if (latestHr > 100) return 'Pulse trend is elevated. Compare against symptoms and medication adherence in the monitoring journal.';
-    return `Recent records are stable. Mean pulse is ${averageHr} bpm across ${recordSeries.length} Django record(s).`;
+    return `Recent records are stable. Mean pulse is ${averageHr} bpm across ${recordSeries.length} backend record(s).`;
   })();
 
   const waveformPoints = [
@@ -197,7 +197,7 @@ export default function VisualizationScreen() {
                   </View>
                 ) : (
                   <View style={s.emptyChartState}>
-                    <Text style={s.emptyChartText}>No waveform can be derived until a Django health record exists.</Text>
+                    <Text style={s.emptyChartText}>No waveform can be derived until a backend health record exists.</Text>
                   </View>
                 )}
               </View>
@@ -239,7 +239,7 @@ export default function VisualizationScreen() {
               <View style={s.chartHeader}>
                 <View>
                   <Text style={s.chartTitle}>Temperature map</Text>
-                  <Text style={s.chartSubtitle}>Recent body-temperature cells from Django records.</Text>
+                  <Text style={s.chartSubtitle}>Recent body-temperature cells from backend records.</Text>
                 </View>
                 <Text style={s.statusPill}>{latestTemp ? `${latestTemp} C latest` : 'No records'}</Text>
               </View>

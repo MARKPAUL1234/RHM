@@ -97,7 +97,7 @@ export default function HomeScreen() {
             <Text style={s.brandMarkText}>RH</Text>
           </View>
           <Text style={s.pageTitle}>Session active</Text>
-          <Text style={s.pageSubtitle}>{user.username} is connected to the Django backend.</Text>
+          <Text style={s.pageSubtitle}>{user.username} is connected to the backend.</Text>
           <TouchableOpacity style={s.outlineButton} onPress={handleSignOut}>
             <Text style={s.outlineButtonText}>{loading ? 'Signing out...' : 'Sign out'}</Text>
           </TouchableOpacity>
@@ -132,7 +132,7 @@ export default function HomeScreen() {
 
               <View style={s.capabilityGrid}>
                 {[
-                  ['Records', 'Django health journals'],
+                  ['Records', 'Health journals'],
                   ['Alerts', 'Rule-generated warnings'],
                   ['Care', 'Nutrition and fitness plans'],
                   ['Offline', 'Queued sync support'],

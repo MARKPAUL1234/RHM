@@ -827,7 +827,7 @@ function AppNavigator() {
           {queueCount > 0 ? (
             <DataStatePanel
               title={`${queueCount} entr${queueCount === 1 ? 'y' : 'ies'} pending sync`}
-              message="Queued vitals are waiting for Django and will appear in history only after the backend saves them."
+              message="Queued vitals are waiting for the backend and will appear in history only after the backend saves them."
               actionLabel="Sync"
               onAction={handleSyncQueue}
             />
@@ -1610,7 +1610,7 @@ function HydrationActionPanel({ nutritionLogs, profile, onLogNutritionEntry, onR
         note: 'Dashboard quick action',
       });
       await onRefresh?.();
-      setStatus(`${parsedAmount} mL saved to Django.`);
+      setStatus(`${parsedAmount} mL saved to the backend.`);
     } catch (error) {
       setStatus(error?.message || 'Unable to save water intake.');
     } finally {
@@ -1723,7 +1723,7 @@ function WalkingActionPanel({ fitnessLogs, fitnessSummary, onLogFitnessEntry, on
         goal_note: 'Dashboard live walking quick action',
       });
       await onRefresh?.();
-      setStatus(`${parsedSteps} steps saved to Django.`);
+      setStatus(`${parsedSteps} steps saved to the backend.`);
       setElapsed(0);
       setStepsInput('');
     } catch (error) {
@@ -1995,7 +1995,7 @@ function DashboardTab({
     <View>
       <SectionHeader title="Daily Health Status" subtitle="Latest self-entered vitals, trend context, and symptom state." />
       {isFetchingData ? (
-        <DataStatePanel title="Loading health records" message="Pulling current vitals, scores, alerts, and care guidance from Django." loading />
+        <DataStatePanel title="Loading health records" message="Pulling current vitals, scores, alerts, and care guidance from the backend." loading />
       ) : null}
       {!isFetchingData && logs.length === 0 ? (
         <DataStatePanel
@@ -3357,7 +3357,7 @@ function SettingsTab({
   const handleResetData = async () => {
     if (!isConfirmingReset) {
       setIsConfirmingReset(true);
-      setSettingsState('Press Confirm Reset to clear your saved Django records.');
+      setSettingsState('Press Confirm Reset to clear your saved backend records.');
       return;
     }
 

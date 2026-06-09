@@ -91,7 +91,7 @@ export default function PatientMonitoringScreen() {
 
   const submitJournalRecord = async (payload) => {
     setIsSubmitting(true);
-    setSyncStatusMsg(connectionStatus === 'online' ? 'Sending record to Django...' : 'Saving record to offline queue...');
+    setSyncStatusMsg(connectionStatus === 'online' ? 'Sending record to the backend...' : 'Saving record to offline queue...');
 
     try {
       setVitals({
@@ -104,7 +104,7 @@ export default function PatientMonitoringScreen() {
       setSelectedSymptoms([]);
       setWellbeing(4);
       setMedsTaken(true);
-      setSyncStatusMsg(connectionStatus === 'online' ? 'Record synced to Django.' : 'Record saved locally for later sync.');
+      setSyncStatusMsg(connectionStatus === 'online' ? 'Record synced to the backend.' : 'Record saved locally for later sync.');
     } catch (error) {
       setSyncStatusMsg(error.message || 'Unable to save the monitoring record.');
     } finally {
@@ -170,7 +170,7 @@ export default function PatientMonitoringScreen() {
             <View style={[s.card, s.formCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>New biometric entry</Text>
               <Text style={s.cardDesc}>
-                Saved records are posted to Django when online or held in the offline queue when connectivity is unavailable.
+                Saved records are posted to the backend when online or held in the offline queue when connectivity is unavailable.
               </Text>
 
               {renderMetricAdjuster({
@@ -252,7 +252,7 @@ export default function PatientMonitoringScreen() {
 
             <View style={[s.card, s.sideCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>Backend baseline</Text>
-              <Text style={s.cardDesc}>Profile measurements loaded from the authenticated Django profile.</Text>
+              <Text style={s.cardDesc}>Profile measurements loaded from the authenticated backend profile.</Text>
 
               {baselineRows.map((row) => (
                 <View key={row.label} style={s.baselineRow}>
@@ -261,7 +261,7 @@ export default function PatientMonitoringScreen() {
                 </View>
               ))}
 
-              <Text style={[s.cardTitle, s.recentTitle]}>Recent Django records</Text>
+              <Text style={[s.cardTitle, s.recentTitle]}>Recent backend records</Text>
               {healthRecords.length === 0 ? (
                 <View style={s.emptyBox}>
                   <Text style={s.emptyText}>No health records saved yet.</Text>

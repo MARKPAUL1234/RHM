@@ -131,7 +131,7 @@ const apiRequest = async (url, options = {}, retryOnUnauthorized = true) => {
 const explainNetworkError = (error) => {
   if (error instanceof TypeError && String(error.message).includes('Failed to fetch')) {
     return new Error(
-      'Cannot reach the Django API. Make sure the backend is running on http://localhost:8080 and restart it after the CORS changes.'
+      'Cannot reach the backend API. Make sure the backend is running on http://localhost:8080 and restart it after the CORS changes.'
     );
   }
   return error;

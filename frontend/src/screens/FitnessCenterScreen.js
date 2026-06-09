@@ -64,7 +64,7 @@ export default function FitnessCenterScreen() {
       setHeartRateInput('');
       setIntensity('low');
       setGoalNote('');
-      Alert.alert('Activity saved', 'Manual fitness activity was synced to Django.');
+      Alert.alert('Activity saved', 'Manual fitness activity was synced to the backend.');
     } catch (error) {
       Alert.alert('Save failed', error.message || 'Unable to sync the activity entry.');
     } finally {
@@ -236,7 +236,7 @@ export default function FitnessCenterScreen() {
 
             <View style={[s.card, s.routinesCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>{hasCriticalAlert ? 'Recovery routines' : 'Suggested routines'}</Text>
-              <Text style={s.cardDesc}>Routine options are returned by Django based on alert state and latest vitals.</Text>
+              <Text style={s.cardDesc}>Routine options are returned by the backend based on alert state and latest vitals.</Text>
 
               {workouts.length === 0 ? (
                 <View style={s.emptyBox}>

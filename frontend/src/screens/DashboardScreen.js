@@ -133,7 +133,7 @@ export default function DashboardScreen() {
             <Text style={s.eyebrow}>Clinical Command Center</Text>
             <Text style={s.pageTitle}>Patient overview</Text>
             <Text style={s.pageSubtitle}>
-              Live Django records, generated alerts, recommendations, and offline queue state in one operational view.
+              Live health records, generated alerts, recommendations, and offline queue state in one operational view.
             </Text>
           </View>
           <View style={s.heroStatus}>
@@ -150,8 +150,8 @@ export default function DashboardScreen() {
             <Text style={s.syncTitle}>{queueCount > 0 ? 'Offline queue pending' : 'Backend sync healthy'}</Text>
             <Text style={s.syncText}>
               {queueCount > 0
-                ? 'Measurements saved while offline can be pushed to Django when connectivity is available.'
-                : 'Recent records, alerts, recommendations, nutrition logs, and emergency events are refreshed from Django.'}
+                ? 'Measurements saved while offline can be pushed to the backend when connectivity is available.'
+                : 'Recent records, alerts, recommendations, nutrition logs, and emergency events are refreshed from the backend.'}
             </Text>
           </View>
           <TouchableOpacity
@@ -275,7 +275,7 @@ export default function DashboardScreen() {
               <Text style={s.sectionMeta}>{unreadAlerts.length}</Text>
             </View>
             {unreadAlerts.length === 0 ? (
-              <EmptyState colors={colors} text="No unread alerts from Django." />
+              <EmptyState colors={colors} text="No unread alerts from the backend." />
             ) : (
               unreadAlerts.slice(0, 4).map((alert) => (
                 <View key={alert.id} style={s.feedRow}>

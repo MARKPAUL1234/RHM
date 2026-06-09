@@ -91,7 +91,7 @@ export default function ContactUsScreen() {
           <View style={s.contentGrid}>
             <View style={[s.card, s.formCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>New inquiry</Text>
-              <Text style={s.cardDesc}>This form saves a contact inquiry to Django with a confirmation code.</Text>
+              <Text style={s.cardDesc}>This form saves a contact inquiry to the backend with a confirmation code.</Text>
 
               <View style={s.formGroup}>
                 <Text style={s.label}>Purpose</Text>

@@ -115,7 +115,7 @@ export default function NutritionHubScreen() {
         note: 'Profile baseline weight update',
       });
       setNewWeight('');
-      Alert.alert('Weight saved', 'The weight entry was synced to Django.');
+      Alert.alert('Weight saved', 'The weight entry was synced to the backend.');
     } catch (error) {
       Alert.alert('Save failed', error.message || 'Unable to sync the weight entry.');
     } finally {
@@ -179,7 +179,7 @@ export default function NutritionHubScreen() {
       setProtein('');
       setFat('');
       setFoodNote('');
-      Alert.alert('Meal saved', 'Food and macro details were synced to Django.');
+      Alert.alert('Meal saved', 'Food and macro details were synced to the backend.');
     } catch (error) {
       Alert.alert('Save failed', error.message || 'Unable to sync the food entry.');
     } finally {
@@ -219,7 +219,7 @@ export default function NutritionHubScreen() {
           <View style={s.contentGrid}>
             <View style={[s.card, s.bmiCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>BMI baseline</Text>
-              <Text style={s.cardDesc}>Calculated from the authenticated Django profile height and weight.</Text>
+              <Text style={s.cardDesc}>Calculated from the authenticated backend profile height and weight.</Text>
 
               <View style={s.bmiDisplayBox}>
                 <View>
@@ -234,7 +234,7 @@ export default function NutritionHubScreen() {
 
             <View style={[s.card, s.hydrationCard, SHADOWS.subtle]}>
               <Text style={s.cardTitle}>Hydration tracker</Text>
-              <Text style={s.cardDesc}>Daily intake logs are saved as Django nutrition records.</Text>
+              <Text style={s.cardDesc}>Daily intake logs are saved as backend nutrition records.</Text>
 
               <View style={s.progressHeader}>
                 <Text style={s.waterVal}>{waterIntake} mL</Text>

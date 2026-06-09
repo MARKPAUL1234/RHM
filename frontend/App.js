@@ -475,7 +475,7 @@ export default function App() {
       }
       setConnectionStatus('offline');
       setRefreshError(e?.message || 'Unable to refresh live backend data.');
-      console.error("Failed to refresh Django data:", e);
+      console.error("Failed to refresh backend data:", e);
     }
   }, [clearSession, refreshQueueCount, user]);
 
