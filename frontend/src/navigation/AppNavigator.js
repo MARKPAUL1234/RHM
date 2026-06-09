@@ -1802,6 +1802,65 @@ function DashboardTab({
   const pulse = safeNumber(wearablePulse ?? latest.pulse, null);
   const hasVitals = temperature !== null || pulse !== null;
   const [quickAction, setQuickAction] = useState(null);
+
+  const [isWaterLogging, setIsWaterLogging] = useState(false);
+  const [isWalkLogging, setIsWalkLogging] = useState(false);
+
+  const waterIntake = useMemo(() => {
+    return (nutritionLogs || [])
+      .filter((log) => log.entry_type === 'water' && isSameDay(log.timestamp))
+      .reduce((total, log) => total + safeNumber(log.value, 0), 0);
+  }, [nutritionLogs]);
+
+  const waterGoal = safeNumber(profile?.daily_water_goal_ml, 3000);
+
+  const todaysWalks = useMemo(() => {
+    return (fitnessLogs || []).filter((log) => isSameDay(log.timestamp));
+  }, [fitnessLogs]);
+
+  const todaysSteps = useMemo(() => {
+    return todaysWalks.reduce((total, log) => total + safeNumber(log.steps, 0), 0);
+  }, [todaysWalks]);
+
+  const goalSteps = safeNumber(fitnessSummary?.goal_steps, 10000);
+
+  const handleQuickWaterLog = async (amount) => {
+    if (isWaterLogging) return;
+    setIsWaterLogging(true);
+    try {
+      await onLogNutritionEntry?.({
+        entry_type: 'water',
+        value: amount,
+        unit: 'ml',
+        note: 'Dashboard quick log button',
+      });
+      await onRefresh?.();
+    } catch (error) {
+      console.log('Failed to quick-log water:', error);
+    } finally {
+      setIsWaterLogging(false);
+    }
+  };
+
+  const handleQuickWalkLog = async (steps, duration) => {
+    if (isWalkLogging) return;
+    setIsWalkLogging(true);
+    try {
+      await onLogFitnessEntry?.({
+        activity_name: 'Live walking',
+        steps: steps,
+        duration_minutes: duration,
+        heart_rate: null,
+        intensity: 'low',
+        goal_note: 'Dashboard quick log button',
+      });
+      await onRefresh?.();
+    } catch (error) {
+      console.log('Failed to quick-log walk:', error);
+    } finally {
+      setIsWalkLogging(false);
+    }
+  };
   const walkHistory = useMemo(
     () => (fitnessLogs || [])
       .filter((log) => String(log.activity_name || '').toLowerCase().includes('walk'))
@@ -1983,7 +2042,7 @@ function DashboardTab({
           </View>
         ))}
       </View>
-      <SectionHeader title="Today's Reminders & Alerts" subtitle="Active medications, upcoming doses, and important health alerts." />
+      <SectionHeader title="Today's Reminders" subtitle="Active medications and upcoming doses." />
       <View style={dashboardStyles.remindersAlertsGrid}>
         {/* Medication Reminders */}
         <View style={dashboardStyles.reminderCard}>
@@ -2001,37 +2060,93 @@ function DashboardTab({
             <Text style={dashboardStyles.reminderActionText}>Manage</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Alerts */}
-        <View style={dashboardStyles.reminderCard}>
-          <View style={[dashboardStyles.reminderIconBox, { backgroundColor: '#FEE2E2' }]}>
-            <IconGlyph name="bell" active={false} size={28} />
-          </View>
-          <View style={dashboardStyles.reminderContent}>
-            <Text style={dashboardStyles.reminderTitle}>Health Alerts</Text>
-            <Text style={dashboardStyles.reminderSubtitle}>{(alerts || []).length} active alerts</Text>
-          </View>
-          <TouchableOpacity 
-            style={dashboardStyles.reminderActionButton} 
-            onPress={() => setActiveTab('settings')}
-          >
-            <Text style={dashboardStyles.reminderActionText}>View</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
       {/* Quick Actions */}
       <View style={dashboardStyles.quickActionGrid}>
-        <TouchableOpacity style={dashboardStyles.quickActionButton} onPress={() => setQuickAction('water')} activeOpacity={0.84}>
-          <Text style={dashboardStyles.quickActionIcon}>Water</Text>
-          <Text style={dashboardStyles.quickActionTitle}>Water</Text>
-          <Text style={dashboardStyles.quickActionText}>Save hydration to Django</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={dashboardStyles.quickActionButton} onPress={() => setQuickAction('walking')} activeOpacity={0.84}>
-          <Text style={dashboardStyles.quickActionIcon}>Walk</Text>
-          <Text style={dashboardStyles.quickActionTitle}>Live Walking</Text>
-          <Text style={dashboardStyles.quickActionText}>Time a walk and save steps</Text>
-        </TouchableOpacity>
+        {/* Water Card */}
+        <View style={dashboardStyles.quickActionCard}>
+          <View style={dashboardStyles.quickActionHeader}>
+            <View style={dashboardStyles.quickActionTitleContainer}>
+              <Text style={dashboardStyles.quickActionIconText}>💧</Text>
+              <Text style={dashboardStyles.quickActionTitle}>Water Hydration</Text>
+            </View>
+            <TouchableOpacity 
+              style={dashboardStyles.quickActionDetailBtn} 
+              onPress={() => setQuickAction('water')}
+            >
+              <Text style={dashboardStyles.quickActionDetailBtnText}>Custom ↗</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={dashboardStyles.quickActionProgressText}>
+            {Math.round(waterIntake)} mL / {waterGoal || 3000} mL goal
+          </Text>
+          <View style={dashboardStyles.quickBtnRow}>
+            <TouchableOpacity 
+              style={[dashboardStyles.quickInlineBtn, isWaterLogging && { opacity: 0.6 }]}
+              onPress={() => handleQuickWaterLog(250)}
+              disabled={isWaterLogging}
+            >
+              <Text style={dashboardStyles.quickInlineBtnText}>+250mL</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[dashboardStyles.quickInlineBtn, isWaterLogging && { opacity: 0.6 }]}
+              onPress={() => handleQuickWaterLog(500)}
+              disabled={isWaterLogging}
+            >
+              <Text style={dashboardStyles.quickInlineBtnText}>+500mL</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[dashboardStyles.quickInlineBtn, isWaterLogging && { opacity: 0.6 }]}
+              onPress={() => handleQuickWaterLog(750)}
+              disabled={isWaterLogging}
+            >
+              <Text style={dashboardStyles.quickInlineBtnText}>+750mL</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Live Walking Card */}
+        <View style={dashboardStyles.quickActionCard}>
+          <View style={dashboardStyles.quickActionHeader}>
+            <View style={dashboardStyles.quickActionTitleContainer}>
+              <Text style={dashboardStyles.quickActionIconText}>🚶</Text>
+              <Text style={dashboardStyles.quickActionTitle}>Live Walking</Text>
+            </View>
+            <TouchableOpacity 
+              style={dashboardStyles.quickActionDetailBtn} 
+              onPress={() => setQuickAction('walking')}
+            >
+              <Text style={dashboardStyles.quickActionDetailBtnText}>Timer ↗</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={dashboardStyles.quickActionProgressText}>
+            {todaysSteps.toLocaleString()} steps / {goalSteps || 10000} goal
+          </Text>
+          <View style={dashboardStyles.quickBtnRow}>
+            <TouchableOpacity 
+              style={[dashboardStyles.quickInlineBtn, isWalkLogging && { opacity: 0.6 }]}
+              onPress={() => handleQuickWalkLog(1000, 10)}
+              disabled={isWalkLogging}
+            >
+              <Text style={dashboardStyles.quickInlineBtnText}>+1k steps</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[dashboardStyles.quickInlineBtn, isWalkLogging && { opacity: 0.6 }]}
+              onPress={() => handleQuickWalkLog(2000, 20)}
+              disabled={isWalkLogging}
+            >
+              <Text style={dashboardStyles.quickInlineBtnText}>+2k steps</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[dashboardStyles.quickInlineBtn, isWalkLogging && { opacity: 0.6 }]}
+              onPress={() => handleQuickWalkLog(5000, 45)}
+              disabled={isWalkLogging}
+            >
+              <Text style={dashboardStyles.quickInlineBtnText}>+5k steps</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
       <QuickActionModal visible={quickAction === 'water'} title="Water Quick Action" onClose={() => setQuickAction(null)}>
         <HydrationActionPanel
@@ -4232,6 +4347,67 @@ const dashboardStyles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 16,
     ...SHADOWS.subtle,
+  },
+  quickActionCard: {
+    flexGrow: 1,
+    flexBasis: Platform.OS === 'web' ? '48%' : 260,
+    minWidth: 240,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#DDE6F0',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    ...SHADOWS.subtle,
+  },
+  quickActionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  quickActionTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  quickActionIconText: {
+    fontSize: 18,
+  },
+  quickActionDetailBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: '#F1F5F9',
+  },
+  quickActionDetailBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  quickActionProgressText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  quickBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickInlineBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    borderRadius: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  quickInlineBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#047857',
   },
   quickActionIcon: {
     alignSelf: 'flex-start',
