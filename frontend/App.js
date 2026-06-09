@@ -203,6 +203,7 @@ export default function App() {
   const [isAutomaticMode, setIsAutomaticMode] = useState(false);
   const [vitals, setVitals] = useState(EMPTY_VITALS);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isManualOffline, setIsManualOffline] = useState(false);
 
   const toggleTheme = async (value) => {
     try {
@@ -211,6 +212,21 @@ export default function App() {
       await AsyncStorage.setItem('@rhmt_theme_mode', nextMode ? 'dark' : 'light');
     } catch (e) {
       console.log('Failed to save theme preference:', e);
+    }
+  };
+
+  const toggleOfflineMode = async (value) => {
+    try {
+      const nextMode = typeof value === 'boolean' ? value : !isManualOffline;
+      setIsManualOffline(nextMode);
+      await AsyncStorage.setItem('@rhmt_manual_offline', String(nextMode));
+      if (nextMode) {
+        setConnectionStatus('offline');
+      } else {
+        setConnectionStatus('online');
+      }
+    } catch (e) {
+      console.log('Failed to save offline mode preference:', e);
     }
   };
 
@@ -403,7 +419,7 @@ export default function App() {
   }, [user]);
 
   const refreshSyncStats = useCallback(async () => {
-    if (!user) return;
+    if (!user || isManualOffline) return;
 
     try {
       await djangoApi.ensureAuthenticated();
@@ -586,8 +602,14 @@ export default function App() {
         if (savedTheme !== null) {
           setIsDarkMode(savedTheme === 'dark');
         }
+        const savedManualOffline = await AsyncStorage.getItem('@rhmt_manual_offline');
+        if (savedManualOffline !== null) {
+          const isOffline = savedManualOffline === 'true';
+          setIsManualOffline(isOffline);
+          setConnectionStatus(isOffline ? 'offline' : 'online');
+        }
       } catch (themeErr) {
-        console.log('Failed to load theme preference:', themeErr);
+        console.log('Failed to load preferences:', themeErr);
       }
 
       try {
@@ -825,6 +847,8 @@ export default function App() {
             colors,
             isDarkMode,
             toggleTheme,
+            isManualOffline,
+            toggleOfflineMode,
           }}
         >
           <AppNavigator />

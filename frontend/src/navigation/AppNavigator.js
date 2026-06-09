@@ -534,6 +534,43 @@ const IconGlyph = ({ name, active, size = 22 }) => {
     );
   }
 
+  if (name === 'wifi') {
+    return (
+      <View style={[is.box, { width: size, height: size, alignItems: 'center', justifyContent: 'center' }]}>
+        <View style={{
+          width: size * 0.8,
+          height: size * 0.4,
+          borderTopLeftRadius: size * 0.4,
+          borderTopRightRadius: size * 0.4,
+          borderWidth: stroke,
+          borderColor: lineColor,
+          borderBottomWidth: 0,
+          position: 'absolute',
+          bottom: size * 0.1,
+        }} />
+        <View style={{
+          width: size * 0.5,
+          height: size * 0.25,
+          borderTopLeftRadius: size * 0.25,
+          borderTopRightRadius: size * 0.25,
+          borderWidth: stroke,
+          borderColor: lineColor,
+          borderBottomWidth: 0,
+          position: 'absolute',
+          bottom: size * 0.1,
+        }} />
+        <View style={{
+          width: stroke * 1.5,
+          height: stroke * 1.5,
+          borderRadius: (stroke * 1.5) / 2,
+          backgroundColor: lineColor,
+          position: 'absolute',
+          bottom: size * 0.1,
+        }} />
+      </View>
+    );
+  }
+
   return (
     <View style={[is.dashboardGrid, { width: size, height: size }]}>
       {[0, 1, 2, 3].map((item) => (
@@ -603,6 +640,8 @@ function AppNavigator() {
     createCareMessage,
     isDarkMode,
     toggleTheme,
+    isManualOffline,
+    toggleOfflineMode,
   } = useContext(HealthContext);
   const { width } = useWindowDimensions();
   const metrics = getResponsiveMetrics(width);
@@ -797,6 +836,8 @@ function AppNavigator() {
           isDarkMode={isDarkMode}
           onToggleTheme={toggleTheme}
           colors={colors}
+          isManualOffline={isManualOffline}
+          onToggleOfflineMode={toggleOfflineMode}
         />
         <ScrollView style={s.scroller} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           {!isClinicalUser && !hasLoggedToday && isBannerVisible ? (
@@ -962,6 +1003,8 @@ function TopBar({
   isDarkMode,
   onToggleTheme,
   colors,
+  isManualOffline,
+  onToggleOfflineMode,
 }) {
   const layoutStyles = getLayoutStyles(colors);
   const title = (navItems || PATIENT_NAV_ITEMS).find((item) => item.key === activeTab)?.label || 'Daily Health Status';
@@ -1071,6 +1114,15 @@ function TopBar({
           accessibilityRole="button"
         >
           <IconGlyph name={isDarkMode ? 'sun' : 'moon'} active={false} size={21} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={layoutStyles.themeToggleButton}
+          activeOpacity={0.75}
+          onPress={() => onToggleOfflineMode?.()}
+          accessibilityLabel={isManualOffline ? 'Switch to online mode' : 'Switch to offline mode'}
+          accessibilityRole="button"
+        >
+          <IconGlyph name="wifi" active={!isManualOffline} size={21} />
         </TouchableOpacity>
         <TouchableOpacity
           style={[layoutStyles.bellButton, isNotificationsOpen && layoutStyles.activeBellButton]}
