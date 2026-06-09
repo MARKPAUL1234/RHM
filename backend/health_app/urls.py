@@ -16,6 +16,7 @@ from .views import (
     SystemLogViewSet,
     UserProfileViewSet,
     UserViewSet,
+    WearableDeviceViewSet,
 )
 
 router = DefaultRouter()
@@ -33,6 +34,7 @@ router.register(r'contact-inquiries', ContactInquiryViewSet)
 router.register(r'appointment-requests', AppointmentRequestViewSet)
 router.register(r'care-messages', CareMessageViewSet)
 router.register(r'recommendations', RecommendationViewSet)
+router.register(r'wearable-devices', WearableDeviceViewSet)
 router.register(r'logs', SystemLogViewSet)
 
 urlpatterns = [

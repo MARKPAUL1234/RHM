@@ -15,6 +15,7 @@ from .models import (
     Recommendation,
     SystemLog,
     UserProfile,
+    WearableDevice,
 )
 
 class UserSerializer(serializers.ModelSerializer):
@@ -43,15 +44,23 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'medical_notes', 'created_at', 'updated_at',
         ]
 
+class WearableDeviceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WearableDevice
+        fields = ['id', 'user', 'name', 'device_type', 'ble_uuid', 'is_paired', 'last_sync_at', 'created_at', 'updated_at']
+        read_only_fields = ['user', 'last_sync_at', 'created_at', 'updated_at']
+
 class HealthRecordSerializer(serializers.ModelSerializer):
     reviewed_by_username = serializers.CharField(source='reviewed_by.username', read_only=True)
+    wearable_device_name = serializers.CharField(source='wearable_device.name', read_only=True)
 
     class Meta:
         model = HealthRecord
         fields = ['id', 'user', 'temperature', 'heart_rate', 
                   'symptoms_array', 'meds_taken', 'wellbeing_score', 
                   'review_status', 'clinician_note', 'reviewed_at',
-                  'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced']
+                  'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced',
+                  'source', 'wearable_device', 'wearable_device_name']
         read_only_fields = [
             'user', 'review_status', 'clinician_note', 'reviewed_at',
             'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced',
