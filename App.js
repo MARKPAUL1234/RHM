@@ -96,7 +96,6 @@ export default function App() {
   // Real-time journal reporting vitals state
   const [vitals, setVitals] = useState({
     heartRate: 72,
-    spo2: 98,
     temperature: 36.6,
   });
 
@@ -210,22 +209,19 @@ export default function App() {
     };
   }, [user]);
 
-  // Trigger telemetry fluctuation to simulate live MAX30100 & MLX90614 sensors (only if Automatic Mode is active)
+  // Trigger telemetry fluctuation to simulate live MLX90614 sensors (only if Automatic Mode is active)
   useEffect(() => {
     if (!isAutomaticMode) return;
 
     const interval = setInterval(async () => {
       const hrFluct = Math.random() > 0.7 ? (Math.random() > 0.5 ? 2 : -2) : 0;
-      const spo2Fluct = Math.random() > 0.95 ? (Math.random() > 0.5 ? 1 : -1) : 0;
       const tempFluct = Math.random() > 0.8 ? (Math.random() > 0.5 ? 0.1 : -0.1) : 0;
 
       const nextHr = Math.min(Math.max(vitals.heartRate + hrFluct, 60), 105);
-      const nextSpo2 = Math.min(Math.max(vitals.spo2 + spo2Fluct, 88), 100);
       const nextTemp = Math.min(Math.max(vitals.temperature + tempFluct, 35.5), 39.5);
 
       const nextVitals = {
         heartRate: parseFloat(nextHr.toFixed(0)),
-        spo2: parseFloat(nextSpo2.toFixed(0)),
         temperature: parseFloat(nextTemp.toFixed(1)),
       };
 
@@ -234,7 +230,6 @@ export default function App() {
       const payload = {
         temperature: nextVitals.temperature,
         heartRate: nextVitals.heartRate,
-        spo2: nextVitals.spo2,
         symptoms_array: ['Chronic Fatigue'],
         meds_taken: true,
         wellbeing_score: 4,

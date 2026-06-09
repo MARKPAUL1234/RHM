@@ -34,7 +34,7 @@ export default function EmergencyPanelScreen() {
 
     const activeConditions = usersMetadata.diagnosed_conditions ? usersMetadata.diagnosed_conditions.join(', ') : 'None';
     const userId = usersMetadata.user_id || 'usr_default';
-    const smsContent = `EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Medical profile context: Diagnosed with ${activeConditions}. Last recorded vitals: Temp ${vitals.temperature}°C, SpO2 ${vitals.spo2}%.`;
+    const smsContent = `EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Medical profile context: Diagnosed with ${activeConditions}. Last recorded vitals: Temp ${vitals.temperature}°C, HR ${vitals.heartRate} BPM.`;
 
     const payload = {
       primaryContact,

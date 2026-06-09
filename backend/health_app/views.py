@@ -303,17 +303,8 @@ def calculate_health_score(record, recent_count=1):
             'score': 0,
             'risk_level': 'watch',
             'reasons': ['No vitals have been logged yet.'],
-            'next_actions': ['Log temperature, SpO2, pulse, and symptoms to activate scoring.'],
+            'next_actions': ['Log temperature and pulse to activate scoring.'],
         }
-
-    if record.spo2 < 92:
-        score -= 35
-        reasons.append(f'SpO2 is critically low at {record.spo2}%.')
-        next_actions.append('Recheck oxygen saturation and contact clinical support if it remains low.')
-    elif record.spo2 < 95:
-        score -= 18
-        reasons.append(f'SpO2 is below preferred range at {record.spo2}%.')
-        next_actions.append('Rest upright and repeat the oxygen reading later today.')
 
     if record.temperature >= 38.5:
         score -= 25
@@ -348,7 +339,7 @@ def calculate_health_score(record, recent_count=1):
         next_actions.append('Log daily for at least three days to improve trend accuracy.')
 
     score = max(0, min(100, score))
-    if score < 55 or record.spo2 < 92 or record.temperature >= 38.5:
+    if score < 55 or record.temperature >= 38.5:
         risk_level = 'urgent'
     elif score < 78:
         risk_level = 'watch'
@@ -584,15 +575,7 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
             )
             SystemLog.objects.create(level='INFO', message='Typhoid Abdominal Guideline generated.')
 
-        if record.spo2 < 92:
-            Alert.objects.create(
-                user=record.user,
-                severity='critical',
-                alert_message=f'Oxygen depletion detected (SpO2: {record.spo2}%). Check vitals and contact emergency support immediately.'
-            )
-            SystemLog.objects.create(level='ERROR', message=f'Critical Oxygen depletion Alert fired for user {record.user.id}')
-
-        elif record.temperature > 38.5:
+        if record.temperature > 38.5:
             Alert.objects.create(
                 user=record.user,
                 severity='critical',
@@ -631,9 +614,8 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
             status='unread',
         ).exists()
         latest_temp = latest.temperature if latest else None
-        latest_spo2 = latest.spo2 if latest else None
 
-        if has_critical_alert or (latest_spo2 is not None and latest_spo2 < 92) or (latest_temp is not None and latest_temp > 38.5):
+        if has_critical_alert or (latest_temp is not None and latest_temp > 38.5):
             routines = [
                 {'id': 'recovery-rest', 'type': 'Guided Rest', 'duration': '20 mins', 'intensity': 'Recovery'},
                 {'id': 'breathing', 'type': 'Breathing Check', 'duration': '10 mins', 'intensity': 'Low'},
@@ -743,7 +725,7 @@ class HealthRecordViewSet(viewsets.ModelViewSet):
             for record in records:
                 lines.append(
                     f'- {timezone.localtime(record.timestamp).strftime("%Y-%m-%d %H:%M")}: '
-                    f'Temp {record.temperature} C, SpO2 {record.spo2}%, Pulse {record.heart_rate} bpm, '
+                    f'Temp {record.temperature} C, Pulse {record.heart_rate} bpm, '
                     f'Status {record.review_status.replace("_", " ").title()}'
                 )
         else:

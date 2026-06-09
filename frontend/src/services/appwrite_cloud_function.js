@@ -3,13 +3,13 @@
  * Trigger event: databases.health_records.collections.health_records.documents.create
  * 
  * Flow:
- * 1. Safely extracts enqueued health journal document fields (temperature, SpO2, symptoms array).
+ * 1. Safely extracts enqueued health journal document fields (temperature, symptoms array).
  * 2. Connects to Appwrite NoSQL Database service.
  * 3. Queries the 'users_metadata' collection to check for patient baseline diagnosed conditions.
  * 4. Runs the logical clinical rules engine:
  *    - Rule A: Active Malaria Treatment Fever + Chills Alert.
  *    - Rule B: Active Typhoid Abdominal distress gastrointestinal check.
- *    - Rule C: Hypoxia / Hyperpyrexia priority alert & SMS gateway mock dispatch.
+ *    - Rule C: Hyperpyrexia priority alert & SMS gateway mock dispatch.
  * 5. Writes output to 'recommendations' or 'alerts' database collections dynamically.
  */
 
@@ -55,7 +55,6 @@ module.exports = async function (req, res) {
       user_id: userId,
       temperature,
       heart_rate: heartRate,
-      spo2,
       symptoms_array: symptomsArray,
       meds_taken: medsTaken,
       wellbeing_score: wellbeingScore,
@@ -140,31 +139,9 @@ module.exports = async function (req, res) {
       req.log('Rule B matched successfully. Pushed guideline document to Appwrite Recommendations collection.');
     }
 
-    // --- RULE C: Critical Oxygen / High Fever Alert Trigger ---
-    // Condition 1: SpO2 levels strictly under 92% (Hypoxia Alert)
-    if (spo2 < 92) {
-      const alertPayload = {
-        alert_id: `alert_spo2_${Date.now()}`,
-        user_id: userId,
-        severity: 'critical',
-        alert_message: 'Oxygen depletion detected. Check vitals and contact emergency support immediately.',
-        status: 'unread',
-        timestamp: new Date().toISOString()
-      };
-
-      await databases.createDocument(
-        DATABASE_ID,
-        ALERTS_COLLECTION_ID,
-        sdk.ID.unique(),
-        alertPayload
-      );
-      req.log('Rule C matched (Hypoxia). Priority alarm document created in Appwrite Alerts collection.');
-      
-      // Simulate/Mock TWILIO SMS API dispatch for offline alert channels
-      req.log(`[SMS EMERGENCY DISPATCH - Twilio Gateway] Priority trigger activated! SMS dispatched: "EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Last recorded SpO2: ${spo2}%."`);
-    } 
-    // Condition 2: Temperature strictly over 38.5°C (High Fever Alert)
-    else if (temperature > 38.5) {
+    // --- RULE C: High Fever Alert Trigger ---
+    // Condition: Temperature strictly over 38.5°C (High Fever Alert)
+    if (temperature > 38.5) {
       const alertPayload = {
         alert_id: `alert_temp_${Date.now()}`,
         user_id: userId,

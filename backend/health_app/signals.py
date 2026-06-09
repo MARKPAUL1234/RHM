@@ -34,7 +34,6 @@ def notify_new_health_record(sender, instance, created, **kwargs):
             f"A new health record has been logged:\n"
             f"User: {instance.user.username}\n"
             f"Temperature: {instance.temperature}°C\n"
-            f"SpO2: {instance.spo2}%\n"
             f"Pulse: {instance.heart_rate} bpm\n"
             f"Symptoms: {', '.join(instance.symptoms_array) if instance.symptoms_array else 'None'}\n"
             f"Timestamp: {instance.timestamp}"

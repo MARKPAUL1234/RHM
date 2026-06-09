@@ -218,7 +218,6 @@ export const HealthSyncManager = {
             user_id: metadata.user_id || 'usr_default',
             temperature: parseFloat(item.payload.temperature),
             heart_rate: parseInt(item.payload.heartRate || item.payload.heart_rate),
-            spo2: parseInt(item.payload.spo2),
             symptoms_array: item.payload.symptoms_array || [],
             meds_taken: !!item.payload.meds_taken,
             wellbeing_score: parseInt(item.payload.wellbeing_score || 3),
@@ -260,19 +259,8 @@ export const HealthSyncManager = {
             await this.logSystemAction('RULE_TRIGGER', 'Rule B triggered: Typhoid Abdominal Guideline generated.');
           }
 
-          // Rule C: Critical Threat Trigger (Oxygen/Fever alert Collections)
-          if (record.spo2 < 92) {
-            cloudAlerts.unshift({
-              alert_id: `alert_${Math.floor(100000 + Math.random() * 900000)}`,
-              user_id: record.user_id,
-              severity: 'critical',
-              alert_message: 'Oxygen depletion detected. Check vitals and contact emergency support immediately.',
-              status: 'unread',
-              timestamp: new Date().toISOString(),
-            });
-            await this.logSystemAction('RULE_TRIGGER', 'Rule C triggered: Critical Oxygen depletion Alert fired.');
-            await this.logSystemAction('SMS_GATEWAY', `[SMS Gateway Mock] Dispatched Twilio warning to contact node: "Oxygen depletion detected (SpO2: ${record.spo2}%) for user ${record.user_id}."`);
-          } else if (record.temperature > 38.5) {
+          // Rule C: Critical Threat Trigger (Fever alert Collections)
+          if (record.temperature > 38.5) {
             cloudAlerts.unshift({
               alert_id: `alert_${Math.floor(100000 + Math.random() * 900000)}`,
               user_id: record.user_id,

@@ -330,7 +330,7 @@ export default function AccountAdminScreen() {
                           <Text style={styles.dbBadge}>HEALTH_RECORD</Text>
                         </View>
                         <Text style={styles.dbDataText}>
-                          🌡️ Temp: {rec.temperature}°C | ❤️ HR: {rec.heart_rate} BPM | 🫁 SpO2: {rec.spo2}%
+                          🌡️ Temp: {rec.temperature}°C | ❤️ HR: {rec.heart_rate} BPM
                         </Text>
                         <Text style={styles.dbDataText}>
                           Symptoms: {rec.symptoms_array.join(', ') || 'None'} | Meds Taken: {rec.meds_taken ? 'Yes' : 'No'} | Wellbeing: {rec.wellbeing_score}/5

@@ -35,7 +35,6 @@ export default function VisualizationScreen() {
   const recordSeries = useMemo(() => healthRecords.slice(0, 12).reverse(), [healthRecords]);
   const hasRecords = recordSeries.length > 0;
   const latestHr = Number(vitals.heartRate || 0);
-  const latestSpo2 = Number(vitals.spo2 || 0);
   const latestTemp = Number(vitals.temperature || 0);
   const chartWidth = Math.max(metrics.isPhone ? width - (metrics.pagePadding * 2) - 34 : 620, 280);
   const chartHeight = metrics.isPhone ? 160 : 190;
@@ -62,7 +61,6 @@ export default function VisualizationScreen() {
 
   const insightText = (() => {
     if (!hasRecords) return 'No manual health records have been saved yet. Submit a monitoring entry to generate charts from Django health records.';
-    if (latestSpo2 < 92) return 'Low oxygen saturation is present in the latest record. Keep the patient at rest and review the manual entry before escalation.';
     if (latestTemp > 38.5) return 'Fever threshold is active in the latest record. Hydration and medication adherence should be checked.';
     if (latestHr > 100) return 'Pulse trend is elevated. Compare against symptoms and medication adherence in the monitoring journal.';
     return `Recent records are stable. Mean pulse is ${averageHr} bpm across ${recordSeries.length} Django record(s).`;
@@ -74,8 +72,8 @@ export default function VisualizationScreen() {
     { x: 18, y: latestHr > 100 ? 42 : 48 },
     { x: 24, y: 54 },
     { x: 34, y: 54 },
-    { x: 38, y: latestSpo2 < 92 ? 76 : 68 },
-    { x: 42, y: latestSpo2 < 92 ? 14 : 24 },
+    { x: 38, y: 68 },
+    { x: 42, y: 24 },
     { x: 46, y: 84 },
     { x: 50, y: 54 },
     { x: 62, y: 54 },
@@ -124,10 +122,6 @@ export default function VisualizationScreen() {
               <Text style={s.summaryLabel}>Avg pulse</Text>
               <Text style={s.summaryValue}>{averageHr ? `${averageHr}` : '--'}</Text>
             </View>
-            <View style={s.summaryItem}>
-              <Text style={s.summaryLabel}>Latest SpO2</Text>
-              <Text style={s.summaryValue}>{latestSpo2 ? `${latestSpo2}%` : '--'}</Text>
-            </View>
           </View>
         </View>
 
@@ -152,7 +146,7 @@ export default function VisualizationScreen() {
               <View style={s.chartHeader}>
                 <View>
                   <Text style={s.chartTitle}>Derived cardiac waveform</Text>
-                  <Text style={s.chartSubtitle}>Rendered from latest heart-rate and oxygen records.</Text>
+                  <Text style={s.chartSubtitle}>Rendered from latest heart-rate records.</Text>
                 </View>
                 <Text style={[s.statusPill, { color: hasRecords ? colors.success : colors.textMuted }]}>
                   {hasRecords ? 'Live data' : 'No records'}

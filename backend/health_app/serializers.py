@@ -48,7 +48,7 @@ class HealthRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HealthRecord
-        fields = ['id', 'user', 'temperature', 'heart_rate', 'spo2', 
+        fields = ['id', 'user', 'temperature', 'heart_rate', 
                   'symptoms_array', 'meds_taken', 'wellbeing_score', 
                   'review_status', 'clinician_note', 'reviewed_at',
                   'reviewed_by', 'reviewed_by_username', 'timestamp', 'is_synced']
@@ -60,7 +60,6 @@ class HealthRecordSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         temperature = attrs.get('temperature')
         heart_rate = attrs.get('heart_rate')
-        spo2 = attrs.get('spo2')
         wellbeing_score = attrs.get('wellbeing_score', 3)
 
         errors = {}
@@ -68,8 +67,6 @@ class HealthRecordSerializer(serializers.ModelSerializer):
             errors['temperature'] = 'Temperature must be between 34 C and 42 C.'
         if heart_rate is not None and not 30 <= heart_rate <= 220:
             errors['heart_rate'] = 'Pulse rate must be between 30 and 220 bpm.'
-        if spo2 is not None and not 50 <= spo2 <= 100:
-            errors['spo2'] = 'SpO2 must be between 50% and 100%.'
         if wellbeing_score is not None and not 1 <= wellbeing_score <= 5:
             errors['wellbeing_score'] = 'Wellbeing score must be between 1 and 5.'
         if errors:

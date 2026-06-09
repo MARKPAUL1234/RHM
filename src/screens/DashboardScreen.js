@@ -229,12 +229,6 @@ export default function DashboardScreen() {
             <Text style={[styles.vitalValue, vitals.heartRate > 100 && styles.critText]}>{vitals.heartRate} BPM</Text>
             <Text style={styles.cardSub}>Capillary Pulse</Text>
           </View>
-
-          <View style={styles.vitalCard}>
-            <Text style={styles.cardLabel}>OXYGEN LEVEL</Text>
-            <Text style={[styles.vitalValue, vitals.spo2 < 92 && styles.critText]}>{vitals.spo2}%</Text>
-            <Text style={styles.cardSub}>SpO2 Perfused</Text>
-          </View>
         </View>
 
         {/* 4. Historical Vitals SVG Chart Display */}

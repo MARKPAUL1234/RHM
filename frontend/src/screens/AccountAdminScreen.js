@@ -195,7 +195,7 @@ export default function AccountAdminScreen({ initialSubView = 'account', lockedS
       rows: healthRecords.slice(0, 6).map((record) => ({
         id: `health_${record.id}`,
         title: `Record ${record.id}`,
-        detail: `${record.temperature} C | ${record.heart_rate} bpm | ${record.spo2}% SpO2`,
+        detail: `${record.temperature} C | ${record.heart_rate} bpm`,
         meta: formatDateTime(record.timestamp),
       })),
     },

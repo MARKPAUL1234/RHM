@@ -10,7 +10,6 @@ import { ToastProvider } from './src/context/ToastContext';
 const OFFLINE_QUEUE_KEY = '@rhmt_offline_queue';
 const EMPTY_VITALS = {
   heartRate: null,
-  spo2: null,
   temperature: null,
 };
 const EMPTY_FITNESS_SUMMARY = {
@@ -25,7 +24,6 @@ const EMPTY_FITNESS_SUMMARY = {
 
 const vitalsFromRecord = (record) => ({
   heartRate: record ? record.heart_rate : null,
-  spo2: record ? record.spo2 : null,
   temperature: record ? record.temperature : null,
 });
 
@@ -669,7 +667,6 @@ export default function App() {
     const recordPayload = {
       temperature: payload.temperature,
       heart_rate: payload.heartRate || payload.heart_rate,
-      spo2: payload.spo2,
       symptoms_array: payload.symptoms_array || [],
       meds_taken: payload.meds_taken || false,
       wellbeing_score: payload.wellbeing_score || 3,

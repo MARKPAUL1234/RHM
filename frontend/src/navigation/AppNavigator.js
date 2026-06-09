@@ -58,7 +58,6 @@ const EMPTY_LATEST_LOG = {
   loggedAt: null,
   date: 'No records yet',
   temperature: null,
-  spo2: null,
   pulse: null,
   symptoms: [],
   status: 'Awaiting log',
@@ -142,18 +141,16 @@ const createLogFromRecord = (record, index) => ({
       })
     : `Record ${index + 1}`,
   temperature: safeNumber(record.temperature, 36.8),
-  spo2: safeNumber(record.spo2, 98),
   pulse: safeNumber(record.heart_rate || record.pulse, 74),
   symptoms: Array.isArray(record.symptoms_array) ? record.symptoms_array : [],
-  status: getClinicalStatus(record.temperature, record.spo2, record.heart_rate || record.pulse),
+  status: getClinicalStatus(record.temperature, record.heart_rate || record.pulse),
 });
 
-const getClinicalStatus = (temperature, spo2, pulse) => {
+const getClinicalStatus = (temperature, pulse) => {
   const temp = safeNumber(temperature, 0);
-  const oxygen = safeNumber(spo2, 0);
   const heartRate = safeNumber(pulse, 0);
-  if (temp >= 38 || oxygen < 92 || heartRate > 120 || heartRate < 45) return 'Urgent';
-  if (temp >= 37.5 || oxygen < 95 || heartRate > 100) return 'Review';
+  if (temp >= 38 || heartRate > 120 || heartRate < 45) return 'Urgent';
+  if (temp >= 37.5 || heartRate > 100) return 'Review';
   return 'Stable';
 };
 
@@ -179,7 +176,6 @@ const calculateDashboardStats = (logs) => {
   if (logs.length === 0) {
     return [
       { label: 'Avg Temp', value: '--', detail: 'No manual entries yet' },
-      { label: 'Avg SpO2', value: '--', detail: '' },
       { label: 'Avg Pulse', value: '--', detail: 'No pulse history yet' },
       { label: 'Stable Logs', value: '--', detail: 'Start with today\'s vitals' },
     ];
@@ -193,11 +189,6 @@ const calculateDashboardStats = (logs) => {
       label: 'Avg Temp',
       value: `${average(source.map((log) => log.temperature), 36.8).toFixed(1)} C`,
       detail: 'Across visible entries',
-    },
-    {
-      label: 'Avg SpO2',
-      value: `${Math.round(average(source.map((log) => log.spo2), 98))}%`,
-      detail: 'Oxygen trend quality',
     },
     {
       label: 'Avg Pulse',
@@ -230,7 +221,6 @@ const formatVitalValue = (value, suffix, decimals = 0) => {
 const buildNutritionPlan = (bloodGroup, latest, logs) => {
   const normalizedGroup = String(bloodGroup || '').toUpperCase();
   const temperature = safeNumber(latest.temperature, null);
-  const spo2 = safeNumber(latest.spo2, null);
   const pulse = safeNumber(latest.pulse, null);
   const symptoms = latest.symptoms || [];
   const hasNausea = symptoms.some((item) => /nausea|stomach/i.test(item));
@@ -264,11 +254,6 @@ const buildNutritionPlan = (bloodGroup, latest, logs) => {
     restrict.unshift('Alcohol and intense training');
   }
 
-  if (spo2 !== null && spo2 < 95) {
-    recommended.unshift('Small frequent meals');
-    restrict.unshift('Smoke or dusty environments');
-  }
-
   if (pulse !== null && pulse > 100) {
     recommended.unshift('Caffeine-free fluids');
     restrict.unshift('Energy drinks');
@@ -295,7 +280,6 @@ const buildNutritionPlan = (bloodGroup, latest, logs) => {
 
 const buildFitnessTasks = (latest, logs) => {
   const temperature = safeNumber(latest.temperature, null);
-  const spo2 = safeNumber(latest.spo2, null);
   const pulse = safeNumber(latest.pulse, null);
   const symptoms = latest.symptoms || [];
   const tasks = [];
@@ -309,7 +293,7 @@ const buildFitnessTasks = (latest, logs) => {
     ];
   }
 
-  if ((spo2 !== null && spo2 < 92) || (temperature !== null && temperature >= 38.5)) {
+  if (temperature !== null && temperature >= 38.5) {
     return [
       'Pause exercise and recheck vitals',
       'Rest in an upright comfortable position',
@@ -343,22 +327,21 @@ const buildFitnessTasks = (latest, logs) => {
 
 const buildCareInsights = (latest, logs) => {
   const temperature = safeNumber(latest.temperature, null);
-  const spo2 = safeNumber(latest.spo2, null);
   const pulse = safeNumber(latest.pulse, null);
   const symptomCount = latest.symptoms?.length || 0;
 
   if (logs.length === 0) {
     return [
       { label: 'Personalization', value: 'Waiting', detail: 'Save your first vitals log to unlock trend-based guidance.' },
-      { label: 'Next action', value: 'Log vitals', detail: 'Temperature, SpO2, pulse, and symptoms are enough to begin.' },
+      { label: 'Next action', value: 'Log vitals', detail: 'Temperature, pulse, and symptoms are enough to begin.' },
       { label: 'History depth', value: '0 logs', detail: 'The dashboard becomes stronger with daily entries.' },
     ];
   }
 
   const risk =
-    (spo2 !== null && spo2 < 92) || (temperature !== null && temperature >= 38.5)
+    temperature !== null && temperature >= 38.5
       ? 'High'
-      : (spo2 !== null && spo2 < 95) || (pulse !== null && pulse > 100) || symptomCount > 1
+      : (pulse !== null && pulse > 100) || symptomCount > 1
         ? 'Watch'
         : 'Stable';
 
@@ -690,7 +673,6 @@ function AppNavigator() {
       const symptoms = Array.isArray(payload.symptoms) ? payload.symptoms : [];
       const savedRecord = await handleOfflineEnqueue?.('vital', {
         temperature: payload.temperature,
-        spo2: payload.spo2,
         heartRate: payload.pulse,
         symptoms_array: symptoms,
         meds_taken: false,
@@ -701,7 +683,6 @@ function AppNavigator() {
         setLastLoggedAt(new Date().toISOString());
         setVitals?.({
           temperature: savedRecord.temperature,
-          spo2: savedRecord.spo2,
           heartRate: savedRecord.heart_rate,
         });
       }
@@ -731,7 +712,6 @@ function AppNavigator() {
     latest: {
       ...latest,
       temperature: safeNumber(vitals?.temperature, latest.temperature),
-      spo2: safeNumber(vitals?.spo2, latest.spo2),
       pulse: safeNumber(vitals?.heartRate, latest.pulse),
     },
     logs,
@@ -997,7 +977,7 @@ function TopBar({
           id: 'daily-log-reminder',
           type: 'Reminder',
           title: 'Daily vitals not logged',
-          body: `${patientFirstName}, log temperature, SpO2, pulse, and symptoms to keep your health trend accurate.`,
+          body: `${patientFirstName}, log temperature, pulse, and symptoms to keep your health trend accurate.`,
           status: 'unread',
           severity: 'warning',
           createdAt: new Date().toISOString(),
@@ -1347,7 +1327,6 @@ function LiveWalkingTracker({ profile, onSaveManualLog, onSessionComplete }) {
       if (onSaveManualLog) {
         onSaveManualLog({
           temperature: null,
-          spo2: null,
           pulse: null,
           notes: `Walked ${finalSteps} steps (${finalDistance.toFixed(1)}m, ~${calories} cal) in ${finalElapsed}s`,
         });
@@ -1820,9 +1799,8 @@ function DashboardTab({
   const [wearableDevice, setWearableDevice] = useState(null);
   const [bleError, setBleError] = useState(null);
   const temperature = safeNumber(wearableTemp ?? latest.temperature, null);
-  const spo2 = safeNumber(latest.spo2, null);
   const pulse = safeNumber(wearablePulse ?? latest.pulse, null);
-  const hasVitals = temperature !== null || spo2 !== null || pulse !== null;
+  const hasVitals = temperature !== null || pulse !== null;
   const [quickAction, setQuickAction] = useState(null);
   const walkHistory = useMemo(
     () => (fitnessLogs || [])
@@ -1900,7 +1878,6 @@ function DashboardTab({
         if (tempVal !== null || pulseVal !== null) {
           onSaveManualLog({
             temperature: tempVal ?? temperature ?? 36.6,
-            spo2: spo2 ?? 98,
             pulse: pulseVal ?? pulse ?? 74,
           });
         }
@@ -1915,7 +1892,6 @@ function DashboardTab({
       setTimeout(() => {
         onSaveManualLog({
           temperature: type === 'temp' ? fallbackTemp : (temperature ?? 36.6),
-          spo2: spo2 ?? 98,
           pulse: type !== 'temp' ? fallbackPulse : (pulse ?? 74),
         });
       }, 1500);
@@ -2156,10 +2132,6 @@ function VitalsTrendChart({ logs }) {
           <Text style={dashboardStyles.legendText}>Pulse trend</Text>
         </View>
         <View style={dashboardStyles.legendItem}>
-          <View style={[dashboardStyles.legendDot, { backgroundColor: '#2563EB' }]} />
-          <Text style={dashboardStyles.legendText}>SpO2</Text>
-        </View>
-        <View style={dashboardStyles.legendItem}>
           <View style={[dashboardStyles.legendDot, { backgroundColor: '#D97706' }]} />
           <Text style={dashboardStyles.legendText}>Temperature</Text>
         </View>
@@ -2167,7 +2139,6 @@ function VitalsTrendChart({ logs }) {
       <View style={dashboardStyles.chartCanvas}>
         {chartLogs.map((log, index) => {
           const pulseTop = getChartTop(log.pulse, 45, 125);
-          const oxygenHeight = Math.max(16, (safeNumber(log.spo2, 95) - 88) * 5);
           const tempHeight = Math.max(16, (safeNumber(log.temperature, 36.6) - 35) * 26);
           return (
             <View key={log.id || index} style={dashboardStyles.chartColumn}>
@@ -2182,7 +2153,6 @@ function VitalsTrendChart({ logs }) {
                   />
                 ) : null}
                 <View style={dashboardStyles.barPair}>
-                  <View style={[dashboardStyles.oxygenBar, { height: oxygenHeight }]} />
                   <View style={[dashboardStyles.tempBar, { height: tempHeight, backgroundColor: getTemperatureTone(log.temperature) }]} />
                 </View>
               </View>
@@ -2271,16 +2241,13 @@ function ClinicalStatCard({ stat }) {
 
 function LogVitalsTab({ latest, onSaveManualLog }) {
   const [temperature, setTemperature] = useState(latest.temperature || 36.8);
-  const [spo2, setSpo2] = useState(String(latest.spo2 || 98));
   const [pulse, setPulse] = useState(String(latest.pulse || 74));
   const [selectedSymptoms, setSelectedSymptoms] = useState(latest.symptoms || []);
   const [savedMessage, setSavedMessage] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
   const [isSaving, setIsSaving] = useState(false);
-  const oxygen = safeNumber(spo2, 0);
   const pulseRate = safeNumber(pulse, 0);
   const validationIssues = [
-    oxygen < 50 || oxygen > 100 ? 'SpO2 must be between 50% and 100%.' : null,
     pulseRate < 30 || pulseRate > 220 ? 'Pulse must be between 30 and 220 bpm.' : null,
     temperature < 34 || temperature > 42 ? 'Temperature must be between 34 C and 42 C.' : null,
   ].filter(Boolean);
@@ -2302,7 +2269,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
     try {
       const result = await onSaveManualLog({
         temperature,
-        spo2: oxygen,
         pulse: pulseRate,
         symptoms: selectedSymptoms,
       });
@@ -2327,7 +2293,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
       <View style={formStyles.recordGuide}>
         {[
           'Body temperature',
-          'Oxygen saturation',
           'Pulse rate',
           'Symptoms',
           'Medicine status',
@@ -2340,6 +2305,22 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
         ))}
       </View>
       <View style={formStyles.formCard}>
+        <View style={formStyles.formSection}>
+          <Text style={formStyles.formLabel}>Body Temperature</Text>
+          <Text style={formStyles.temperatureValue}>{temperature.toFixed(1)} C</Text>
+          <TemperatureSlider value={temperature} onChange={setTemperature} />
+        </View>
+        <View style={formStyles.formSection}>
+          <Text style={formStyles.formLabel}>Pulse Rate</Text>
+          <NumericVital
+            label="Resting pulse"
+            suffix="bpm"
+            value={pulse}
+            onChangeText={setPulse}
+            helper="Enter your resting pulse when seated"
+            alert={pulseRate < 30 || pulseRate > 220}
+          />
+        </View>
         <View style={formStyles.formSection}>
           <Text style={formStyles.formLabel}>Symptoms</Text>
           <View style={formStyles.symptomGrid}>
@@ -2455,11 +2436,9 @@ function InsightsTab({
   const [careUpdate, setCareUpdate] = useState('');
   const [careMessageState, setCareMessageState] = useState('');
   const temperature = safeNumber(latest.temperature, null);
-  const spo2 = safeNumber(latest.spo2, null);
   const pulse = safeNumber(latest.pulse, null);
   const urgent =
     (temperature !== null && temperature >= 38) ||
-    (spo2 !== null && spo2 < 92) ||
     (pulse !== null && (pulse > 120 || pulse < 45));
   const selectedAppointment = useMemo(() => {
     const requests = appointmentRequests || [];
@@ -3140,7 +3119,6 @@ function ProfileHistoryTab({
           <View style={profileStyles.tableHeader}>
             <Text style={[profileStyles.th, profileStyles.dateCell]}>Date</Text>
             <Text style={profileStyles.th}>Temp</Text>
-            <Text style={profileStyles.th}>SpO2</Text>
             <Text style={profileStyles.th}>Pulse</Text>
             <Text style={profileStyles.th}>Status</Text>
           </View>
@@ -3153,7 +3131,6 @@ function ProfileHistoryTab({
                 {log.date}
               </Text>
               <Text style={profileStyles.td}>{log.temperature.toFixed(1)}</Text>
-              <Text style={profileStyles.td}>{log.spo2}%</Text>
               <Text style={profileStyles.td}>{log.pulse}</Text>
               <Text style={[profileStyles.statusCell, log.status === 'Urgent' && profileStyles.urgentStatus]}>
                 {log.status}

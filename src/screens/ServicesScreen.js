@@ -105,7 +105,7 @@ export default function ServicesScreen() {
 
     const activeConditions = usersMetadata.diagnosed_conditions ? usersMetadata.diagnosed_conditions.join(', ') : 'None';
     const userId = usersMetadata.user_id || 'usr_default';
-    const smsContent = `EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Medical profile context: Diagnosed with ${activeConditions}. Last recorded vitals: Temp ${vitals.temperature}°C, SpO2 ${vitals.spo2}%.`;
+    const smsContent = `EMERGENCY DISTRESS: User ${userId} has triggered an emergency alert. Medical profile context: Diagnosed with ${activeConditions}. Last recorded vitals: Temp ${vitals.temperature}°C, HR ${vitals.heartRate} BPM.`;
 
     const payload = {
       primaryContact,
@@ -356,7 +356,7 @@ export default function ServicesScreen() {
           <View style={[styles.card, SHADOWS.premium]}>
             <Text style={[styles.cardTitle, { color: COLORS.critical }]}>🚨 Emergency Trigger Centre</Text>
             <Text style={styles.cardDesc}>
-              Initiate priority emergency protocol dispatches. Generates vital sensor records (Temp, HR, SpO2) and dispatches emergency payloads to contacts via SMS.
+              Initiate priority emergency protocol dispatches. Generates vital sensor records (Temp, HR) and dispatches emergency payloads to contacts via SMS.
             </Text>
 
             {/* Disclaimer */}

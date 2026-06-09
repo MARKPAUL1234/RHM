@@ -231,10 +231,6 @@ export default function FitnessCenterScreen() {
                   <Text style={s.metricLabel}>Latest pulse</Text>
                   <Text style={s.metricValue}>{latestRecord ? `${latestRecord.heart_rate} bpm` : '--'}</Text>
                 </View>
-                <View style={s.metricBox}>
-                  <Text style={s.metricLabel}>Latest SpO2</Text>
-                  <Text style={s.metricValue}>{latestRecord ? `${latestRecord.spo2}%` : '--'}</Text>
-                </View>
               </View>
             </View>
 

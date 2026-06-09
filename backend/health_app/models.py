@@ -48,7 +48,6 @@ class HealthRecord(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='health_records')
     temperature = models.FloatField()
     heart_rate = models.IntegerField()
-    spo2 = models.IntegerField()
     symptoms_array = models.JSONField(default=list, blank=True)
     meds_taken = models.BooleanField(default=False)
     wellbeing_score = models.IntegerField(default=3)

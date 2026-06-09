@@ -67,7 +67,7 @@ export default function EmergencyPanelScreen() {
       ? usersMetadata.diagnosed_conditions.join(', ')
       : 'None recorded';
     const patientName = profile?.display_name || profile?.username || 'Patient';
-    const smsContent = `EMERGENCY DISTRESS: ${patientName} triggered an emergency alert. Conditions: ${activeConditions}. Latest vitals: Temp ${vitals.temperature ?? 'N/A'} C, HR ${vitals.heartRate ?? 'N/A'} bpm, SpO2 ${vitals.spo2 ?? 'N/A'}%. Notes: ${medicalNotes || 'None'}.`;
+    const smsContent = `EMERGENCY DISTRESS: ${patientName} triggered an emergency alert. Conditions: ${activeConditions}. Latest vitals: Temp ${vitals.temperature ?? 'N/A'} C, HR ${vitals.heartRate ?? 'N/A'} bpm. Notes: ${medicalNotes || 'None'}.`;
 
     setIsDispatching(true);
     try {

@@ -34,9 +34,6 @@ export default function VisualizationScreen() {
 
   // Generate Insight summary dynamically
   const generateInsight = () => {
-    if (vitals.spo2 < 92) {
-      return '🚨 CRITICAL INSIGHT: Recurrent hypoxia indications detected on MAX30100 telemetry. SpO2 dipped below 92%. Avoid heavy physical load. Advise checking sensor position and consulting your physician.';
-    }
     if (vitals.heartRate > 100) {
       return '⚠️ CARDIOVASCULAR WARNING: Tachycardia slope detected. Heart rate exceeded 100 BPM. Keep resting; thermal mappings indicate normal range, but autonomic arousal is elevated.';
     }
@@ -274,9 +271,9 @@ export default function VisualizationScreen() {
 
       {/* Educational Note */}
       <View style={styles.eduCard}>
-        <Text style={styles.eduTitle}>Dissertation Scope: AD8232 vs MAX30100</Text>
+        <Text style={styles.eduTitle}>Dissertation Scope: AD8232 ECG</Text>
         <Text style={styles.eduText}>
-          The AD8232 analog front-end maps electrical depolarizations of the myocardium, whereas the MAX30100 evaluates peripheral capillary oxygen perfusion photoplethysmographically (PPG). Both feeds synchronize down to the Appwrite Database JSON documents.
+          The AD8232 analog front-end maps electrical depolarizations of the myocardium. Feeds synchronize down to the Appwrite Database JSON documents.
         </Text>
       </View>
 

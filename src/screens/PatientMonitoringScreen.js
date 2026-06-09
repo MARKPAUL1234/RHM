@@ -23,7 +23,6 @@ export default function PatientMonitoringScreen() {
   // --- Self-Reporting Form States ---
   const [journalTemp, setJournalTemp] = useState(36.6);
   const [journalHr, setJournalHr] = useState(72);
-  const [journalSpO2, setJournalSpO2] = useState(98);
   const [wellbeing, setWellbeing] = useState(4);
   const [medsTaken, setMedsTaken] = useState(true);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
@@ -57,18 +56,14 @@ export default function PatientMonitoringScreen() {
     } else if (key === 'hr') {
       const val = Math.min(Math.max(journalHr + delta, min), max);
       setJournalHr(parseInt(val.toFixed(0)));
-    } else if (key === 'spo2') {
-      const val = Math.min(Math.max(journalSpO2 + delta, min), max);
-      setJournalSpO2(parseInt(val.toFixed(0)));
     }
   };
 
   // Submit handler with Safety UI Guardrail checks
   const handleSubmitJournal = (bypass = false) => {
     const isTempCritical = journalTemp > 38.5;
-    const isSpo2Critical = journalSpO2 < 92;
 
-    if ((isTempCritical || isSpo2Critical) && !bypass) {
+    if (isTempCritical && !bypass) {
       // Trigger the Safety UI Guardrail modal dialogue and pause submission
       setIsGuardrailModalVisible(true);
       return;
@@ -77,7 +72,6 @@ export default function PatientMonitoringScreen() {
     const payload = {
       temperature: journalTemp,
       heartRate: journalHr,
-      spo2: journalSpO2,
       symptoms_array: selectedSymptoms,
       meds_taken: medsTaken,
       wellbeing_score: wellbeing,
@@ -87,7 +81,6 @@ export default function PatientMonitoringScreen() {
     // Update context instantly
     setVitals({
       heartRate: journalHr,
-      spo2: journalSpO2,
       temperature: journalTemp
     });
 
@@ -177,25 +170,6 @@ export default function PatientMonitoringScreen() {
             </View>
           </View>
 
-          {/* Metric Adjuster: SpO2 (Restricted 50% to 100%) */}
-          <View style={styles.formRow}>
-            <View style={styles.adjusterMeta}>
-              <Text style={styles.adjusterLabel}>🫁 Capillary Oxygen (SpO2 %)</Text>
-              <Text style={[styles.adjusterValText, journalSpO2 < 92 && styles.critText]}>{journalSpO2}%</Text>
-            </View>
-            <View style={styles.adjusterControl}>
-              <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustFormMetric('spo2', -1, 50, 100)}>
-                <Text style={styles.adjustBtnText}>−</Text>
-              </TouchableOpacity>
-              <View style={styles.sliderTrack}>
-                <View style={[styles.sliderFill, { width: `${((journalSpO2 - 50) / 50) * 100}%` }]} />
-              </View>
-              <TouchableOpacity style={styles.adjustBtn} onPress={() => adjustFormMetric('spo2', 1, 50, 100)}>
-                <Text style={styles.adjustBtnText}>+</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
           {/* Symptoms Checklist Matrix */}
           <Text style={styles.formSectionTitle}>Qualitative Symptoms Checked</Text>
           <View style={styles.symptomsGrid}>
@@ -263,13 +237,10 @@ export default function PatientMonitoringScreen() {
               {journalTemp > 38.5 && (
                 <Text style={styles.modalMetricLine}>• Temperature elevated: {journalTemp}°C</Text>
               )}
-              {journalSpO2 < 92 && (
-                <Text style={styles.modalMetricLine}>• SpO2 Oxygen low: {journalSpO2}%</Text>
-              )}
             </View>
 
             <Text style={styles.modalWarningText}>
-              The parameters logged represent severe hypoxia or fever flare-ups. Recalibrate input vectors or confirm to sync enqueued records.
+              The parameters logged represent a fever flare-up. Recalibrate input vectors or confirm to sync enqueued records.
             </Text>
 
             <View style={styles.modalButtonsRow}>

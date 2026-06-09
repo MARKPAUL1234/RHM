@@ -97,12 +97,6 @@ export default function DashboardScreen() {
       tone: Number(vitals.heartRate) > 100 ? 'warning' : 'normal',
     },
     {
-      label: 'Oxygen Saturation',
-      value: formatReading(vitals.spo2, '%'),
-      detail: Number(vitals.spo2) < 92 ? 'Low oxygen threshold crossed' : 'Backend triage threshold 92%',
-      tone: Number(vitals.spo2) < 92 ? 'critical' : 'normal',
-    },
-    {
       label: 'Activity Plan',
       value: fitnessSummary.locked ? 'Recovery' : `${fitnessSummary.daily_steps || 0} steps`,
       detail: fitnessSummary.locked ? 'Exercise is locked by clinical rules' : `Goal ${fitnessSummary.goal_steps || 10000} steps`,
@@ -229,7 +223,6 @@ export default function DashboardScreen() {
                 {trendRecords.map((record) => {
                   const temp = Number(record.temperature || 0);
                   const pulse = Number(record.heart_rate || 0);
-                  const oxygen = Number(record.spo2 || 0);
                   const pulseHeight = Math.max(18, Math.min(128, (pulse / 130) * 128));
                   const tempHeight = Math.max(18, Math.min(128, ((temp - 34) / 8) * 128));
                   return (
@@ -238,7 +231,6 @@ export default function DashboardScreen() {
                         <View style={[s.bar, { height: tempHeight, backgroundColor: temp > 38.5 ? colors.critical : colors.warning }]} />
                         <View style={[s.bar, { height: pulseHeight, backgroundColor: pulse > 100 ? colors.warning : colors.primary }]} />
                       </View>
-                      <Text style={s.chartValue}>{oxygen}%</Text>
                       <Text style={s.chartLabel}>
                         {new Date(record.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </Text>
@@ -248,7 +240,7 @@ export default function DashboardScreen() {
               </ScrollView>
             )}
             <View style={s.legendRow}>
-              <Text style={s.legendText}>Temperature and pulse bars; oxygen label below each record.</Text>
+              <Text style={s.legendText}>Temperature and pulse bars for each record.</Text>
             </View>
           </View>
 

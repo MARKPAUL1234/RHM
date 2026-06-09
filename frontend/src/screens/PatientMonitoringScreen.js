@@ -47,7 +47,6 @@ export default function PatientMonitoringScreen() {
 
   const [journalTemp, setJournalTemp] = useState(36.6);
   const [journalHr, setJournalHr] = useState(72);
-  const [journalSpO2, setJournalSpO2] = useState(98);
   const [wellbeing, setWellbeing] = useState(4);
   const [medsTaken, setMedsTaken] = useState(true);
   const [selectedSymptoms, setSelectedSymptoms] = useState([]);
@@ -71,14 +70,12 @@ export default function PatientMonitoringScreen() {
 
     if (key === 'temp') setJournalTemp((value) => updateValue(value));
     if (key === 'hr') setJournalHr((value) => updateValue(value));
-    if (key === 'spo2') setJournalSpO2((value) => updateValue(value));
   };
 
   const handleSubmitJournal = (bypass = false) => {
     const isTempCritical = journalTemp > 38.5;
-    const isSpo2Critical = journalSpO2 < 92;
 
-    if ((isTempCritical || isSpo2Critical) && !bypass) {
+    if (isTempCritical && !bypass) {
       setIsGuardrailModalVisible(true);
       return;
     }
@@ -86,7 +83,6 @@ export default function PatientMonitoringScreen() {
     submitJournalRecord({
       temperature: journalTemp,
       heartRate: journalHr,
-      spo2: journalSpO2,
       symptoms_array: selectedSymptoms,
       meds_taken: medsTaken,
       wellbeing_score: wellbeing,
@@ -100,7 +96,6 @@ export default function PatientMonitoringScreen() {
     try {
       setVitals({
         heartRate: journalHr,
-        spo2: journalSpO2,
         temperature: journalTemp,
       });
 
@@ -202,18 +197,6 @@ export default function PatientMonitoringScreen() {
                 tone: journalHr > 100 ? colors.warning : colors.primary,
               })}
 
-              {renderMetricAdjuster({
-                keyName: 'spo2',
-                label: 'Oxygen saturation',
-                value: journalSpO2,
-                unit: '%',
-                min: 50,
-                max: 100,
-                step: 1,
-                decimal: 0,
-                tone: journalSpO2 < 92 ? colors.critical : colors.secondary,
-              })}
-
               <Text style={s.formSectionTitle}>Symptoms</Text>
               <View style={s.symptomsGrid}>
                 {symptomsList.map((symptom) => {
@@ -295,7 +278,6 @@ export default function PatientMonitoringScreen() {
                     <View style={s.recordVitals}>
                       <Text style={s.recordVital}>{record.temperature} C</Text>
                       <Text style={s.recordVital}>{record.heart_rate} bpm</Text>
-                      <Text style={s.recordVital}>{record.spo2}%</Text>
                     </View>
                   </View>
                 ))
@@ -310,11 +292,10 @@ export default function PatientMonitoringScreen() {
           <View style={[s.modalCard, SHADOWS.premium]}>
             <Text style={s.modalHeader}>Critical parameters detected</Text>
             <Text style={s.modalText}>
-              Confirm that these readings are accurate before saving them. Low SpO2 or elevated temperature will trigger backend alert rules.
+              Confirm that these readings are accurate before saving them. Elevated temperature will trigger backend alert rules.
             </Text>
             <View style={s.modalMetricsBox}>
               {journalTemp > 38.5 ? <Text style={s.modalMetricLine}>Temperature: {journalTemp} C</Text> : null}
-              {journalSpO2 < 92 ? <Text style={s.modalMetricLine}>SpO2: {journalSpO2}%</Text> : null}
             </View>
             <View style={s.modalButtonsRow}>
               <TouchableOpacity style={[s.modalBtn, s.modalCloseBtn]} onPress={() => setIsGuardrailModalVisible(false)}>
