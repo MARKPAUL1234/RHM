@@ -2679,11 +2679,7 @@ function InsightsTab({
   patientFirstName,
   recommendations,
   alerts,
-  appointmentRequests,
-  careMessages,
   onMarkAlertRead,
-  onCreateAppointmentRequest,
-  onCreateCareMessage,
 }) {
   const context = useContext(HealthContext) || {};
   const colors = context.colors || LIGHT_COLORS;
@@ -2693,25 +2689,6 @@ function InsightsTab({
   const fitnessTasks = useMemo(() => buildFitnessTasks(latest, logs), [latest, logs]);
   const careInsights = useMemo(() => buildCareInsights(latest, logs), [latest, logs]);
   const [checkedTasks, setCheckedTasks] = useState([]);
-  const [appointmentMessage, setAppointmentMessage] = useState('');
-  const [patientLocation, setPatientLocation] = useState(profile?.patient_location || '');
-  const [appointmentReason, setAppointmentReason] = useState('');
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
-  const [careUpdate, setCareUpdate] = useState('');
-  const [careMessageState, setCareMessageState] = useState('');
-  const temperature = safeNumber(latest.temperature, null);
-  const pulse = safeNumber(latest.pulse, null);
-  const urgent =
-    (temperature !== null && temperature >= 38) ||
-    (pulse !== null && (pulse > 120 || pulse < 45));
-  const selectedAppointment = useMemo(() => {
-    const requests = appointmentRequests || [];
-    return requests.find((appointment) => appointment.id === selectedAppointmentId) || requests[0] || null;
-  }, [appointmentRequests, selectedAppointmentId]);
-  const appointmentMessages = useMemo(() => {
-    if (!selectedAppointment) return [];
-    return (careMessages || []).filter((message) => message.appointment === selectedAppointment.id);
-  }, [careMessages, selectedAppointment]);
 
   useEffect(() => {
     setCheckedTasks((current) => current.filter((task) => fitnessTasks.includes(task)));
@@ -2719,72 +2696,6 @@ function InsightsTab({
 
   const toggleTask = (task) => {
     setCheckedTasks((current) => (current.includes(task) ? current.filter((item) => item !== task) : [...current, task]));
-  };
-
-  const handleBookUrgentAppointment = async () => {
-    try {
-      const appointment = await onCreateAppointmentRequest?.({
-        reason: 'Urgent manual vitals alert: patient should be reviewed after red-range reading.',
-        urgency: urgent ? 'urgent' : 'soon',
-        patient_location: patientLocation.trim(),
-        preferred_date: getIsoDate(),
-        preferred_time: '09:00',
-      });
-      setAppointmentMessage(
-        appointment?.confirmation_code
-          ? `Appointment saved: ${appointment.confirmation_code}. Assigned to ${appointment.assigned_facility_name || 'nearest available facility'}.`
-          : 'Appointment request saved.'
-      );
-    } catch (error) {
-      setAppointmentMessage(error?.message || 'Unable to book appointment request.');
-    }
-  };
-
-  const handleCreateRoutineAppointment = async () => {
-    if (!appointmentReason.trim()) {
-      setAppointmentMessage('Enter a reason for the appointment request.');
-      return;
-    }
-    try {
-      const appointment = await onCreateAppointmentRequest?.({
-        reason: appointmentReason.trim(),
-        urgency: urgent ? 'urgent' : 'routine',
-        patient_location: patientLocation.trim(),
-        preferred_date: getIsoDate(),
-        preferred_time: '09:00',
-      });
-      setAppointmentReason('');
-      setSelectedAppointmentId(appointment?.id || null);
-      setAppointmentMessage(
-        appointment?.confirmation_code
-          ? `Appointment saved: ${appointment.confirmation_code}.`
-          : 'Appointment request saved.'
-      );
-    } catch (error) {
-      setAppointmentMessage(error?.message || 'Unable to create appointment request.');
-    }
-  };
-
-  const handleSendCareUpdate = async () => {
-    if (!careUpdate.trim()) {
-      setCareMessageState('Write a short update first.');
-      return;
-    }
-    const appointment = selectedAppointment;
-    if (!appointment) {
-      setCareMessageState('Create an appointment request before sending a care update.');
-      return;
-    }
-    try {
-      await onCreateCareMessage?.({
-        appointment: appointment?.id,
-        body: careUpdate.trim(),
-      });
-      setCareUpdate('');
-      setCareMessageState('Update sent to the care team.');
-    } catch (error) {
-      setCareMessageState(error?.message || 'Unable to send update.');
-    }
   };
 
   return (
@@ -2799,29 +2710,6 @@ function InsightsTab({
           </View>
         ))}
       </View>
-      {urgent ? (
-        <View style={insightStyles.warningBanner}>
-          <Text style={insightStyles.warningTitle}>Red alert: seek medical help now</Text>
-          <Text style={insightStyles.warningText}>
-            One or more readings crossed a safe medical range. Recheck the manual entry, avoid physical strain, and seek
-            immediate clinical help if symptoms persist or worsen.
-          </Text>
-          <View style={insightStyles.warningActions}>
-            <TextInput
-              style={insightStyles.locationInput}
-              placeholder="Enter your area, town, or nearby landmark"
-              placeholderTextColor="#7F1D1D"
-              value={patientLocation}
-              onChangeText={setPatientLocation}
-            />
-            <TouchableOpacity style={insightStyles.warningPrimaryButton} activeOpacity={0.85} onPress={handleBookUrgentAppointment}>
-              <Text style={insightStyles.warningPrimaryText}>Book Urgent Appointment</Text>
-            </TouchableOpacity>
-            <Text style={insightStyles.warningHelpText}>If breathing, chest pain, fainting, or confusion occurs, use emergency care immediately.</Text>
-          </View>
-          {appointmentMessage ? <Text style={insightStyles.appointmentMessage}>{appointmentMessage}</Text> : null}
-        </View>
-      ) : null}
       <View style={insightStyles.insightGrid}>
         <View style={insightStyles.insightPanel}>
           <Text style={insightStyles.panelTitle}>Diet & Nutrition</Text>
@@ -2871,7 +2759,6 @@ function InsightsTab({
             logs.length > 0 ? `Last reviewed: ${latest.date}` : 'No clinical review yet: log vitals first',
             bloodGroup === 'Not set' ? 'Complete blood group in Profile & History' : `Blood group saved as ${bloodGroup}`,
             checkedTasks.length > 0 ? `${checkedTasks.length} checklist item${checkedTasks.length === 1 ? '' : 's'} completed today` : 'No checklist items completed yet',
-            urgent ? 'Escalation banner active until vitals return to safer ranges' : 'No urgent escalation currently active',
           ].map((item) => (
             <View key={item} style={insightStyles.readinessRow}>
               <View style={insightStyles.readinessDot} />
@@ -2922,85 +2809,6 @@ function InsightsTab({
               </View>
             ))
           )}
-        </View>
-
-        <View style={insightStyles.insightPanel}>
-          <Text style={insightStyles.panelTitle}>Appointment Requests</Text>
-          <Text style={insightStyles.panelSubtitle}>Care booking requests created from manual vitals and red alerts.</Text>
-          <View style={insightStyles.medFormGrid}>
-            <TextInput
-              style={[insightStyles.medInput, insightStyles.messageInput]}
-              placeholder="Reason for appointment"
-              placeholderTextColor="#94A3B8"
-              value={appointmentReason}
-              onChangeText={setAppointmentReason}
-              multiline
-            />
-            <TextInput
-              style={insightStyles.medInput}
-              placeholder="Patient location"
-              placeholderTextColor="#94A3B8"
-              value={patientLocation}
-              onChangeText={setPatientLocation}
-            />
-          </View>
-          <TouchableOpacity style={insightStyles.medButton} activeOpacity={0.85} onPress={handleCreateRoutineAppointment}>
-            <Text style={insightStyles.medButtonText}>Create Appointment Request</Text>
-          </TouchableOpacity>
-          {(appointmentRequests || []).length === 0 ? (
-            <Text style={insightStyles.emptyPanelText}>No appointment requests yet. Red-alert vitals can create urgent booking requests here.</Text>
-          ) : (
-            appointmentRequests.slice(0, 4).map((appointment) => (
-              <TouchableOpacity key={appointment.id} style={[insightStyles.appointmentRow, selectedAppointment?.id === appointment.id && insightStyles.selectedAppointmentRow]} onPress={() => setSelectedAppointmentId(appointment.id)} activeOpacity={0.84}>
-                <Text style={insightStyles.appointmentTitle}>
-                  {appointment.confirmation_code || 'Appointment'} - {String(appointment.urgency || 'routine').toUpperCase()}
-                </Text>
-                <Text style={insightStyles.appointmentText}>
-                  {appointment.reason} | {appointment.status}
-                </Text>
-                {appointment.assigned_facility_name ? (
-                  <Text style={insightStyles.appointmentText}>
-                    Assigned: {appointment.assigned_facility_name}, {appointment.assigned_facility_address} | {appointment.assigned_facility_contact}
-                  </Text>
-                ) : null}
-                {appointment.triage_summary ? (
-                  <Text style={insightStyles.appointmentText}>{appointment.triage_summary}</Text>
-                ) : null}
-              </TouchableOpacity>
-            ))
-          )}
-          {appointmentMessage ? <Text style={insightStyles.medMessage}>{appointmentMessage}</Text> : null}
-          <AppointmentDetail appointment={selectedAppointment} messages={appointmentMessages} />
-        </View>
-
-        <View style={insightStyles.insightPanel}>
-          <Text style={insightStyles.panelTitle}>Doctor Interaction</Text>
-          <Text style={insightStyles.panelSubtitle}>Send symptom updates and read doctor replies linked to your care requests.</Text>
-          <View style={insightStyles.medFormGrid}>
-            <TextInput
-              style={[insightStyles.medInput, insightStyles.messageInput]}
-              placeholder="Example: Fever reduced, but dizziness is still present."
-              placeholderTextColor="#94A3B8"
-              value={careUpdate}
-              onChangeText={setCareUpdate}
-              multiline
-            />
-          </View>
-          <TouchableOpacity style={insightStyles.medButton} activeOpacity={0.85} onPress={handleSendCareUpdate}>
-            <Text style={insightStyles.medButtonText}>Send Update to Doctor</Text>
-          </TouchableOpacity>
-          {careMessageState ? <Text style={insightStyles.medMessage}>{careMessageState}</Text> : null}
-          {appointmentMessages.length === 0 ? (
-            <Text style={insightStyles.emptyPanelText}>No messages are linked to the selected appointment yet.</Text>
-          ) : null}
-          {appointmentMessages.slice(0, 5).map((message) => (
-            <View key={message.id} style={insightStyles.messageRow}>
-              <Text style={insightStyles.messageTitle}>
-                {message.sender_username} to {message.recipient_username} | {String(message.message_type).replace('_', ' ')}
-              </Text>
-              <Text style={insightStyles.messageText}>{message.body}</Text>
-            </View>
-          ))}
         </View>
       </View>
     </View>
