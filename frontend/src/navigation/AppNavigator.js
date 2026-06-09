@@ -2606,6 +2606,9 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
 }
 
 function TemperatureSlider({ value, onChange }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const formStyles = getFormStyles(colors);
   const trackWidthRef = useRef(1);
   const min = 35;
   const max = 40;
