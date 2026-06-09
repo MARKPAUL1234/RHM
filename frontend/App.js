@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { SafeAreaView, StyleSheet, StatusBar, View, ActivityIndicator, Text, Animated, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppNavigator from './src/navigation/AppNavigator';
+import HomeScreen from './src/screens/HomeScreen';
 import djangoApi, { setAuthToken, setRefreshToken } from './src/services/django_api';
 import { LIGHT_COLORS, DARK_COLORS } from './src/styles/theme';
 import { HealthContext } from './src/context/HealthContext';
@@ -851,7 +852,7 @@ export default function App() {
             toggleOfflineMode,
           }}
         >
-          <AppNavigator />
+          {user ? <AppNavigator /> : <HomeScreen />}
         </HealthContext.Provider>
       </ToastProvider>
     </SafeAreaView>
