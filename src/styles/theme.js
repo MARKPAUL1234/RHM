@@ -18,6 +18,8 @@ export const DARK_COLORS = {
   primaryLight: '#F3C623',  // Lighter Gold for active links & selected highlights
   secondary: '#FFFFFF',     // Crisp White for data trends and parameters
   accent: '#E1AD01',        // Gold accent for fitness metrics
+  warning: '#E1AD01',
+  warningLight: '#2A2510',
   
   // Connection / Alert levels (strictly gold and grey/white scale)
   online: '#E1AD01',        // Gold for online status
@@ -49,6 +51,8 @@ export const LIGHT_COLORS = {
   primaryLight: '#B88E00',    // Slightly darker gold for light mode text readability
   secondary: '#121212',       // Dark grey/black for data trends
   accent: '#E1AD01',          // Gold accent for fitness metrics
+  warning: '#E1AD01',
+  warningLight: '#FFF9E0',
   
   // Connection / Alert levels
   online: '#E1AD01',          // Gold

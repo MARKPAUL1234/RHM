@@ -1,4 +1,6 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { BleManager, Device, Service, Characteristic } from 'react-native-ble-plx';
+import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import {
   ActivityIndicator,
   Modal,
@@ -1878,60 +1880,147 @@ function DashboardTab({
     setBleError(null);
     if (type === 'temp') setConnectingTemp(true);
     else setConnectingPulse(true);
+    
+    let tempVal = null;
+    let pulseVal = null;
+    
     try {
-      if (!navigator.bluetooth) throw new Error('Web Bluetooth not available on this browser/connection (HTTPS required).');
+      if (Platform.OS === 'web') {
+        // Web Bluetooth for web platform
+        if (!navigator.bluetooth) throw new Error('Web Bluetooth not available on this browser/connection (HTTPS required).');
 
-      const filters = type === 'temp'
-        ? [{ services: [0x1809] }, { namePrefix: 'Temp' }, { namePrefix: 'Smart' }]
-        : [{ services: [0x180D] }, { namePrefix: 'Watch' }, { namePrefix: 'Smart' }];
+        const filters = type === 'temp'
+          ? [{ services: [0x1809] }, { namePrefix: 'Temp' }, { namePrefix: 'Smart' }]
+          : [{ services: [0x180D] }, { namePrefix: 'Watch' }, { namePrefix: 'Smart' }];
 
-      const device = await navigator.bluetooth.requestDevice({
-        filters,
-        optionalServices: [0x180D, 0x1809, 0x180F, 0x181A],
-      });
-
-      const server = await device.gatt.connect();
-      setWearableDevice(device.name || 'BLE Device');
-      device.addEventListener('gattserverdisconnected', () => {
-        setWearableDevice(null);
-        setWearableTemp(null);
-        setWearablePulse(null);
-      });
-
-      let tempVal = null;
-      let pulseVal = null;
-
-      if (type === 'temp') {
-        try {
-          const service = await server.getPrimaryService(0x1809);
-          const char = await service.getCharacteristic(0x2A1C);
-          char.addEventListener('characteristicvaluechanged', (event) => {
-            const data = event.target.value;
-            const raw = data.getUint8(1) + (data.getUint8(2) << 8) * 0.01;
-            tempVal = Number(raw.toFixed(1));
-            setWearableTemp(tempVal);
-          });
-          await char.startNotifications();
-        } catch {
-          tempVal = Number((36 + Math.random() * 2).toFixed(1));
-          setWearableTemp(tempVal);
-        }
-      }
-
-      try {
-        const hrService = await server.getPrimaryService(0x180D);
-        const hrChar = await hrService.getCharacteristic(0x2A37);
-        hrChar.addEventListener('characteristicvaluechanged', (event) => {
-          const data = event.target.value;
-          const flags = data.getUint8(0);
-          const rate = flags & 0x01 ? data.getUint16(1, true) : data.getUint8(1);
-          pulseVal = rate;
-          setWearablePulse(rate);
+        const device = await navigator.bluetooth.requestDevice({
+          filters,
+          optionalServices: [0x180D, 0x1809, 0x180F, 0x181A],
         });
-        await hrChar.startNotifications();
-      } catch {
-        pulseVal = Math.floor(60 + Math.random() * 40);
-        setWearablePulse(pulseVal);
+
+        const server = await device.gatt.connect();
+        setWearableDevice(device.name || 'BLE Device');
+        device.addEventListener('gattserverdisconnected', () => {
+          setWearableDevice(null);
+          setWearableTemp(null);
+          setWearablePulse(null);
+        });
+
+        if (type === 'temp') {
+          try {
+            const service = await server.getPrimaryService(0x1809);
+            const char = await service.getCharacteristic(0x2A1C);
+            char.addEventListener('characteristicvaluechanged', (event) => {
+              const data = event.target.value;
+              const raw = data.getUint8(1) + (data.getUint8(2) << 8) * 0.01;
+              tempVal = Number(raw.toFixed(1));
+              setWearableTemp(tempVal);
+            });
+            await char.startNotifications();
+          } catch {
+            tempVal = Number((36 + Math.random() * 2).toFixed(1));
+            setWearableTemp(tempVal);
+          }
+        }
+
+        try {
+          const hrService = await server.getPrimaryService(0x180D);
+          const hrChar = await hrService.getCharacteristic(0x2A37);
+          hrChar.addEventListener('characteristicvaluechanged', (event) => {
+            const data = event.target.value;
+            const flags = data.getUint8(0);
+            const rate = flags & 0x01 ? data.getUint16(1, true) : data.getUint8(1);
+            pulseVal = rate;
+            setWearablePulse(rate);
+          });
+          await hrChar.startNotifications();
+        } catch {
+          pulseVal = Math.floor(60 + Math.random() * 40);
+          setWearablePulse(pulseVal);
+        }
+      } else {
+        // React Native BLE (Android/iOS) using react-native-ble-plx
+        const manager = new BleManager();
+        
+        // Request permissions on Android
+        if (Platform.OS === 'android') {
+          const granted = await PermissionsAndroid.requestMultiple([
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ]);
+          if (
+            granted['android.permission.BLUETOOTH_SCAN'] !== PermissionsAndroid.RESULTS.GRANTED ||
+            granted['android.permission.BLUETOOTH_CONNECT'] !== PermissionsAndroid.RESULTS.GRANTED ||
+            granted['android.permission.ACCESS_FINE_LOCATION'] !== PermissionsAndroid.RESULTS.GRANTED
+          ) {
+            throw new Error('Bluetooth permissions are required');
+          }
+        }
+
+        // Start scanning for devices
+        const targetServiceUUIDs = type === 'temp' 
+          ? ['1809'] 
+          : ['180d'];
+          
+        manager.startDeviceScan(targetServiceUUIDs, null, async (error, device) => {
+          if (error) {
+            setBleError(error.message);
+            manager.stopDeviceScan();
+            return;
+          }
+          
+          if (device && (device.name?.includes('Watch') || device.name?.includes('Smart') || device.name?.includes('Temp'))) {
+            manager.stopDeviceScan();
+            setWearableDevice(device.name || 'BLE Device');
+            
+            // Connect to the device
+            const connectedDevice = await manager.connectToDevice(device.id);
+            await connectedDevice.discoverAllServicesAndCharacteristics();
+            
+            const services = await connectedDevice.services();
+            
+            if (type === 'temp') {
+              const tempService = services.find(s => s.uuid === '1809');
+              if (tempService) {
+                const tempChar = (await tempService.characteristics()).find(c => c.uuid === '2a1c');
+                if (tempChar) {
+                  await tempChar.monitor((error, char) => {
+                    if (error) return;
+                    if (char?.value) {
+                      const buffer = Buffer.from(char.value, 'base64');
+                      const raw = buffer.readUInt8(1) + (buffer.readUInt8(2) << 8) * 0.01;
+                      tempVal = Number(raw.toFixed(1));
+                      setWearableTemp(tempVal);
+                    }
+                  });
+                }
+              }
+            }
+            
+            // Always try to get heart rate
+            const hrService = services.find(s => s.uuid === '180d');
+            if (hrService) {
+              const hrChar = (await hrService.characteristics()).find(c => c.uuid === '2a37');
+              if (hrChar) {
+                await hrChar.monitor((error, char) => {
+                  if (error) return;
+                  if (char?.value) {
+                    const buffer = Buffer.from(char.value, 'base64');
+                    const flags = buffer.readUInt8(0);
+                    const rate = flags & 0x01 ? buffer.readUInt16LE(1) : buffer.readUInt8(1);
+                    pulseVal = rate;
+                    setWearablePulse(rate);
+                  }
+                });
+              }
+            }
+          }
+        });
+        
+        // Give some time for scanning
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        manager.stopDeviceScan();
       }
 
       setTimeout(() => {
@@ -1943,6 +2032,7 @@ function DashboardTab({
         }
       }, 3000);
     } catch (err) {
+      console.error('BLE Error:', err);
       setBleError(err.message);
       const fallbackTemp = Number((36 + Math.random() * 2).toFixed(1));
       const fallbackPulse = Math.floor(60 + Math.random() * 40);
@@ -3881,8 +3971,8 @@ const getLayoutStyles = (colors) => StyleSheet.create({
   statePanel: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
-    backgroundColor: '#EFF6FF',
+    borderColor: colors.border || '#BFDBFE',
+    backgroundColor: colors.surfaceLight || '#EFF6FF',
     padding: 14,
     marginBottom: 14,
     flexDirection: 'row',
@@ -3891,8 +3981,8 @@ const getLayoutStyles = (colors) => StyleSheet.create({
     gap: 12,
   },
   warningStatePanel: {
-    borderColor: '#FCD34D',
-    backgroundColor: '#FFFBEB',
+    borderColor: colors.warning || '#FCD34D',
+    backgroundColor: colors.warningLight || '#FFFBEB',
   },
   stateBody: {
     flex: 1,

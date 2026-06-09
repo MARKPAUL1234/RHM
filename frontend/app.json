@@ -14,14 +14,20 @@
     "assetBundlePatterns": [
       "**/*"
     ],
+    "plugins": ["@config-plugins/react-native-ble-plx"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "This app uses Bluetooth to connect to wearables for health monitoring",
+        "NSBluetoothPeripheralUsageDescription": "This app uses Bluetooth to connect to wearables for health monitoring"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#121212"
-      }
+      },
+      "permissions": ["BLUETOOTH", "BLUETOOTH_ADMIN", "BLUETOOTH_SCAN", "BLUETOOTH_CONNECT", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
