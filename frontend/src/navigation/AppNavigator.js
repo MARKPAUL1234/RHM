@@ -1,11 +1,9 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { BleManager, Device, Service, Characteristic } from 'react-native-ble-plx';
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import {
   ActivityIndicator,
   Modal,
   PanResponder,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -1294,6 +1292,9 @@ function CircularProgress({ size, progress, strokeWidth, color, children }) {
 }
 
 function LiveWalkingTracker({ profile, onSaveManualLog, onSessionComplete }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const [isWalking, setIsWalking] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [steps, setSteps] = useState(0);
@@ -1407,6 +1408,9 @@ function LiveWalkingTracker({ profile, onSaveManualLog, onSessionComplete }) {
 }
 
 function WalkingAchievements({ history }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const totalSessions = history.length;
   const totalSteps = history.reduce((s, h) => s + h.steps, 0);
   const maxDistance = Math.max(...history.map((h) => h.distance), 0);
@@ -1444,6 +1448,9 @@ function WalkingAchievements({ history }) {
 }
 
 function WalkingWeekChart({ history }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const weekDays = [];
   const today = new Date();
   for (let i = 6; i >= 0; i--) {
@@ -1484,6 +1491,9 @@ function WalkingWeekChart({ history }) {
 }
 
 function WaterTracker({ initialGlasses = 0, initialGoal = 8 }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const [glasses, setGlasses] = useState(initialGlasses);
   const [goal, setGoal] = useState(initialGoal);
   const [reminderEnabled, setReminderEnabled] = useState(false);
@@ -1568,6 +1578,9 @@ function WaterTracker({ initialGlasses = 0, initialGoal = 8 }) {
 }
 
 function QuickActionModal({ visible, title, onClose, children }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={dashboardStyles.modalBackdrop}>
@@ -1586,6 +1599,9 @@ function QuickActionModal({ visible, title, onClose, children }) {
 }
 
 function HydrationActionPanel({ nutritionLogs, profile, onLogNutritionEntry, onRefresh }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const [amount, setAmount] = useState('250');
   const [status, setStatus] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -1669,6 +1685,9 @@ function HydrationActionPanel({ nutritionLogs, profile, onLogNutritionEntry, onR
 }
 
 function WalkingActionPanel({ fitnessLogs, fitnessSummary, onLogFitnessEntry, onRefresh }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const [elapsed, setElapsed] = useState(0);
   const [isWalking, setIsWalking] = useState(false);
   const [stepsInput, setStepsInput] = useState('');
@@ -1792,6 +1811,9 @@ function DashboardTab({
   alerts,
   setActiveTab,
 }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const symptoms = latest.symptoms?.length ? latest.symptoms.join(', ') : 'No active symptoms';
   const statistics = calculateDashboardStats(logs);
   const [wearableTemp, setWearableTemp] = useState(null);
@@ -1940,6 +1962,7 @@ function DashboardTab({
         }
       } else {
         // React Native BLE (Android/iOS) using react-native-ble-plx
+        const { BleManager } = require('react-native-ble-plx');
         const manager = new BleManager();
         
         // Request permissions on Android
@@ -2324,6 +2347,9 @@ function DashboardTab({
 }
 
 function VitalsTrendChart({ logs }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const chartLogs = logs.slice(0, 7).reverse();
 
   if (chartLogs.length === 0) {
@@ -2385,6 +2411,9 @@ function VitalsTrendChart({ logs }) {
 }
 
 function HealthScoreTrendChart({ scores }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const chartScores = (scores || []).slice(0, 7).reverse();
 
   if (chartScores.length === 0) {
@@ -2418,6 +2447,9 @@ function HealthScoreTrendChart({ scores }) {
 }
 
 function AnimatedCount({ value }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const target = safeNumber(value, 0);
   const [displayValue, setDisplayValue] = useState(target);
 
@@ -2446,6 +2478,9 @@ function AnimatedCount({ value }) {
 }
 
 function ClinicalStatCard({ stat }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   return (
     <View style={[dashboardStyles.statisticCard, dashboardStyles.clinicalStatisticCard]}>
       <View style={[dashboardStyles.clinicalStatRail, { backgroundColor: stat.color }]} />
@@ -2457,6 +2492,9 @@ function ClinicalStatCard({ stat }) {
 }
 
 function LogVitalsTab({ latest, onSaveManualLog }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const formStyles = getFormStyles(colors);
   const [temperature, setTemperature] = useState(latest.temperature || 36.8);
   const [pulse, setPulse] = useState(String(latest.pulse || 74));
   const [selectedSymptoms, setSelectedSymptoms] = useState(latest.symptoms || []);
@@ -2609,6 +2647,9 @@ function TemperatureSlider({ value, onChange }) {
 }
 
 function NumericVital({ label, suffix, value, onChangeText, helper, alert }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const formStyles = getFormStyles(colors);
   return (
     <View style={[formStyles.numericBlock, alert && formStyles.numericBlockAlert]}>
       <Text style={formStyles.numericLabel}>{label}</Text>
@@ -2619,7 +2660,7 @@ function NumericVital({ label, suffix, value, onChangeText, helper, alert }) {
           keyboardType="numeric"
           style={formStyles.numericInput}
           placeholder="0"
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={colors.textMuted}
         />
         <Text style={formStyles.numericSuffix}>{suffix}</Text>
       </View>
@@ -2641,6 +2682,9 @@ function InsightsTab({
   onCreateAppointmentRequest,
   onCreateCareMessage,
 }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const insightStyles = getInsightStyles(colors);
   const bloodGroup = profile?.blood_group || 'Not set';
   const nutritionPlan = useMemo(() => buildNutritionPlan(bloodGroup, latest, logs), [bloodGroup, latest, logs]);
   const fitnessTasks = useMemo(() => buildFitnessTasks(latest, logs), [latest, logs]);
@@ -3002,6 +3046,9 @@ function AppointmentDetail({ appointment, messages }) {
 }
 
 function ClinicalDashboardTab({ patientOverview, appointmentRequests, alerts, onReviewHealthRecord, onRefresh, lastRefreshAt, isFetchingData }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const dashboardStyles = getDashboardStyles(colors);
   const rows = patientOverview || [];
   const urgentPatients = rows.filter((row) => row.latest_score?.risk_level === 'urgent').length;
   const pendingReviews = rows.filter((row) => row.latest_record?.review_status !== 'reviewed').length;
@@ -3166,6 +3213,9 @@ function ClinicalPatientsTab({ patientOverview, onReviewHealthRecord }) {
 }
 
 function ClinicalReviewQueue({ rows, onReviewHealthRecord }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const profileStyles = getProfileStyles(colors);
   const [reviewState, setReviewState] = useState('');
 
   const handleReviewRecord = async (recordId, reviewStatus) => {
@@ -3236,6 +3286,9 @@ function ProfileHistoryTab({
   healthScores,
   onExportWeeklyReport,
 }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const profileStyles = getProfileStyles(colors);
   const [age, setAge] = useState(profile?.age ? String(profile.age) : '');
   const [weight, setWeight] = useState(profile?.weight ? String(profile.weight) : '');
   const [gender, setGender] = useState(profile?.gender || '');
@@ -3403,11 +3456,14 @@ function ProfileHistoryTab({
 }
 
 function ProfileField({ label, value, onChangeText, suffix }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const profileStyles = getProfileStyles(colors);
   return (
     <View style={profileStyles.field}>
       <Text style={profileStyles.fieldLabel}>{label}</Text>
       <View style={profileStyles.fieldInputRow}>
-        <TextInput value={value} onChangeText={onChangeText} style={profileStyles.fieldInput} placeholderTextColor="#94A3B8" />
+        <TextInput value={value} onChangeText={onChangeText} style={profileStyles.fieldInput} placeholderTextColor={colors.textMuted} />
         {suffix ? <Text style={profileStyles.fieldSuffix}>{suffix}</Text> : null}
       </View>
     </View>
@@ -3430,6 +3486,9 @@ function SettingsTab({
   onRefresh,
   onLogout,
 }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const settingsStyles = getSettingsStyles(colors);
   const [settingsState, setSettingsState] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -3534,6 +3593,9 @@ function SettingsTab({
 }
 
 function SettingsToggle({ value, onValueChange }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const settingsStyles = getSettingsStyles(colors);
   const active = !!value;
   return (
     <TouchableOpacity
@@ -3552,6 +3614,9 @@ function SettingsToggle({ value, onValueChange }) {
 }
 
 function SettingsToggleRow({ title, hint, value, onValueChange }) {
+  const context = useContext(HealthContext) || {};
+  const colors = context.colors || LIGHT_COLORS;
+  const settingsStyles = getSettingsStyles(colors);
   const active = !!value;
   return (
     <TouchableOpacity
@@ -4016,8 +4081,8 @@ const getLayoutStyles = (colors) => StyleSheet.create({
   completionCard: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#A7F3D0',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.success + '40',
+    backgroundColor: colors.surfaceLight,
     padding: 14,
     marginBottom: 14,
   },
@@ -4032,38 +4097,38 @@ const getLayoutStyles = (colors) => StyleSheet.create({
     minWidth: 0,
   },
   completionTitle: {
-    color: colors.textPrimary || '#0F172A',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   completionText: {
-    color: colors.textSecondary || '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 4,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   completionPercent: {
-    color: '#064E3B',
+    color: colors.primary,
     fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   completionTrack: {
     height: 8,
     borderRadius: 8,
-    backgroundColor: '#BBF7D0',
+    backgroundColor: colors.surface,
     overflow: 'hidden',
     marginTop: 12,
   },
   completionFill: {
     height: 8,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
   },
   completionButton: {
     minHeight: 38,
     borderRadius: 8,
-    backgroundColor: colors.primary || '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -4368,7 +4433,7 @@ const styles = (metrics, isDesktop, colors) =>
     },
   });
 
-const dashboardStyles = StyleSheet.create({
+const getDashboardStyles = (colors) => StyleSheet.create({
   cardGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -4380,9 +4445,9 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 210,
     minHeight: 148,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 18,
     position: 'relative',
     ...SHADOWS.premium,
@@ -4396,21 +4461,21 @@ const dashboardStyles = StyleSheet.create({
     right: 18,
   },
   cardLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 0,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   cardValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 25,
     lineHeight: 32,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginTop: 18,
   },
   cardHelper: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 13,
     marginTop: 10,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -4427,8 +4492,8 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 158,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 14,
   },
   quickActionGrid: {
@@ -4445,8 +4510,8 @@ const dashboardStyles = StyleSheet.create({
     minHeight: 92,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 16,
     ...SHADOWS.subtle,
   },
@@ -4456,8 +4521,8 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 240,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 16,
     ...SHADOWS.subtle,
   },
@@ -4479,16 +4544,16 @@ const dashboardStyles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 6,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceLight,
   },
   quickActionDetailBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0F172A',
+    color: colors.textPrimary,
   },
   quickActionProgressText: {
     fontSize: 13,
-    color: '#64748B',
+    color: colors.textSecondary,
     fontWeight: '600',
     marginBottom: 12,
   },
@@ -4502,22 +4567,22 @@ const dashboardStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.primary + '10',
     borderWidth: 1,
-    borderColor: '#A7F3D0',
+    borderColor: colors.primary + '40',
   },
   quickInlineBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#047857',
+    color: colors.primary,
   },
   quickActionIcon: {
     alignSelf: 'flex-start',
     borderRadius: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.primary + '10',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    color: '#047857',
+    borderColor: colors.primary + '40',
+    color: colors.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
     paddingHorizontal: 9,
@@ -4525,12 +4590,12 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 9,
   },
   quickActionTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   quickActionText: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
@@ -4549,8 +4614,8 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 240,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -4561,7 +4626,7 @@ const dashboardStyles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.primary + '10',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -4570,19 +4635,19 @@ const dashboardStyles = StyleSheet.create({
     flex: 1,
   },
   reminderTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   reminderSubtitle: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   reminderActionButton: {
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 8,
     paddingHorizontal: 16,
@@ -4603,9 +4668,9 @@ const dashboardStyles = StyleSheet.create({
     width: '100%',
     maxWidth: 520,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
+    borderColor: colors.border,
     padding: 18,
     ...SHADOWS.premium,
   },
@@ -4617,7 +4682,7 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 12,
   },
   modalTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -4625,18 +4690,18 @@ const dashboardStyles = StyleSheet.create({
     minHeight: 34,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 11,
   },
   modalCloseText: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   modalBodyText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -4654,17 +4719,17 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 132,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
   },
   quickMetricValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   quickMetricLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 3,
     fontWeight: TYPOGRAPHY.weights.semiBold,
@@ -4672,13 +4737,13 @@ const dashboardStyles = StyleSheet.create({
   quickProgressTrack: {
     height: 10,
     borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
     overflow: 'hidden',
     marginBottom: 12,
   },
   quickProgressFill: {
     height: '100%',
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
   },
   amountButtons: {
     flexDirection: 'row',
@@ -4691,31 +4756,31 @@ const dashboardStyles = StyleSheet.create({
     minHeight: 38,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
   amountButtonActive: {
-    borderColor: '#047857',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
   },
   amountButtonText: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   amountButtonTextActive: {
-    color: '#047857',
+    color: colors.primary,
   },
   quickInput: {
     minHeight: 42,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
-    color: '#0F172A',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
+    color: colors.textPrimary,
     paddingHorizontal: 12,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semiBold,
@@ -4724,7 +4789,7 @@ const dashboardStyles = StyleSheet.create({
   quickPrimaryButton: {
     minHeight: 42,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -4738,14 +4803,14 @@ const dashboardStyles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
   quickSecondaryButtonText: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -4753,7 +4818,7 @@ const dashboardStyles = StyleSheet.create({
     opacity: 0.55,
   },
   quickStatusText: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.semiBold,
@@ -4766,7 +4831,7 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 10,
   },
   clinicalStatisticCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     position: 'relative',
     overflow: 'hidden',
     ...SHADOWS.subtle,
@@ -4779,21 +4844,21 @@ const dashboardStyles = StyleSheet.create({
     width: 4,
   },
   statLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
   statValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 22,
     lineHeight: 28,
     marginTop: 8,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   statDetail: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -4801,8 +4866,8 @@ const dashboardStyles = StyleSheet.create({
   clinicalToolbar: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 12,
     marginBottom: 14,
     flexDirection: 'row',
@@ -4813,7 +4878,7 @@ const dashboardStyles = StyleSheet.create({
   },
   clinicalRefreshText: {
     flex: 1,
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.semiBold,
@@ -4821,7 +4886,7 @@ const dashboardStyles = StyleSheet.create({
   clinicalRefreshButton: {
     minHeight: 38,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -4844,17 +4909,17 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 210,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.primary + '10',
     padding: 14,
   },
   clinicalActionTitle: {
-    color: '#064E3B',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   clinicalActionText: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 12,
     lineHeight: 18,
     marginTop: 5,
@@ -4864,8 +4929,8 @@ const dashboardStyles = StyleSheet.create({
     marginTop: 14,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 16,
     ...SHADOWS.subtle,
   },
@@ -4877,12 +4942,12 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 12,
   },
   riskTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 17,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   riskBadge: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderRadius: 8,
     overflow: 'hidden',
     paddingHorizontal: 10,
@@ -4899,19 +4964,19 @@ const dashboardStyles = StyleSheet.create({
     flex: 1,
     minWidth: 240,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 12,
   },
   riskColumnTitle: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 8,
   },
   riskText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -4921,8 +4986,8 @@ const dashboardStyles = StyleSheet.create({
     marginTop: 18,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
     ...SHADOWS.premium,
   },
@@ -4933,18 +4998,18 @@ const dashboardStyles = StyleSheet.create({
     alignItems: 'center',
   },
   chartTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   chartSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 3,
   },
   chartPill: {
-    color: '#047857',
-    backgroundColor: '#ECFDF5',
+    color: colors.primary,
+    backgroundColor: colors.primary + '10',
     borderRadius: 8,
     overflow: 'hidden',
     paddingHorizontal: 12,
@@ -4969,7 +5034,7 @@ const dashboardStyles = StyleSheet.create({
     borderRadius: 5,
   },
   legendText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
@@ -4977,9 +5042,9 @@ const dashboardStyles = StyleSheet.create({
     minHeight: 240,
     marginTop: 12,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'stretch',
     justifyContent: 'space-around',
@@ -4996,12 +5061,12 @@ const dashboardStyles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   chartEmptyTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   chartEmptyText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 19,
     marginTop: 6,
@@ -5027,9 +5092,9 @@ const dashboardStyles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#047857',
+    backgroundColor: colors.success,
     borderWidth: 3,
-    borderColor: '#BBF7D0',
+    borderColor: colors.success + '40',
     zIndex: 2,
   },
   chartSegment: {
@@ -5038,7 +5103,7 @@ const dashboardStyles = StyleSheet.create({
     width: 58,
     height: 3,
     borderRadius: 2,
-    backgroundColor: '#86EFAC',
+    backgroundColor: colors.success + '60',
     zIndex: 1,
   },
   barPair: {
@@ -5052,7 +5117,7 @@ const dashboardStyles = StyleSheet.create({
     width: 12,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
-    backgroundColor: '#2563EB',
+    backgroundColor: colors.primary,
   },
   tempBar: {
     width: 12,
@@ -5060,7 +5125,7 @@ const dashboardStyles = StyleSheet.create({
     borderTopRightRadius: 8,
   },
   chartAxisLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginTop: 8,
@@ -5073,8 +5138,8 @@ const dashboardStyles = StyleSheet.create({
     marginTop: 14,
   },
   chartFootnote: {
-    color: '#64748B',
-    backgroundColor: '#F8FAFC',
+    color: colors.textMuted,
+    backgroundColor: colors.surfaceLight,
     borderRadius: 8,
     overflow: 'hidden',
     paddingHorizontal: 10,
@@ -5085,9 +5150,9 @@ const dashboardStyles = StyleSheet.create({
   scoreChartCanvas: {
     minHeight: 178,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     paddingHorizontal: 12,
     paddingTop: 18,
     paddingBottom: 12,
@@ -5103,7 +5168,7 @@ const dashboardStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   scoreChartValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 6,
@@ -5116,7 +5181,7 @@ const dashboardStyles = StyleSheet.create({
   wearableButton: {
     marginTop: 10,
     minHeight: 30,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
@@ -5124,7 +5189,7 @@ const dashboardStyles = StyleSheet.create({
     paddingVertical: 6,
   },
   wearableButtonConnecting: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: colors.textMuted,
   },
   wearableButtonText: {
     color: '#FFFFFF',
@@ -5134,9 +5199,9 @@ const dashboardStyles = StyleSheet.create({
   walkingPanel: {
     marginTop: 18,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 18,
     ...SHADOWS.premium,
   },
@@ -5144,12 +5209,12 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 14,
   },
   walkingTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   walkingSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 2,
   },
@@ -5163,18 +5228,18 @@ const dashboardStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   circularSteps: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 26,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   circularLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   circularGoal: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 10,
     marginTop: 2,
   },
@@ -5188,12 +5253,12 @@ const dashboardStyles = StyleSheet.create({
     minWidth: 60,
   },
   walkingStatValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   walkingStatLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 10,
     textTransform: 'uppercase',
     marginTop: 2,
@@ -5201,7 +5266,7 @@ const dashboardStyles = StyleSheet.create({
   walkingDivider: {
     width: 1,
     height: 36,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
   },
   walkingActions: {
     flexDirection: 'row',
@@ -5212,7 +5277,7 @@ const dashboardStyles = StyleSheet.create({
   walkPlayBtn: {
     minWidth: 100,
     minHeight: 40,
-    backgroundColor: '#059669',
+    backgroundColor: colors.success,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -5221,7 +5286,7 @@ const dashboardStyles = StyleSheet.create({
   walkStopBtn: {
     minWidth: 100,
     minHeight: 40,
-    backgroundColor: '#DC2626',
+    backgroundColor: colors.critical,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -5230,13 +5295,13 @@ const dashboardStyles = StyleSheet.create({
   walkResetBtn: {
     minWidth: 100,
     minHeight: 40,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceLight,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
   },
   walkBtnText: {
     color: '#FFFFFF',
@@ -5244,16 +5309,16 @@ const dashboardStyles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   walkResetText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   achievementsPanel: {
     marginTop: 14,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 14,
     ...SHADOWS.premium,
   },
@@ -5264,12 +5329,12 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 10,
   },
   achievementsTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   achievementsCount: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -5282,36 +5347,36 @@ const dashboardStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderRadius: 16,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     opacity: 0.5,
   },
   achievementEarned: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary + '40',
     opacity: 1,
   },
   achievementIcon: {
     fontSize: 14,
   },
   achievementLabel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   achievementLabelEarned: {
-    color: '#047857',
+    color: colors.primary,
   },
   weekChartPanel: {
     marginTop: 14,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 14,
     ...SHADOWS.premium,
   },
@@ -5322,12 +5387,12 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 12,
   },
   weekChartTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   weekChartTotal: {
-    color: '#3B82F6',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -5343,20 +5408,20 @@ const dashboardStyles = StyleSheet.create({
     gap: 4,
   },
   weekChartBarValue: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 9,
     minHeight: 12,
   },
   weekChartBar: {
     width: '100%',
     maxWidth: 32,
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
     borderTopLeftRadius: 4,
     borderTopRightRadius: 4,
     minHeight: 4,
   },
   weekChartBarLabel: {
-    color: '#94A3B8',
+    color: colors.textMuted,
     fontSize: 10,
     textTransform: 'uppercase',
   },
@@ -5366,10 +5431,10 @@ const dashboardStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primary + '10',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: colors.primary + '40',
     paddingVertical: 10,
     paddingHorizontal: 16,
   },
@@ -5377,16 +5442,16 @@ const dashboardStyles = StyleSheet.create({
     fontSize: 16,
   },
   waterActionBtnText: {
-    color: '#2563EB',
+    color: colors.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   waterPanel: {
     marginTop: 14,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 14,
     ...SHADOWS.premium,
   },
@@ -5397,12 +5462,12 @@ const dashboardStyles = StyleSheet.create({
     marginBottom: 12,
   },
   waterTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   waterSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 1,
   },
@@ -5410,7 +5475,7 @@ const dashboardStyles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -5423,12 +5488,12 @@ const dashboardStyles = StyleSheet.create({
     gap: 16,
   },
   waterCircValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   waterCircLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 10,
   },
   waterControls: {
@@ -5445,19 +5510,19 @@ const dashboardStyles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primary + '10',
     borderWidth: 1,
-    borderColor: '#BFDBFE',
+    borderColor: colors.primary + '40',
     alignItems: 'center',
     justifyContent: 'center',
   },
   waterBtnText: {
-    color: '#2563EB',
+    color: colors.primary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   waterCount: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: TYPOGRAPHY.weights.bold,
     minWidth: 30,
@@ -5465,15 +5530,15 @@ const dashboardStyles = StyleSheet.create({
   },
   waterGoalBtn: {
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     paddingVertical: 6,
     paddingHorizontal: 14,
   },
   waterGoalBtnText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -5481,7 +5546,7 @@ const dashboardStyles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: colors.border,
     gap: 10,
   },
   waterSettingRow: {
@@ -5490,7 +5555,7 @@ const dashboardStyles = StyleSheet.create({
     alignItems: 'center',
   },
   waterSettingLabel: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
@@ -5498,12 +5563,12 @@ const dashboardStyles = StyleSheet.create({
     width: 44,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: colors.border,
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
   waterToggleOn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: colors.primary,
   },
   waterToggleThumb: {
     width: 20,
@@ -5522,26 +5587,26 @@ const dashboardStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
   },
   waterIntervalOptActive: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#3B82F6',
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary,
   },
   waterIntervalOptText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   waterIntervalOptTextActive: {
-    color: '#2563EB',
+    color: colors.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
 });
 
-const formStyles = StyleSheet.create({
+const getFormStyles = (colors) => StyleSheet.create({
   recordGuide: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -5552,28 +5617,28 @@ const formStyles = StyleSheet.create({
     minHeight: 40,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.primary + '10',
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
   recordGuideIcon: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   recordGuideText: {
-    color: '#065F46',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   formCard: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 22,
     gap: 22,
     ...SHADOWS.premium,
@@ -5588,7 +5653,7 @@ const formStyles = StyleSheet.create({
     gap: 12,
   },
   formLabel: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -5596,6 +5661,7 @@ const formStyles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 30,
     fontWeight: TYPOGRAPHY.weights.bold,
+    color: colors.textPrimary,
   },
   sliderWrap: {
     gap: 10,
@@ -5603,7 +5669,7 @@ const formStyles = StyleSheet.create({
   sliderTrack: {
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: colors.border,
     position: 'relative',
     justifyContent: 'center',
   },
@@ -5626,7 +5692,7 @@ const formStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   sliderLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
@@ -5641,16 +5707,16 @@ const formStyles = StyleSheet.create({
     minWidth: 240,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 16,
   },
   numericBlockAlert: {
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FEF2F2',
+    borderColor: colors.critical + '40',
+    backgroundColor: colors.critical + '10',
   },
   numericLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontWeight: TYPOGRAPHY.weights.bold,
     fontSize: 12,
     textTransform: 'uppercase',
@@ -5662,7 +5728,7 @@ const formStyles = StyleSheet.create({
     marginTop: 8,
   },
   numericInput: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 34,
     lineHeight: 40,
     fontWeight: TYPOGRAPHY.weights.bold,
@@ -5670,19 +5736,19 @@ const formStyles = StyleSheet.create({
     padding: 0,
   },
   numericSuffix: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 6,
     marginLeft: 6,
   },
   microText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 10,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   microTextAlert: {
-    color: '#DC2626',
+    color: colors.critical,
   },
   symptomGrid: {
     flexDirection: 'row',
@@ -5693,27 +5759,27 @@ const formStyles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   activeSymptomPill: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#34D399',
+    backgroundColor: colors.primary + '10',
+    borderColor: colors.primary + '40',
   },
   symptomText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   activeSymptomText: {
-    color: '#047857',
+    color: colors.primary,
   },
   submitButton: {
     minHeight: 54,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
@@ -5729,14 +5795,14 @@ const formStyles = StyleSheet.create({
     textAlign: 'center',
   },
   savedText: {
-    color: '#047857',
+    color: colors.success,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     fontSize: 13,
   },
   validationText: {
-    color: '#B91C1C',
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    color: colors.critical,
+    backgroundColor: colors.critical + '10',
+    borderColor: colors.critical + '40',
     borderWidth: 1,
     borderRadius: 8,
     overflow: 'hidden',
@@ -5747,7 +5813,7 @@ const formStyles = StyleSheet.create({
   },
 });
 
-const insightStyles = StyleSheet.create({
+const getInsightStyles = (colors) => StyleSheet.create({
   insightMetricGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -5760,27 +5826,27 @@ const insightStyles = StyleSheet.create({
     minWidth: 210,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 15,
     ...SHADOWS.subtle,
   },
   metricLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     textTransform: 'uppercase',
     letterSpacing: 0,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   metricValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 22,
     lineHeight: 28,
     marginTop: 8,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   metricDetail: {
-    color: '#64748B',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
     marginTop: 4,
@@ -5788,19 +5854,19 @@ const insightStyles = StyleSheet.create({
   },
   warningBanner: {
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.critical + '10',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: colors.critical + '40',
     padding: 16,
     marginBottom: 16,
   },
   warningTitle: {
-    color: '#B91C1C',
+    color: colors.critical,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   warningText: {
-    color: '#991B1B',
+    color: colors.critical,
     marginTop: 6,
     lineHeight: 20,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -5815,7 +5881,7 @@ const insightStyles = StyleSheet.create({
   warningPrimaryButton: {
     minHeight: 42,
     borderRadius: 8,
-    backgroundColor: '#B91C1C',
+    backgroundColor: colors.critical,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
@@ -5828,13 +5894,13 @@ const insightStyles = StyleSheet.create({
   warningHelpText: {
     flex: 1,
     minWidth: 220,
-    color: '#7F1D1D',
+    color: colors.critical,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   appointmentMessage: {
-    color: '#7F1D1D',
+    color: colors.critical,
     marginTop: 10,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
@@ -5845,10 +5911,10 @@ const insightStyles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#FCA5A5',
-    backgroundColor: '#FFF7ED',
+    borderColor: colors.critical + '40',
+    backgroundColor: colors.critical + '10',
     paddingHorizontal: 12,
-    color: '#7F1D1D',
+    color: colors.critical,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   insightGrid: {
@@ -5862,18 +5928,18 @@ const insightStyles = StyleSheet.create({
     minWidth: 280,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
     ...SHADOWS.premium,
   },
   panelTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   panelSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
     marginTop: 4,
     marginBottom: 16,
@@ -5888,37 +5954,37 @@ const insightStyles = StyleSheet.create({
     flex: 1,
     minWidth: 180,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 14,
   },
   dietHeading: {
-    color: '#047857',
+    color: colors.success,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 10,
   },
   restrictHeading: {
-    color: '#B91C1C',
+    color: colors.critical,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 10,
   },
   dietItem: {
-    color: '#166534',
+    color: colors.success,
     marginBottom: 8,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   restrictItem: {
-    color: '#991B1B',
+    color: colors.critical,
     marginBottom: 8,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   taskRow: {
     minHeight: 48,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     paddingHorizontal: 12,
     marginBottom: 10,
     flexDirection: 'row',
@@ -5930,32 +5996,32 @@ const insightStyles = StyleSheet.create({
     height: 24,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkedBox: {
-    backgroundColor: '#047857',
-    borderColor: '#047857',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   checkText: {
     color: '#FFFFFF',
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   taskText: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     flex: 1,
   },
   checkedTaskText: {
-    color: '#047857',
+    color: colors.primary,
   },
   readinessRow: {
     minHeight: 42,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     paddingHorizontal: 12,
     marginBottom: 9,
     flexDirection: 'row',
@@ -5966,11 +6032,11 @@ const insightStyles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
   },
   readinessText: {
     flex: 1,
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: TYPOGRAPHY.weights.semiBold,
@@ -5986,10 +6052,10 @@ const insightStyles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     paddingHorizontal: 12,
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   messageInput: {
@@ -6000,7 +6066,7 @@ const insightStyles = StyleSheet.create({
   medButton: {
     height: 42,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 10,
@@ -6010,7 +6076,7 @@ const insightStyles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   medMessage: {
-    color: '#047857',
+    color: colors.success,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     marginTop: 8,
@@ -6018,8 +6084,8 @@ const insightStyles = StyleSheet.create({
   medRow: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     marginTop: 10,
     flexDirection: 'row',
@@ -6032,12 +6098,12 @@ const insightStyles = StyleSheet.create({
     minWidth: 0,
   },
   medName: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   medMeta: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 3,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -6049,29 +6115,29 @@ const insightStyles = StyleSheet.create({
   medTinyButton: {
     minHeight: 34,
     borderRadius: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.primary + '10',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: colors.primary + '40',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 9,
   },
   medTinyText: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   medMissedButton: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FCA5A5',
+    backgroundColor: colors.critical + '10',
+    borderColor: colors.critical + '40',
   },
   medMissedText: {
-    color: '#B91C1C',
+    color: colors.critical,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   emptyPanelText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -6079,33 +6145,33 @@ const insightStyles = StyleSheet.create({
   recommendationRow: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     marginBottom: 9,
   },
   recommendationTitle: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 4,
   },
   recommendationText: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   alertRow: {
     borderRadius: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.critical + '10',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: colors.critical + '40',
     padding: 10,
     marginTop: 6,
   },
   alertRowText: {
-    color: '#991B1B',
+    color: colors.critical,
     fontSize: 12,
     lineHeight: 17,
     fontWeight: TYPOGRAPHY.weights.semiBold,
@@ -6113,8 +6179,8 @@ const insightStyles = StyleSheet.create({
   notificationRow: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     marginBottom: 10,
     flexDirection: 'row',
@@ -6127,13 +6193,13 @@ const insightStyles = StyleSheet.create({
     minWidth: 0,
   },
   notificationTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 4,
   },
   notificationText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -6141,7 +6207,7 @@ const insightStyles = StyleSheet.create({
   readButton: {
     minHeight: 34,
     borderRadius: 8,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -6154,23 +6220,23 @@ const insightStyles = StyleSheet.create({
   appointmentRow: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     marginBottom: 10,
   },
   selectedAppointmentRow: {
-    borderColor: '#047857',
-    backgroundColor: '#ECFDF5',
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
   },
   appointmentTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 5,
   },
   appointmentText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -6178,20 +6244,20 @@ const insightStyles = StyleSheet.create({
   messageRow: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     marginTop: 10,
   },
   messageTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 5,
     textTransform: 'capitalize',
   },
   messageText: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -6199,19 +6265,19 @@ const insightStyles = StyleSheet.create({
   detailPanel: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 12,
     marginTop: 12,
   },
   detailTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 8,
   },
   detailSubtitle: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginTop: 12,
@@ -6219,21 +6285,21 @@ const insightStyles = StyleSheet.create({
   },
   threadBubble: {
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 10,
     marginTop: 8,
   },
   threadTime: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     marginTop: 6,
   },
 });
 
-const profileStyles = StyleSheet.create({
+const getProfileStyles = (colors) => StyleSheet.create({
   profileGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -6245,8 +6311,8 @@ const profileStyles = StyleSheet.create({
     minWidth: 280,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
     ...SHADOWS.premium,
   },
@@ -6256,8 +6322,8 @@ const profileStyles = StyleSheet.create({
     minWidth: 320,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
     ...SHADOWS.premium,
   },
@@ -6267,19 +6333,19 @@ const profileStyles = StyleSheet.create({
     minWidth: 300,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
     ...SHADOWS.premium,
   },
   panelTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 16,
   },
   reportSubtitle: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 13,
     lineHeight: 19,
     marginBottom: 14,
@@ -6300,7 +6366,7 @@ const profileStyles = StyleSheet.create({
   exportButton: {
     minHeight: 42,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 14,
@@ -6315,20 +6381,20 @@ const profileStyles = StyleSheet.create({
     flexBasis: '22%',
     minWidth: 90,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     padding: 10,
   },
   reportMetricLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
     textTransform: 'uppercase',
     letterSpacing: 0,
   },
   reportMetricValue: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 20,
     marginTop: 5,
     fontWeight: TYPOGRAPHY.weights.bold,
@@ -6336,8 +6402,8 @@ const profileStyles = StyleSheet.create({
   scoreRow: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 11,
     marginTop: 8,
     flexDirection: 'row',
@@ -6345,18 +6411,18 @@ const profileStyles = StyleSheet.create({
     gap: 10,
   },
   scoreValue: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 15,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   scoreText: {
     flex: 1,
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
   emptyReportText: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.medium,
@@ -6365,8 +6431,8 @@ const profileStyles = StyleSheet.create({
     minHeight: 50,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     paddingHorizontal: 12,
     marginBottom: 8,
     flexDirection: 'row',
@@ -6375,18 +6441,18 @@ const profileStyles = StyleSheet.create({
     gap: 10,
   },
   patientName: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   patientMeta: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     marginTop: 3,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   patientAlerts: {
-    color: '#B91C1C',
+    color: colors.critical,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -6401,24 +6467,24 @@ const profileStyles = StyleSheet.create({
   reviewButton: {
     minHeight: 32,
     borderRadius: 8,
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.primary + '10',
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: colors.primary + '40',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 9,
   },
   reviewButtonText: {
-    color: '#047857',
+    color: colors.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   followUpButton: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FCD34D',
+    backgroundColor: colors.warning + '20',
+    borderColor: colors.warning + '60',
   },
   followUpButtonText: {
-    color: '#92400E',
+    color: colors.warning,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
@@ -6429,7 +6495,7 @@ const profileStyles = StyleSheet.create({
     gap: 7,
   },
   fieldLabel: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     textTransform: 'uppercase',
@@ -6439,26 +6505,26 @@ const profileStyles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
   },
   fieldInput: {
     flex: 1,
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   fieldSuffix: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   saveButton: {
     height: 48,
     borderRadius: 8,
-    backgroundColor: '#0F172A',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 16,
@@ -6468,7 +6534,7 @@ const profileStyles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   saveStateText: {
-    color: '#047857',
+    color: colors.success,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     marginTop: 10,
@@ -6476,7 +6542,7 @@ const profileStyles = StyleSheet.create({
   tableHeader: {
     minHeight: 42,
     borderRadius: 8,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: colors.surfaceLight,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
@@ -6484,20 +6550,20 @@ const profileStyles = StyleSheet.create({
   tableRow: {
     minHeight: 48,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 10,
   },
   th: {
     flex: 1,
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   td: {
     flex: 1,
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semiBold,
   },
@@ -6506,37 +6572,37 @@ const profileStyles = StyleSheet.create({
   },
   statusCell: {
     flex: 1,
-    color: '#047857',
+    color: colors.success,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   urgentStatus: {
-    color: '#DC2626',
+    color: colors.critical,
   },
   reportPreview: {
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#DDE6F0',
-    backgroundColor: '#F8FAFC',
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceLight,
     padding: 12,
     marginTop: 12,
     maxHeight: 260,
   },
   reportPreviewTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 8,
   },
   reportPreviewText: {
-    color: '#334155',
+    color: colors.textSecondary,
     fontSize: 11,
     lineHeight: 17,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
 });
 
-const settingsStyles = StyleSheet.create({
+const getSettingsStyles = (colors) => StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -6548,29 +6614,29 @@ const settingsStyles = StyleSheet.create({
     minWidth: 280,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
     padding: 18,
     ...SHADOWS.premium,
   },
   panelTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 18,
     fontWeight: TYPOGRAPHY.weights.bold,
     marginBottom: 12,
   },
   statusLine: {
-    color: '#475569',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.semiBold,
     marginBottom: 7,
   },
   errorLine: {
-    color: '#B91C1C',
-    backgroundColor: '#FEF2F2',
+    color: colors.critical,
+    backgroundColor: colors.critical + '10',
     borderWidth: 1,
-    borderColor: '#FCA5A5',
+    borderColor: colors.critical + '40',
     borderRadius: 8,
     padding: 10,
     fontSize: 12,
@@ -6586,7 +6652,7 @@ const settingsStyles = StyleSheet.create({
   primaryButton: {
     minHeight: 40,
     borderRadius: 8,
-    backgroundColor: '#047857',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -6599,22 +6665,22 @@ const settingsStyles = StyleSheet.create({
   secondaryButton: {
     minHeight: 40,
     borderRadius: 8,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceLight,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
   },
   secondaryButtonText: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   dangerButton: {
     minHeight: 40,
     borderRadius: 8,
-    backgroundColor: '#B91C1C',
+    backgroundColor: colors.critical,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 12,
@@ -6627,7 +6693,7 @@ const settingsStyles = StyleSheet.create({
   toggleRow: {
     minHeight: 48,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: colors.border,
     paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -6642,12 +6708,12 @@ const settingsStyles = StyleSheet.create({
     width: 38,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#94A3B8',
+    backgroundColor: colors.textMuted,
     padding: 2,
     justifyContent: 'center',
   },
   toggleSwitchActive: {
-    backgroundColor: '#99D8CF',
+    backgroundColor: colors.primary + '40',
   },
   toggleThumb: {
     width: 18,
@@ -6658,22 +6724,22 @@ const settingsStyles = StyleSheet.create({
   },
   toggleThumbActive: {
     alignSelf: 'flex-end',
-    backgroundColor: '#009688',
+    backgroundColor: colors.primary,
   },
   toggleTitle: {
-    color: '#0F172A',
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   toggleHint: {
-    color: '#64748B',
+    color: colors.textMuted,
     fontSize: 11,
     lineHeight: 16,
     marginTop: 3,
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   stateText: {
-    color: '#047857',
+    color: colors.success,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: TYPOGRAPHY.weights.semiBold,
