@@ -2547,6 +2547,7 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
   const context = useContext(HealthContext) || {};
   const colors = context.colors || LIGHT_COLORS;
   const formStyles = getFormStyles(colors);
+  const [temperature, setTemperature] = useState(latest.temperature || 36.8);
   const [pulse, setPulse] = useState(String(latest.pulse || 74));
   const [selectedSymptoms, setSelectedSymptoms] = useState(latest.symptoms || []);
   const [savedMessage, setSavedMessage] = useState('');
@@ -2554,6 +2555,7 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
   const [isSaving, setIsSaving] = useState(false);
   const pulseRate = safeNumber(pulse, 0);
   const validationIssues = [
+    temperature < 34 || temperature > 42 ? 'Temperature must be between 34 and 42 C.' : null,
     pulseRate < 30 || pulseRate > 220 ? 'Pulse must be between 30 and 220 bpm.' : null,
   ].filter(Boolean);
 
@@ -2573,7 +2575,7 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
     setIsSaving(true);
     try {
       const result = await onSaveManualLog({
-        temperature: null,
+        temperature: temperature,
         pulse: pulseRate,
         symptoms: selectedSymptoms,
       });
@@ -2597,6 +2599,7 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
       <SectionHeader title="Log Daily Vitals" subtitle="Fast manual entry designed to reduce data-entry fatigue." />
       <View style={formStyles.recordGuide}>
         {[
+          'Body temperature',
           'Pulse rate',
           'Symptoms',
           'Medicine status',
@@ -2609,6 +2612,10 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
         ))}
       </View>
       <View style={formStyles.formCard}>
+        <View style={formStyles.formSection}>
+          <Text style={formStyles.formLabel}>Body Temperature</Text>
+          <TemperatureSlider value={temperature} onChange={setTemperature} />
+        </View>
 
         <View style={formStyles.formSection}>
           <Text style={formStyles.formLabel}>Pulse Rate</Text>
@@ -3176,8 +3183,6 @@ function ProfileHistoryTab({
       age && safeNumber(age, 0) <= 0 ? 'Age must be greater than zero.' : null,
       weight && safeNumber(weight, 0) <= 0 ? 'Weight must be greater than zero.' : null,
       height && safeNumber(height, 0) <= 0 ? 'Height must be greater than zero.' : null,
-      waterGoal && safeNumber(waterGoal, 0) <= 0 ? 'Water goal must be greater than zero.' : null,
-      stepGoal && safeNumber(stepGoal, 0) <= 0 ? 'Step goal must be greater than zero.' : null,
     ].filter(Boolean);
 
     if (issues.length > 0) {
@@ -3233,12 +3238,12 @@ function ProfileHistoryTab({
         <View style={profileStyles.profilePanel}>
           <Text style={profileStyles.panelTitle}>Baseline Metrics</Text>
           <View style={profileStyles.fieldGrid}>
-            <ProfileField label="Age" value={age} onChangeText={setAge} suffix="yrs" />
-            <ProfileField label="Gender" value={gender} onChangeText={setGender} />
-            <ProfileField label="Weight" value={weight} onChangeText={setWeight} suffix="kg" />
-            <ProfileField label="Blood Group" value={bloodGroup} onChangeText={setBloodGroup} />
-            <ProfileField label="Height" value={height} onChangeText={setHeight} suffix="cm" />
-            <ProfileField label="Diagnosed Conditions" value={conditions} onChangeText={setConditions} />
+            <ProfileField label="Age" value={age} onChangeText={setAge} suffix="yrs" placeholder="e.g., 30" />
+            <ProfileField label="Gender" value={gender} onChangeText={setGender} placeholder="e.g., Male, Female, Other" />
+            <ProfileField label="Weight" value={weight} onChangeText={setWeight} suffix="kg" placeholder="e.g., 70" />
+            <ProfileField label="Blood Group" value={bloodGroup} onChangeText={setBloodGroup} placeholder="e.g., O+, A-" />
+            <ProfileField label="Height" value={height} onChangeText={setHeight} suffix="cm" placeholder="e.g., 175" />
+            <ProfileField label="Diagnosed Conditions" value={conditions} onChangeText={setConditions} placeholder="e.g., Malaria, Hypertension" />
           </View>
           <TouchableOpacity style={[profileStyles.saveButton, isSavingProfile && formStyles.disabledSubmitButton]} activeOpacity={0.85} onPress={saveProfile} disabled={isSavingProfile}>
             <Text style={profileStyles.saveButtonText}>{isSavingProfile ? 'Updating...' : 'Update Baseline'}</Text>
@@ -3317,7 +3322,7 @@ function ProfileHistoryTab({
   );
 }
 
-function ProfileField({ label, value, onChangeText, suffix }) {
+function ProfileField({ label, value, onChangeText, suffix, placeholder }) {
   const context = useContext(HealthContext) || {};
   const colors = context.colors || LIGHT_COLORS;
   const profileStyles = getProfileStyles(colors);
@@ -3325,7 +3330,13 @@ function ProfileField({ label, value, onChangeText, suffix }) {
     <View style={profileStyles.field}>
       <Text style={profileStyles.fieldLabel}>{label}</Text>
       <View style={profileStyles.fieldInputRow}>
-        <TextInput value={value} onChangeText={onChangeText} style={profileStyles.fieldInput} placeholderTextColor={colors.textMuted} />
+        <TextInput 
+          value={value} 
+          onChangeText={onChangeText} 
+          style={profileStyles.fieldInput} 
+          placeholder={placeholder}
+          placeholderTextColor={colors.textMuted} 
+        />
         {suffix ? <Text style={profileStyles.fieldSuffix}>{suffix}</Text> : null}
       </View>
     </View>
