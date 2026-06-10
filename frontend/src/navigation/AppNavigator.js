@@ -2559,7 +2559,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
   const context = useContext(HealthContext) || {};
   const colors = context.colors || LIGHT_COLORS;
   const formStyles = getFormStyles(colors);
-  const [temperature, setTemperature] = useState(latest.temperature || 36.8);
   const [pulse, setPulse] = useState(String(latest.pulse || 74));
   const [selectedSymptoms, setSelectedSymptoms] = useState(latest.symptoms || []);
   const [savedMessage, setSavedMessage] = useState('');
@@ -2567,7 +2566,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
   const [isSaving, setIsSaving] = useState(false);
   const pulseRate = safeNumber(pulse, 0);
   const validationIssues = [
-    temperature < 34 || temperature > 42 ? 'Temperature must be between 34 and 42 C.' : null,
     pulseRate < 30 || pulseRate > 220 ? 'Pulse must be between 30 and 220 bpm.' : null,
   ].filter(Boolean);
 
@@ -2587,7 +2585,7 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
     setIsSaving(true);
     try {
       const result = await onSaveManualLog({
-        temperature: temperature,
+        temperature: null,
         pulse: pulseRate,
         symptoms: selectedSymptoms,
       });
@@ -2611,7 +2609,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
       <SectionHeader title="Log Daily Vitals" subtitle="Fast manual entry designed to reduce data-entry fatigue." />
       <View style={formStyles.recordGuide}>
         {[
-          'Body temperature',
           'Pulse rate',
           'Symptoms',
           'Medicine status',
@@ -2624,11 +2621,6 @@ function LogVitalsTab({ latest, onSaveManualLog }) {
         ))}
       </View>
       <View style={formStyles.formCard}>
-        <View style={formStyles.formSection}>
-          <Text style={formStyles.formLabel}>Body Temperature</Text>
-          <TemperatureSlider value={temperature} onChange={setTemperature} />
-        </View>
-
         <View style={formStyles.formSection}>
           <Text style={formStyles.formLabel}>Pulse Rate</Text>
           <NumericVital
