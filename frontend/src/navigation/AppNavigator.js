@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HealthContext } from '../context/HealthContext';
+import { useToast } from '../context/ToastContext';
+import { ToastTypes } from '../components/Toast';
 import { SHADOWS, TYPOGRAPHY, LIGHT_COLORS, getResponsiveMetrics } from '../styles/theme';
 import djangoApi, { setAuthToken } from '../services/django_api';
 import HomeScreen from '../screens/HomeScreen';
@@ -1865,7 +1867,10 @@ function DashboardTab({
 }) {
   const context = useContext(HealthContext) || {};
   const colors = context.colors || LIGHT_COLORS;
+  const connectionStatus = context.connectionStatus || 'online';
+  const isManualOffline = context.isManualOffline || false;
   const dashboardStyles = getDashboardStyles(colors);
+  const { showToast } = useToast();
   const symptoms = latest.symptoms?.length ? latest.symptoms.join(', ') : 'No active symptoms';
   const statistics = calculateDashboardStats(logs);
   const [wearableTemp, setWearableTemp] = useState(null);
@@ -1952,6 +1957,13 @@ function DashboardTab({
 
   const connectWearable = async (type) => {
     setBleError(null);
+    
+    // Check if offline first
+    if (connectionStatus === 'offline' || isManualOffline) {
+      showToast('You are offline! Please connect to the internet to use wearable devices.', ToastTypes.WARNING);
+      return;
+    }
+    
     if (type === 'temp') setConnectingTemp(true);
     else setConnectingPulse(true);
     
